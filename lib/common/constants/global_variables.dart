@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/account/screens/account_screen.dart';
+import 'package:frontend/features/chat/screens/channel_messages_screen.dart';
 import 'package:frontend/features/home/screens/home_screen.dart';
-import 'package:frontend/features/projects/screens/projects_screen.dart';
 import 'package:frontend/features/tasks/screens/tasks_screen.dart';
-import 'package:frontend/features/teams/screens/teams_screen.dart';
 
-String uri = "http://192.168.1.5:3000";
+//String uri = "https://projexy-backend.me";
+String uri = "http://192.168.1.9:3000";
 const webScreenSize = 600;
 List<Widget> bottomBarItems = [
   const HomeScreen(),
-  const ProjectsScreen(),
   const TasksScreen(),
-  const TeamsScreen(),
+  const ChannelMessagesScreen(),
   const AccountScreen(),
 ];
 

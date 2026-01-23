@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -10,6 +11,11 @@ class FCMService {
   static bool _initialized = false;
   static bool _isInitializing = false;
   static String? _currentUserId; // Track current user
+  
+  // Stream subscriptions to properly cancel listeners
+  static StreamSubscription<String>? _tokenRefreshSubscription;
+  static StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
+  static StreamSubscription<RemoteMessage>? _messageOpenedSubscription;
 
   /// Initialize FCM
   static Future<void> initialize(BuildContext context, {String? userId}) async {
@@ -78,8 +84,9 @@ class FCMService {
         }
       }
 
-      // Listen for token refresh
-      _firebaseMessaging.onTokenRefresh.listen((newToken) async {
+      // Listen for token refresh - store subscription for cleanup
+      _tokenRefreshSubscription?.cancel();
+      _tokenRefreshSubscription = _firebaseMessaging.onTokenRefresh.listen((newToken) async {
         debugPrint('🔄 FCM Token refreshed');
         if (context.mounted) {
           await NotificationService.saveFCMToken(
@@ -91,8 +98,9 @@ class FCMService {
         }
       });
 
-      // Handle foreground messages
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // Handle foreground messages - store subscription for cleanup
+      _foregroundMessageSubscription?.cancel();
+      _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         debugPrint('📬 FCM: Foreground message received');
         if (message.notification != null) {
           // Show in-app notification
@@ -100,8 +108,9 @@ class FCMService {
         }
       });
 
-      // Handle background messages
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      // Handle background messages - store subscription for cleanup
+      _messageOpenedSubscription?.cancel();
+      _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         debugPrint('📱 FCM: App opened from notification');
         _handleNotificationTap(context, message);
       });
@@ -220,6 +229,14 @@ class FCMService {
   /// Unregister FCM token (call when user logs out)
   static Future<void> unregister(BuildContext context) async {
     try {
+      // Cancel all stream subscriptions first to prevent stale context issues
+      await _tokenRefreshSubscription?.cancel();
+      _tokenRefreshSubscription = null;
+      await _foregroundMessageSubscription?.cancel();
+      _foregroundMessageSubscription = null;
+      await _messageOpenedSubscription?.cancel();
+      _messageOpenedSubscription = null;
+
       String? token = await _firebaseMessaging.getToken();
       if (token != null && context.mounted) {
         await NotificationService.deleteFCMToken(

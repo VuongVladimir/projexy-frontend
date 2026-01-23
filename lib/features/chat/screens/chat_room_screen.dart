@@ -3,25 +3,31 @@ import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/services/stream_chat_service.dart';
 import 'package:frontend/features/chat/screens/chat_info_screen.dart';
+import 'package:frontend/features/chat/widgets/channel_avatar_widget.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
-class ProjectChatScreen extends StatefulWidget {
-  static const String routeName = '/project-chat';
+class ChatRoomScreen extends StatefulWidget {
+  static const String routeName = '/chat-room';
 
-  final String projectId;
-  final String projectTitle;
+  final String? projectId;
+  final String? projectTitle;
+  final Channel? channel;
 
-  const ProjectChatScreen({
+  const ChatRoomScreen({
     super.key,
-    required this.projectId,
-    required this.projectTitle,
-  });
+    this.projectId,
+    this.projectTitle,
+    this.channel,
+  }) : assert(
+          channel != null || (projectId != null && projectTitle != null),
+          'Either channel or projectId/projectTitle must be provided.',
+        );
 
   @override
-  State<ProjectChatScreen> createState() => _ProjectChatScreenState();
+  State<ChatRoomScreen> createState() => _ChatRoomScreenState();
 }
 
-class _ProjectChatScreenState extends State<ProjectChatScreen> {
+class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Channel? _channel;
   bool _isLoading = true;
   String? _error;
@@ -48,10 +54,17 @@ class _ProjectChatScreenState extends State<ProjectChatScreen> {
         throw Exception('Stream Chat chưa được khởi tạo');
       }
 
-      // Watch channel
-      final channel = await StreamChatService.watchProjectChannel(
-        widget.projectId,
-      );
+      Channel? channel;
+      if (widget.channel != null) {
+        channel = widget.channel!;
+        await channel.watch();
+      } else if (widget.projectId != null) {
+        // Watch channel theo project
+        channel = await StreamChatService.watchProjectChannel(
+          widget.projectId!,
+          projectTitle: widget.projectTitle,
+        );
+      }
 
       if (channel == null) {
         throw Exception('Không thể kết nối đến channel');
@@ -73,13 +86,17 @@ class _ProjectChatScreenState extends State<ProjectChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final displayTitle = _resolveChannelTitle(
+      _channel,
+      fallbackTitle: widget.projectTitle,
+    );
 
     if (_isLoading) {
       return Scaffold(
         backgroundColor: isDarkMode
             ? GlobalVariables.darkBackgroundPrimary
             : GlobalVariables.backgroundPrimary,
-        appBar: AppBar(title: Text(widget.projectTitle), centerTitle: true),
+        appBar: AppBar(title: Text(displayTitle), centerTitle: true),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -89,7 +106,7 @@ class _ProjectChatScreenState extends State<ProjectChatScreen> {
         backgroundColor: isDarkMode
             ? GlobalVariables.darkBackgroundPrimary
             : GlobalVariables.backgroundPrimary,
-        appBar: AppBar(title: Text(widget.projectTitle), centerTitle: true),
+        appBar: AppBar(title: Text(displayTitle), centerTitle: true),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
@@ -166,7 +183,6 @@ class _ProjectChatScreenState extends State<ProjectChatScreen> {
                   MaterialPageRoute(
                     builder: (_) => ChatInfoScreen(
                       channel: _channel!,
-                      projectTitle: widget.projectTitle,
                     ),
                   ),
                 );
@@ -174,7 +190,7 @@ class _ProjectChatScreenState extends State<ProjectChatScreen> {
             ),
           ],
           title: Text(
-            widget.projectTitle,
+            displayTitle,
             style: TextStyle(
               color: isDarkMode
                   ? GlobalVariables.darkTextPrimary
@@ -289,6 +305,43 @@ class _ProjectChatScreenState extends State<ProjectChatScreen> {
     }
   }
 
+  String _resolveChannelTitle(
+    Channel? channel, {
+    String? fallbackTitle,
+  }) {
+    if (fallbackTitle != null && fallbackTitle.isNotEmpty) {
+      return fallbackTitle;
+    }
+
+    if (channel == null) return 'Chat';
+
+    final isDirect = _isDirectChannel(channel);
+    if (isDirect) {
+      final currentUserId = StreamChatService.currentUserId;
+      final members = channel.state?.members ?? const <Member>[];
+      Member? other;
+      for (final member in members) {
+        if (member.user?.id != currentUserId) {
+          other = member;
+          break;
+        }
+      }
+      final name = other?.user?.name ?? other?.user?.id ?? '';
+      if (name.trim().isNotEmpty) return name;
+    }
+
+    final displayName = channel.getDisplayName();
+    if (displayName.trim().isNotEmpty) return displayName;
+
+    return 'Chat';
+  }
+
+  bool _isDirectChannel(Channel channel) {
+    final isMessaging = channel.type == 'messaging';
+    final memberCount = channel.memberCount ?? channel.state?.members.length ?? 0;
+    final isExplicitTeam = channel.extraData['is_team'] == true;
+    return isMessaging && memberCount <= 2 && !isExplicitTeam;
+  }
 
   @override
   void dispose() {

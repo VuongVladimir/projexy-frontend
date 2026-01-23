@@ -127,7 +127,11 @@ class StreamChatService {
   }
 
   /// Watch channel (subscribe to updates)
-  static Future<Channel?> watchProjectChannel(String projectId) async {
+  /// Nếu channel chưa tồn tại, cung cấp projectTitle để tạo channel đúng dữ liệu
+  static Future<Channel?> watchProjectChannel(
+    String projectId, {
+    String? projectTitle,
+  }) async {
     try {
       // Đảm bảo user hiện tại là member của channel (server-side)
       try {
@@ -138,13 +142,111 @@ class StreamChatService {
         debugPrint('ensure-member failed (will try watch anyway): $e');
       }
 
-      final channel = getProjectChannel(projectId);
+      final normalizedTitle = projectTitle?.trim();
+      final hasTitle = normalizedTitle != null && normalizedTitle.isNotEmpty;
+      final channel = hasTitle
+          ? _client!.channel(
+              'team',
+              id: projectId,
+              extraData: {
+                'name': normalizedTitle,
+                'category': 'project',
+                'project_id': projectId,
+                'project_title': normalizedTitle,
+                if (_currentUserId != null) 'members': [_currentUserId!],
+              },
+            )
+          : getProjectChannel(projectId);
       if (channel == null) return null;
 
       await channel.watch();
+
+      if (hasTitle) {
+        final currentName = channel.name?.trim() ?? '';
+        final category = channel.extraData['category'];
+        final projectIdValue = channel.extraData['project_id'];
+        final projectTitleValue = channel.extraData['project_title'];
+        final needsUpdate = currentName.isEmpty ||
+            category != 'project' ||
+            projectIdValue == null ||
+            (projectTitleValue is! String || projectTitleValue.trim().isEmpty);
+
+        if (needsUpdate) {
+          try {
+            await channel.update({
+              'name': normalizedTitle,
+              'category': 'project',
+              'project_id': projectId,
+              'project_title': normalizedTitle,
+            });
+          } catch (e) {
+            debugPrint('Failed to normalize project channel data: $e');
+          }
+        }
+      }
+
       return channel;
     } catch (e) {
       debugPrint('Error watching channel: $e');
+      return null;
+    }
+  }
+
+  /// Watch generic channel by ID and Type
+  static Future<Channel?> watchChannel({
+    required String channelId,
+    required String channelType,
+    String? category, // 'project', 'team', 'direct'
+  }) async {
+    try {
+      // Ensure member endpoint supports type now
+      try {
+        await ApiClient.post(
+          url:
+              '$uri/api/stream-chat/channel/$channelId/ensure-member?type=$channelType',
+        );
+      } catch (e) {
+        debugPrint(
+            'ensure-member failed for $channelType (will try watch anyway): $e');
+      }
+
+      final channel = _client!.channel(channelType, id: channelId);
+      await channel.watch();
+      return channel;
+    } catch (e) {
+      debugPrint('Error watching channel $channelId ($channelType): $e');
+      return null;
+    }
+  }
+
+  /// Helper for Team Channel
+  static Future<Channel?> watchTeamChannel(String teamId) {
+    return watchChannel(
+      channelId: teamId,
+      channelType: 'team',
+      category: 'team',
+    );
+  }
+
+  /// Create and Watch Direct Chat
+  static Future<Channel?> createAndWatchDirectChat(String otherUserId) async {
+    if (_client == null || _currentUserId == null) return null;
+
+    try {
+      // Client-side channel creation for messaging implies "distinct: true" usually,
+      // but here we want to use a deterministic ID logic or let backend handle it.
+      // Since we updated backend `createDirectChannel`, we could call an API endpoint,
+      // OR we can just use client-side logic if we trust the user.
+      // Stream best practice for 1-1:
+      final channel = _client!.channel('messaging', extraData: {
+        'members': [_currentUserId!, otherUserId],
+        'category': 'direct',
+      });
+      
+      await channel.watch();
+      return channel;
+    } catch (e) {
+      debugPrint('Error creating direct chat: $e');
       return null;
     }
   }
@@ -156,4 +258,76 @@ class StreamChatService {
 
   /// Lấy current user ID
   static String? get currentUserId => _currentUserId;
+
+  /// Cập nhật avatar cho channel (project/team channel only)
+  /// Upload ảnh lên Cloudinary trước, sau đó gọi API này với URL
+  /// @param channelId - ID của channel
+  /// @param channelType - Loại channel (team, messaging)
+  /// @param avatarUrl - URL ảnh avatar (từ Cloudinary)
+  /// @param avatarColor - Màu avatar (hex color)
+  /// @returns true nếu thành công, false nếu thất bại
+  static Future<bool> updateChannelAvatar({
+    required String channelId,
+    String channelType = 'team',
+    String? avatarUrl,
+    String? avatarColor,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (avatarUrl != null) {
+        body['avatarUrl'] = avatarUrl;
+      }
+      if (avatarColor != null) {
+        body['avatarColor'] = avatarColor;
+      }
+
+      final response = await ApiClient.put(
+        url: '$uri/api/stream-chat/channel/$channelId/avatar?type=$channelType',
+        body: json.encode(body),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('✅ Channel avatar updated successfully');
+        return true;
+      } else {
+        final errorData = json.decode(response.body);
+        debugPrint('❌ Failed to update channel avatar: ${errorData['msg'] ?? errorData['error']}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ Error updating channel avatar: $e');
+      return false;
+    }
+  }
+
+  /// Cập nhật avatar cho channel trực tiếp qua Stream SDK (client-side)
+  /// Sử dụng khi cần cập nhật nhanh mà không cần qua backend
+  static Future<bool> updateChannelAvatarDirect({
+    required Channel channel,
+    String? avatarUrl,
+    String? avatarColor,
+    bool clearImage = false,
+  }) async {
+    try {
+      final updateData = <String, dynamic>{};
+      final unsetFields = <String>[];
+      if (avatarUrl != null) {
+        updateData['image'] = avatarUrl;
+      } else if (clearImage) {
+        unsetFields.add('image');
+      }
+      if (avatarColor != null) {
+        updateData['avatarColor'] = avatarColor;
+      }
+
+      if (updateData.isEmpty && unsetFields.isEmpty) return true;
+
+      await channel.updatePartial(set: updateData, unset: unsetFields);
+      debugPrint('✅ Channel avatar updated directly via Stream SDK');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error updating channel avatar directly: $e');
+      return false;
+    }
+  }
 }

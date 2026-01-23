@@ -44,12 +44,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       context: context,
       taskId: widget.taskId,
       onSuccess: (task) {
-        setState(() {
-          _task = task;
-          _isLoading = false;
-        });
+        // Set task first
+        _task = task;
+        
+        // Gọi song song cả project và subtasks để giảm thời gian chờ
         _loadProject();
         _loadSubtasks();
+        
+        setState(() {
+          _isLoading = false;
+        });
       },
     );
   }

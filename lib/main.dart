@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:frontend/common/constants/http_handling.dart';
 import 'package:frontend/common/constants/theme_config.dart';
 import 'package:frontend/common/services/fcm_service.dart';
 import 'package:frontend/common/services/stream_chat_service.dart';
@@ -55,6 +56,36 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final AuthService authService = AuthService();
+  bool _isCheckingAuth = true;
+  bool _hasValidToken = false;
+  bool _userDataLoaded = false; // Flag to prevent multiple getUserData calls
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthStatus();
+  }
+
+  Future<void> _checkAuthStatus() async {
+    try {
+      // Kiểm tra token từ SharedPreferences (không phải UserProvider)
+      final hasToken = await TokenManager.hasValidToken();
+      if (mounted) {
+        setState(() {
+          _hasValidToken = hasToken;
+          _isCheckingAuth = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking auth status: $e');
+      if (mounted) {
+        setState(() {
+          _hasValidToken = false;
+          _isCheckingAuth = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,27 +118,39 @@ class _MyAppState extends State<MyApp> {
           },
           home: Builder(
             builder: (context) {
-              // Kiểm tra xem user đã đăng nhập chưa
-              final user = Provider.of<UserProvider>(context).user;
-              final bool isAuthenticated = user.token.isNotEmpty;
-
-              // Chỉ gọi getUserData khi app khởi động VÀ có token
-              // Sử dụng WidgetsBinding để đảm bảo context đã sẵn sàng
-              if (isAuthenticated) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  // Chỉ gọi nếu user.id rỗng (chưa load data)
-                  if (user.id.isEmpty) {
-                    authService.getUserData(context);
-                  }
-                });
+              // Hiển thị loading khi đang kiểm tra trạng thái đăng nhập
+              if (_isCheckingAuth) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
               }
 
-              return isAuthenticated
-                  ? const ResponsiveLayout(
-                      WebScreenLayout(),
-                      MobileScreenLayout(),
-                    )
-                  : const LoginScreen();
+              // Nếu có token hợp lệ trong SharedPreferences
+              if (_hasValidToken) {
+                // Lấy thông tin user từ UserProvider
+                final user = Provider.of<UserProvider>(context).user;
+                debugPrint(
+                  'Main Dart Has Valid Token: $_hasValidToken, User Token: ${user.token}',
+                );
+
+                // Gọi getUserData để load thông tin user - chỉ gọi MỘT LẦN
+                if (!_userDataLoaded && user.id.isEmpty) {
+                  _userDataLoaded = true; // Mark as loading to prevent duplicate calls
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (context.mounted) {
+                      authService.getUserData(context);
+                    }
+                  });
+                }
+
+                return const ResponsiveLayout(
+                  WebScreenLayout(),
+                  MobileScreenLayout(),
+                );
+              }
+
+              // Không có token hợp lệ -> về màn hình đăng nhập
+              return const LoginScreen();
             },
           ),
         );

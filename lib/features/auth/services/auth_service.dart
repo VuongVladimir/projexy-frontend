@@ -173,7 +173,7 @@ class AuthService {
             data['accessToken'],
             data['refreshToken'],
           );
-          getUserData(context);
+          await getUserData(context);
           if (!context.mounted) return;
           Navigator.pushNamedAndRemoveUntil(
             context,
@@ -192,10 +192,10 @@ class AuthService {
   }
 
   static bool _servicesInitialized = false;
-  static String? _currentUserId; // Track current user ID
+  static String? _currentUserId;
 
   // get user data - sử dụng ApiClient với auto-retry
-  void getUserData(BuildContext context) async {
+  Future<void> getUserData(BuildContext context) async {
     try {
       final userRes = await ApiClient.get(url: '$uri/auth/me');
 
@@ -208,7 +208,6 @@ class AuthService {
           userProvider.setUser(userRes.body);
 
           final user = userProvider.user;
-
           // Chỉ initialize services một lần CHO USER HIỆN TẠI
           // Reset flag nếu user ID thay đổi
           if (!_servicesInitialized || _currentUserId != user.id) {
@@ -227,18 +226,33 @@ class AuthService {
             }
           }
         },
-        onUnauthorized: () {
-          // Khi token không hợp lệ hoặc hết hạn, về login
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            LoginScreen.routeName,
-            (route) => false,
-          );
+        onUnauthorized: () async {
+          // Khi token không hợp lệ hoặc hết hạn
+          // Clear tokens và reset state
+          await TokenManager.clearTokens();
+          _servicesInitialized = false;
+          _currentUserId = null;
+
+          if (context.mounted) {
+            Provider.of<UserProvider>(context, listen: false).clearUser();
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              LoginScreen.routeName,
+              (route) => false,
+            );
+          }
         },
       );
     } catch (e) {
+      debugPrint('Error in getUserData: $e');
       if (context.mounted) {
         if (e.toString().contains('No valid token available')) {
+          // Clear tokens và reset state
+          await TokenManager.clearTokens();
+          _servicesInitialized = false;
+          _currentUserId = null;
+          Provider.of<UserProvider>(context, listen: false).clearUser();
+
           Navigator.pushNamedAndRemoveUntil(
             context,
             LoginScreen.routeName,
@@ -279,6 +293,9 @@ class AuthService {
 
   Future<void> logOut(BuildContext context) async {
     try {
+      // Store UserProvider reference before any async operations
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+
       // Unregister FCM token before logout
       await FCMService.unregister(context);
 
@@ -290,7 +307,7 @@ class AuthService {
         await ApiClient.post(url: '$uri/auth/logout');
       } catch (e) {
         // Ignore logout API errors, vẫn clear tokens local
-        print('Logout API error: $e');
+        debugPrint('Logout API error: $e');
       }
 
       // Clear stored tokens sử dụng TokenManager
@@ -298,18 +315,17 @@ class AuthService {
 
       // Reset services initialization flag
       _servicesInitialized = false;
+      _currentUserId = null;
 
-      // Navigate to login trước khi clear user để tránh lỗi render
+      // Clear UserProvider TRƯỚC KHI navigate để đảm bảo state được reset
+      userProvider.clearUser();
+
+      // Navigate to login
       Navigator.pushNamedAndRemoveUntil(
         context,
         LoginScreen.routeName,
         (route) => false,
       );
-
-      // Clear UserProvider SAU KHI đã navigate
-      if (context.mounted) {
-        Provider.of<UserProvider>(context, listen: false).clearUser();
-      }
     } catch (e) {
       showSnackBar(context, e.toString());
     }

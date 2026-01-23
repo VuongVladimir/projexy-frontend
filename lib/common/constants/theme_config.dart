@@ -23,7 +23,7 @@ class ThemeConfig {
       outline: GlobalVariables.borderPrimary,
     ),
 
-    scaffoldBackgroundColor: GlobalVariables.backgroundSecondary,
+    scaffoldBackgroundColor: GlobalVariables.white,
 
     appBarTheme: AppBarTheme(
       backgroundColor: Colors.white,

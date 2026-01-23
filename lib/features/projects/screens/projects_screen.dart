@@ -130,7 +130,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   Timer? _debounceTimer;
   void _debounceSearch() {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 1000), () {
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
       _loadProjects(refresh: true);
     });
   }

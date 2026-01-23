@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/task_card.dart';
-import 'package:frontend/features/chat/screens/project_chat_screen.dart';
+import 'package:frontend/features/chat/screens/chat_room_screen.dart';
 import 'package:frontend/features/notifications/services/invitation_service.dart';
 import 'package:frontend/features/projects/services/projects_service.dart';
 import 'package:frontend/features/projects/widgets/member_invitation_form.dart';
@@ -74,13 +74,19 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
             joinedAt: DateTime.now(),
           ),
         );
-        setState(() {
-          _project = project;
-          _isLoading = false;
-          _isOwner = isOwner;
-          _currentUserMember = currentUserMember;
-        });
+        
+        // Set project first, then immediately start loading tasks
+        _project = project;
+        _isOwner = isOwner;
+        _currentUserMember = currentUserMember;
+        
+        // Gọi load tasks ngay lập tức (không đợi setState rebuild)
         _loadTasks();
+        
+        // Sau đó mới setState để trigger rebuild
+        setState(() {
+          _isLoading = false;
+        });
       },
     );
   }
@@ -617,8 +623,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       TaskDetailScreen.routeName,
       arguments: {'taskId': task.id},
     ).then((_) {
-      _loadTasks(); // Reload tasks khi quay lại
-      _loadProjectDetails(); // Reload project để cập nhật progress
+      // Chỉ reload data khi cần thiết - gọi hàm kết hợp để tránh N+1 calls
+      _refreshAfterTaskChange();
     });
   }
 
@@ -629,10 +635,20 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       taskId: task.id,
       status: newStatus,
       onSuccess: () {
-        _loadTasks(); // Reload tasks after status update
-        _loadProjectDetails(); // Reload project để cập nhật progress
+        // Reload data sau khi update status
+        _refreshAfterTaskChange();
       },
     );
+  }
+
+  /// Hàm kết hợp để refresh data sau khi có thay đổi task
+  /// Gọi song song cả tasks và project details để tối ưu hiệu năng
+  Future<void> _refreshAfterTaskChange() async {
+    // Gọi song song cả hai để giảm thời gian chờ
+    await Future.wait([
+      _loadTasks(),
+      _loadProjectDetails(),
+    ]);
   }
 
   Widget _buildEmptyTasksState(
@@ -1305,7 +1321,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ProjectChatScreen(
+        builder: (context) => ChatRoomScreen(
           projectId: _project!.id,
           projectTitle: _project!.title,
         ),

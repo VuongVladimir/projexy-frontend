@@ -58,18 +58,16 @@ class _MobileScreenLayoutState extends State<MobileScreenLayout>
     // Danh sách các nhãn tương ứng với các biểu tượng
     final List<String> labels = [
       'home'.tr(),
-      'projects'.tr(),
       'tasks'.tr(),
-      'teams'.tr(),
+      'messages'.tr(),
       'account'.tr(),
     ];
 
     // Danh sách các biểu tượng
     final List<IconData> icons = [
       Symbols.home_filled,
-      Symbols.docs,
       Symbols.list_alt_check,
-      Symbols.diversity_2,
+      Symbols.sms,
       Symbols.manage_accounts,
     ];
 

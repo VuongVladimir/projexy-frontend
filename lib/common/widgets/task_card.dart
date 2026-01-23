@@ -26,148 +26,157 @@ class TaskCard extends StatelessWidget {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: isDarkMode
+            ? GlobalVariables.darkSurfaceCard
+            : GlobalVariables.surfaceCard,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
           color: isDarkMode
-              ? GlobalVariables.darkSurfaceCard
-              : GlobalVariables.surfaceCard,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isDarkMode
-                ? GlobalVariables.darkBorderPrimary
-                : GlobalVariables.borderPrimary,
-            width: 1,
-          ),
+              ? GlobalVariables.darkBorderPrimary
+              : GlobalVariables.borderPrimary,
+          width: 1,
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (!isHomeScreen) ...[
-              GestureDetector(
-                onTap: () {
-                  if (onStatusChanged != null) {
-                    onStatusChanged!(!task.isCompleted);
-                  }
-                },
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: task.isCompleted
-                        ? GlobalVariables.primaryBlue
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: task.isCompleted
-                          ? GlobalVariables.primaryBlue
-                          : (isDarkMode
-                                ? GlobalVariables.darkBorderSecondary
-                                : GlobalVariables.borderSecondary),
-                      width: 2,
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: task.isCompleted
-                      ? const Icon(Icons.check, color: Colors.white, size: 16)
-                      : null,
-                ),
-              ),
-            ],
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    task.title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 23,
-                      color: isDarkMode
-                          ? GlobalVariables.darkTextPrimary
-                          : GlobalVariables.textPrimary,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 3),
-                  // Subtask count
-                  if (task.subTaskCount > 0)
-                    Text(
-                      tr(
-                        'subtask_count',
-                        namedArgs: {'count': task.subTaskCount.toString()},
-                      ),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: isDarkMode
-                            ? GlobalVariables.darkTextSecondary
-                            : GlobalVariables.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  const SizedBox(height: 10),
-                  _buildCompactPriorityChip(context),
-                ],
-              ),
-            ),
-            const Spacer(),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                SizedBox(
-                  width: 26,
-                  height: 26,
-                  child: Stack(
-                    children: [
-                      CircularProgressIndicator(
-                        value: task.progressPercentage,
-                        backgroundColor: isDarkMode
-                            ? GlobalVariables.darkBorderPrimary
-                            : GlobalVariables.borderPrimary,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          GlobalVariables.secondaryCoral,
+                if (!isHomeScreen) ...[
+                  GestureDetector(
+                    onTap: () {
+                      if (onStatusChanged != null) {
+                        onStatusChanged!(!task.isCompleted);
+                      }
+                    },
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: task.isCompleted
+                            ? GlobalVariables.primaryBlue
+                            : Colors.transparent,
+                        border: Border.all(
+                          color: task.isCompleted
+                              ? GlobalVariables.primaryBlue
+                              : (isDarkMode
+                                    ? GlobalVariables.darkBorderSecondary
+                                    : GlobalVariables.borderSecondary),
+                          width: 2,
                         ),
-                        strokeWidth: 3,
+                        shape: BoxShape.circle,
                       ),
-                      Center(
-                        child: Text(
-                          '${task.progress}%',
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
+                      child: task.isCompleted
+                          ? const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 16,
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 23,
+                          color: isDarkMode
+                              ? GlobalVariables.darkTextPrimary
+                              : GlobalVariables.textPrimary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      // Subtask count
+                      if (task.subTaskCount > 0)
+                        Text(
+                          tr(
+                            'subtask_count',
+                            namedArgs: {'count': task.subTaskCount.toString()},
+                          ),
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: isDarkMode
-                                ? GlobalVariables.darkTextPrimary
-                                : GlobalVariables.textPrimary,
+                                ? GlobalVariables.darkTextSecondary
+                                : GlobalVariables.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
+                      const SizedBox(height: 10),
+                      _buildCompactPriorityChip(context),
                     ],
                   ),
                 ),
-                const SizedBox(height: 21),
-                if (task.assignedTo.isNotEmpty)
-                  GestureDetector(
-                    onTap: () => _showAssigneesBottomSheet(context),
-                    child: _buildAvatarStack(isDarkMode),
-                  )
-                else
-                  Text(
-                    tr('no_assignment'),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: isDarkMode
-                          ? GlobalVariables.darkTextTertiary
-                          : GlobalVariables.textTertiary,
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
+                const Spacer(),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    SizedBox(
+                      width: 26,
+                      height: 26,
+                      child: Stack(
+                        children: [
+                          CircularProgressIndicator(
+                            value: task.progressPercentage,
+                            backgroundColor: isDarkMode
+                                ? GlobalVariables.darkBorderPrimary
+                                : GlobalVariables.borderPrimary,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              GlobalVariables.secondaryCoral,
+                            ),
+                            strokeWidth: 3,
+                          ),
+                          Center(
+                            child: Text(
+                              '${task.progress}%',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                                color: isDarkMode
+                                    ? GlobalVariables.darkTextPrimary
+                                    : GlobalVariables.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 21),
+                    if (task.assignedTo.isNotEmpty)
+                      GestureDetector(
+                        onTap: () => _showAssigneesBottomSheet(context),
+                        child: _buildAvatarStack(isDarkMode),
+                      )
+                    else
+                      Text(
+                        tr('no_assignment'),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isDarkMode
+                              ? GlobalVariables.darkTextTertiary
+                              : GlobalVariables.textTertiary,
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

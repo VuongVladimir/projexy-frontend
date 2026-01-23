@@ -46,6 +46,27 @@ class TokenManager {
     await prefs.remove(REFRESH_TOKEN_KEY);
   }
 
+  // Kiểm tra xem có token hợp lệ không (có thể dùng để check khi app khởi động)
+  static Future<bool> hasValidToken() async {
+    final accessToken = await getAccessToken();
+    if (accessToken != null && accessToken.isNotEmpty) {
+      return true;
+    }
+    // Nếu không có access token, kiểm tra refresh token
+    final refreshToken = await getRefreshToken();
+    return refreshToken != null && refreshToken.isNotEmpty;
+  }
+
+  // Thử lấy token hợp lệ (access hoặc refresh nếu cần)
+  static Future<String?> getValidAccessToken() async {
+    String? accessToken = await getAccessToken();
+    if (accessToken != null && accessToken.isNotEmpty) {
+      return accessToken;
+    }
+    // Thử refresh token
+    return await refreshAccessToken();
+  }
+
   // Refresh access token
   static Future<String?> refreshAccessToken() async {
     try {
@@ -109,7 +130,10 @@ void httpResponseHandle({
 }
 
 // Xử lý khi unauthorized - chuyển về màn hình login
-void _handleUnauthorized(BuildContext context) {
+Future<void> _handleUnauthorized(BuildContext context) async {
+  // Clear tokens trước
+  await TokenManager.clearTokens();
+
   if (context.mounted) {
     showSnackBar(
       context,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/account/screens/edit_profile_screen.dart';
 import 'package:frontend/features/account/screens/notifications_management.dart';
+import 'package:frontend/features/chat/screens/channel_messages_screen.dart';
 import 'package:frontend/models/project.dart';
 import 'package:frontend/features/account/screens/profile_screen.dart';
 import 'package:frontend/features/account/screens/setting_screen.dart';
@@ -174,6 +175,12 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
           task: task,
           project: project,
         ),
+      );
+
+    case ChannelMessagesScreen.routeName:
+      return MaterialPageRoute(
+        settings: routeSettings,
+        builder: (_) => const ChannelMessagesScreen(),
       );
 
     default:
