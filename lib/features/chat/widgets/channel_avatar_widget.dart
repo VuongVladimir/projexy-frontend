@@ -113,7 +113,7 @@ class ChannelAvatarWidget extends StatelessWidget {
     try {
       return avatarColorHex.toColor();
     } catch (_) {
-      return GlobalVariables.primaryBlue;
+      return GlobalVariables.blueAvatar;
     }
   }
 
@@ -155,11 +155,11 @@ extension ChannelAvatarExtension on Channel {
 
   /// Lấy avatarColor của channel
   Color get avatarColor {
-    final colorHex = (extraData['avatarColor'] as String?) ?? '#3443FD';
+    final colorHex = (extraData['avatarColor'] as String?) ?? '#4285F4';
     try {
       return colorHex.toColor();
     } catch (_) {
-      return GlobalVariables.primaryBlue;
+      return GlobalVariables.blueAvatar;
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
+import 'package:frontend/common/constants/utils.dart';
 import 'package:frontend/common/services/stream_chat_service.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/features/chat/screens/chat_room_screen.dart';
@@ -166,6 +167,8 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
                               channel: channel,
                               isDarkMode: isDarkMode,
                               onTap: () => _openChannel(context, channel),
+                              onLongPress: () =>
+                                  _showChannelActions(context, channel),
                             );
                           },
                         ),
@@ -447,17 +450,84 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
       context,
     ).push(MaterialPageRoute(builder: (_) => ChatRoomScreen(channel: channel)));
   }
+
+  void _showChannelActions(BuildContext context, Channel channel) {
+    if (!channel.isDirectChannel) return;
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text(
+                  'Xóa cuộc trò chuyện',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _confirmDeleteDirectChannel(channel);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmDeleteDirectChannel(Channel channel) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Xóa cuộc trò chuyện?'),
+          content:
+              const Text('Thao tác này sẽ xóa channel direct cho cả hai bên.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Hủy'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                'Xóa',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) return;
+
+    final success = await StreamChatService.deleteChannel(channel);
+    if (!mounted) return;
+
+    if (success) {
+      showSnackBar(context, 'Đã xóa cuộc trò chuyện');
+      _listController?.refresh();
+    } else {
+      showSnackBar(context, 'Không thể xóa cuộc trò chuyện');
+    }
+  }
 }
 
 class _ChannelPreviewTile extends StatelessWidget {
   final Channel channel;
   final bool isDarkMode;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   const _ChannelPreviewTile({
     required this.channel,
     required this.isDarkMode,
     required this.onTap,
+    this.onLongPress,
   });
 
   @override
@@ -483,6 +553,7 @@ class _ChannelPreviewTile extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               onTap: onTap,
+              onLongPress: onLongPress,
               child: Padding(
                 padding: const EdgeInsets.all(9),
                 child: Row(

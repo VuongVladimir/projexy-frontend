@@ -230,24 +230,69 @@ class StreamChatService {
 
   /// Create and Watch Direct Chat
   static Future<Channel?> createAndWatchDirectChat(String otherUserId) async {
-    if (_client == null || _currentUserId == null) return null;
+    if (_client == null) {
+      debugPrint('createAndWatchDirectChat aborted: client is null');
+      return null;
+    }
+
+    if (_currentUserId == null) {
+      _currentUserId = _client!.state.currentUser?.id;
+      debugPrint(
+        'createAndWatchDirectChat: currentUserId fallback from client state = $_currentUserId',
+      );
+    }
+
+    if (_currentUserId == null) {
+      debugPrint('createAndWatchDirectChat aborted: currentUserId is null');
+      return null;
+    }
 
     try {
-      // Client-side channel creation for messaging implies "distinct: true" usually,
-      // but here we want to use a deterministic ID logic or let backend handle it.
-      // Since we updated backend `createDirectChannel`, we could call an API endpoint,
-      // OR we can just use client-side logic if we trust the user.
-      // Stream best practice for 1-1:
-      final channel = _client!.channel('messaging', extraData: {
-        'members': [_currentUserId!, otherUserId],
-        'category': 'direct',
-      });
-      
-      await channel.watch();
+      debugPrint(
+        'createAndWatchDirectChat: currentUserId=$_currentUserId, otherUserId=$otherUserId, connection=${_client!.wsConnectionStatus}',
+      );
+      final response = await ApiClient.post(
+        url: '$uri/api/stream-chat/direct-channel',
+        body: json.encode({'otherUserId': otherUserId}),
+      );
+
+      if (response.statusCode != 200) {
+        debugPrint(
+          'direct-channel API failed: status=${response.statusCode}, body=${response.body}',
+        );
+        throw Exception('Failed to create direct channel');
+      }
+
+      debugPrint('direct-channel API success: body=${response.body}');
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final channelId = data['channelId'] as String?;
+
+      if (channelId == null || channelId.isEmpty) {
+        debugPrint('direct-channel API returned invalid channelId');
+        throw Exception('Invalid channelId returned from server');
+      }
+
+      final channel = await watchChannel(
+        channelId: channelId,
+        channelType: 'messaging',
+        category: 'direct',
+      );
+      debugPrint('watchChannel result: ${channel?.id}');
       return channel;
     } catch (e) {
       debugPrint('Error creating direct chat: $e');
       return null;
+    }
+  }
+
+  /// Xóa channel (chỉ nên dùng cho direct channel)
+  static Future<bool> deleteChannel(Channel channel) async {
+    try {
+      await channel.delete();
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting channel ${channel.id}: $e');
+      return false;
     }
   }
 

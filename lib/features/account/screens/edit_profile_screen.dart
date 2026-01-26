@@ -1,9 +1,9 @@
-// frontend/lib/features/account/screens/edit_profile_screen.dart
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/constants/utils.dart';
+import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/features/account/services/account_service.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:provider/provider.dart';
@@ -63,7 +63,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         });
       }
     } catch (e) {
-      showSnackBar(context, tr('error_selecting_image').replaceAll('{error}', e.toString()));
+      showSnackBar(
+        context,
+        tr('error_selecting_image').replaceAll('{error}', e.toString()),
+      );
     }
   }
 
@@ -112,35 +115,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          tr('edit_profile_title'),
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: GlobalVariables.white,
-          ),
-        ),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        iconTheme: IconThemeData(color: GlobalVariables.white),
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDarkMode
-                  ? GlobalVariables.darkPrimaryGradient
-                  : GlobalVariables.primaryGradient,
-            ),
-          ),
-        ),
+      appBar: CustomAppBar(
+        title: tr('edit_profile_title'),
         actions: [
           TextButton(
             onPressed: isLoading ? null : _saveProfile,
             child: Text(
               tr('save'),
               style: TextStyle(
-                color: GlobalVariables.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
+                color: GlobalVariables.primaryBlue,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
               ),
             ),
           ),
@@ -168,68 +153,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 64,
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.surface,
-                                  backgroundImage: _getAvatarImage(),
-                                  child: _getAvatarImage() == null
-                                      ? Icon(
-                                          Icons.person,
-                                          size: 60,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.6),
+                                  backgroundColor:
+                                      user.avatarColor?.toColor() ??
+                                      GlobalVariables.blueAvatar,
+                                  backgroundImage:
+                                      user.avatar != null &&
+                                          user.avatar!.isNotEmpty
+                                      ? NetworkImage(user.avatar!)
+                                      : null,
+                                  child:
+                                      user.avatar == null ||
+                                          user.avatar!.isEmpty
+                                      ? Text(
+                                          user.name.isNotEmpty
+                                              ? user.name
+                                                    .substring(0, 1)
+                                                    .toUpperCase()
+                                              : "U",
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 60,
+                                            fontWeight: FontWeight.w900,
+                                          ),
                                         )
                                       : null,
                                 ),
 
                                 Positioned(
                                   bottom: 0,
-                                  right: 0,
+                                  right: 6,
                                   child: GestureDetector(
                                     onTap: _selectAvatar,
                                     child: Container(
-                                      padding: EdgeInsets.all(8),
+                                      padding: EdgeInsets.all(6),
                                       decoration: BoxDecoration(
                                         color: Theme.of(
                                           context,
                                         ).colorScheme.primary,
                                         shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.surface,
-                                          width: 2,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Theme.of(context).shadowColor
-                                                .withValues(alpha: 0.3),
-                                            blurRadius: 8,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
                                       ),
                                       child: Icon(
                                         Icons.camera_alt,
                                         color: GlobalVariables.white,
-                                        size: 20,
+                                        size: 18,
                                       ),
                                     ),
                                   ),
                                 ),
                               ],
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              tr('tap_to_change_avatar'),
-                              style: TextStyle(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.7),
-                                fontSize: 14,
-                              ),
                             ),
                           ],
                         ),

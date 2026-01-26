@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/task_card.dart';
+import 'package:frontend/features/account/screens/profile_screen.dart';
 import 'package:frontend/features/chat/screens/chat_room_screen.dart';
 import 'package:frontend/features/notifications/services/invitation_service.dart';
 import 'package:frontend/features/projects/services/projects_service.dart';
@@ -846,7 +847,6 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDarkMode
             ? GlobalVariables.darkSurfaceCard
@@ -858,234 +858,249 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
               : GlobalVariables.borderPrimary,
         ),
       ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              // Avatar
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: member.avatarColor!.toColor(),
-                backgroundImage:
-                    member.avatar != null && member.avatar!.isNotEmpty
-                    ? NetworkImage(member.avatar!)
-                    : null,
-                child: member.avatar == null || member.avatar!.isEmpty
-                    ? Text(
-                        member.userName != null && member.userName!.isNotEmpty
-                            ? member.userName![0].toUpperCase()
-                            : 'U',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 12),
-
-              // User Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              ProfileScreen.routeName,
+              arguments: member.userId,
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            member.userName ?? tr('user'),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isDarkMode
-                                  ? GlobalVariables.darkTextPrimary
-                                  : GlobalVariables.textPrimary,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getRoleColor(
-                              member.role,
-                            ).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _getRoleColor(
-                                member.role,
-                              ).withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Text(
-                            member.roleDisplayName,
-                            style: TextStyle(
-                              color: _getRoleColor(member.role),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
+                    // Avatar
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: member.avatarColor!.toColor(),
+                      backgroundImage:
+                          member.avatar != null && member.avatar!.isNotEmpty
+                          ? NetworkImage(member.avatar!)
+                          : null,
+                      child: member.avatar == null || member.avatar!.isEmpty
+                          ? Text(
+                              member.userName != null && member.userName!.isNotEmpty
+                                  ? member.userName![0].toUpperCase()
+                                  : 'U',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
                     ),
-                    if (member.userEmail != null)
-                      Text(
-                        member.userEmail!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: isDarkMode
-                              ? GlobalVariables.darkTextSecondary
-                              : GlobalVariables.textSecondary,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+                    const SizedBox(width: 12),
 
-              // Actions menu - CHỈ hiện nếu có quyền editRole hoặc removeMember
-              // Nếu membercard này là current user thì không hiện menu
-              if ((member.userId != currentUserMember.userId) &&
-                  (isOwner ||
-                      currentUserMember.permissions.editRole ||
-                      currentUserMember.permissions.removeMember))
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    Icons.more_vert_rounded,
-                    color: isDarkMode
-                        ? GlobalVariables.darkTextSecondary
-                        : GlobalVariables.textSecondary,
-                  ),
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'permissions':
-                        _showPermissionsDialog(member, currentUserMember);
-                        break;
-                      case 'remove':
-                        _showRemoveMemberDialog(member);
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) {
-                    // Tạo danh sách menu items dựa trên quyền
-                    List<PopupMenuEntry<String>> menuItems = [];
-
-                    // Chỉ hiện Manage Role nếu có quyền editRole
-                    if (isOwner || currentUserMember.permissions.editRole) {
-                      menuItems.add(
-                        PopupMenuItem(
-                          value: 'permissions',
-                          child: Row(
+                    // User Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Icon(
-                                Icons.admin_panel_settings_rounded,
-                                color: GlobalVariables.primaryBlue,
+                              Expanded(
+                                child: Text(
+                                  member.userName ?? tr('user'),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: isDarkMode
+                                        ? GlobalVariables.darkTextPrimary
+                                        : GlobalVariables.textPrimary,
+                                  ),
+                                ),
                               ),
-                              SizedBox(width: 8),
-                              Text(tr('manage_role_permissions')),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-
-                    // Chỉ hiện Remove nếu có quyền removeMember
-                    if (isOwner || currentUserMember.permissions.removeMember) {
-                      menuItems.add(
-                        PopupMenuItem(
-                          value: 'remove',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.person_remove_rounded,
-                                color: GlobalVariables.errorRed,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                tr('remove_from_project'),
-                                style: TextStyle(
-                                  color: GlobalVariables.errorRed,
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getRoleColor(
+                                    member.role,
+                                  ).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _getRoleColor(
+                                      member.role,
+                                    ).withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  member.roleDisplayName,
+                                  style: TextStyle(
+                                    color: _getRoleColor(member.role),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
+                          if (member.userEmail != null)
+                            Text(
+                              member.userEmail!,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: isDarkMode
+                                    ? GlobalVariables.darkTextSecondary
+                                    : GlobalVariables.textSecondary,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+            
+                    // Actions menu - CHỈ hiện nếu có quyền editRole hoặc removeMember
+                    // Nếu membercard này là current user thì không hiện menu
+                    if ((member.userId != currentUserMember.userId) &&
+                        (isOwner ||
+                            currentUserMember.permissions.editRole ||
+                            currentUserMember.permissions.removeMember))
+                      PopupMenuButton<String>(
+                        icon: Icon(
+                          Icons.more_vert_rounded,
+                          color: isDarkMode
+                              ? GlobalVariables.darkTextSecondary
+                              : GlobalVariables.textSecondary,
                         ),
-                      );
-                    }
-
-                    return menuItems;
-                  },
+                        onSelected: (value) {
+                          switch (value) {
+                            case 'permissions':
+                              _showPermissionsDialog(member, currentUserMember);
+                              break;
+                            case 'remove':
+                              _showRemoveMemberDialog(member);
+                              break;
+                          }
+                        },
+                        itemBuilder: (context) {
+                          // Tạo danh sách menu items dựa trên quyền
+                          List<PopupMenuEntry<String>> menuItems = [];
+            
+                          // Chỉ hiện Manage Role nếu có quyền editRole
+                          if (isOwner || currentUserMember.permissions.editRole) {
+                            menuItems.add(
+                              PopupMenuItem(
+                                value: 'permissions',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.admin_panel_settings_rounded,
+                                      color: GlobalVariables.primaryBlue,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(tr('manage_role_permissions')),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+            
+                          // Chỉ hiện Remove nếu có quyền removeMember
+                          if (isOwner || currentUserMember.permissions.removeMember) {
+                            menuItems.add(
+                              PopupMenuItem(
+                                value: 'remove',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.person_remove_rounded,
+                                      color: GlobalVariables.errorRed,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      tr('remove_from_project'),
+                                      style: TextStyle(
+                                        color: GlobalVariables.errorRed,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+            
+                          return menuItems;
+                        },
+                      ),
+                  ],
                 ),
-            ],
-          ),
-
-          // Permissions (nếu có quyền)
-          if (member.permissions.hasAnyPermission) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: GlobalVariables.primaryBlue.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: GlobalVariables.primaryBlue.withValues(alpha: 0.2),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tr('permissions'),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: GlobalVariables.primaryBlue,
+            
+                // Permissions (nếu có quyền)
+                if (member.permissions.hasAnyPermission) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: GlobalVariables.primaryBlue.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: GlobalVariables.primaryBlue.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tr('permissions'),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: GlobalVariables.primaryBlue,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: member.permissions.permissionsList
+                              .map(
+                                (permission) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: GlobalVariables.primaryBlue.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    permission,
+                                    style: TextStyle(
+                                      color: GlobalVariables.primaryBlue,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: member.permissions.permissionsList
-                        .map(
-                          (permission) => Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: GlobalVariables.primaryBlue.withValues(
-                                alpha: 0.1,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              permission,
-                              style: TextStyle(
-                                color: GlobalVariables.primaryBlue,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
+                ] else ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    tr('can_only_complete_tasks'),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isDarkMode
+                          ? GlobalVariables.darkTextTertiary
+                          : GlobalVariables.textTertiary,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ],
-              ),
+              ],
             ),
-          ] else ...[
-            const SizedBox(height: 8),
-            Text(
-              tr('can_only_complete_tasks'),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: isDarkMode
-                    ? GlobalVariables.darkTextTertiary
-                    : GlobalVariables.textTertiary,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }

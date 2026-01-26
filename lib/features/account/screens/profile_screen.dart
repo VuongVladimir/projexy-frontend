@@ -1,15 +1,19 @@
-// frontend/lib/features/account/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
+import 'package:frontend/common/constants/utils.dart';
+import 'package:frontend/common/services/stream_chat_service.dart';
+import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/features/account/screens/edit_profile_screen.dart';
 import 'package:frontend/features/account/services/account_service.dart';
+import 'package:frontend/features/chat/screens/chat_room_screen.dart';
 import 'package:frontend/models/user.dart';
 import 'package:frontend/providers/user_provider.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   static const String routeName = '/profile';
-  final String? userId; // Nếu null, hiển thị profile của user hiện tại
+  final String? userId;
   const ProfileScreen({super.key, this.userId});
 
   @override
@@ -57,16 +61,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _openDirectChat() async {
+    if (profileUser == null) return;
+    if (StreamChatService.client == null) {
+      showSnackBar(context, 'Chat chưa được khởi tạo. Vui lòng thử lại.');
+      debugPrint(
+        'openDirectChat failed: StreamChatService.client is null for user=${profileUser!.id}',
+      );
+      return;
+    }
+
+    final currentUser = Provider.of<UserProvider>(
+      context,
+      listen: false,
+    ).user;
+
+    if (StreamChatService.currentUserId == null) {
+      debugPrint(
+        'openDirectChat: currentUserId is null, re-initialize with ${currentUser.id}',
+      );
+      await StreamChatService.initialize(
+        context: context,
+        userId: currentUser.id,
+      );
+    }
+
+    debugPrint('openDirectChat: otherUserId=${profileUser!.id}');
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final channel =
+        await StreamChatService.createAndWatchDirectChat(profileUser!.id);
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
+    if (channel == null) {
+      showSnackBar(context, 'Không thể mở cuộc trò chuyện.');
+      debugPrint('openDirectChat failed: channel is null');
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ChatRoomScreen(channel: channel)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
     if (isLoading) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text('Profile'),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-        ),
+        appBar: CustomAppBar(title: 'Profile', centerTitle: false),
         body: Center(
           child: CircularProgressIndicator(
             color: Theme.of(context).colorScheme.primary,
@@ -77,10 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (profileUser == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text('Profile'),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-        ),
+        appBar: CustomAppBar(title: 'Profile', centerTitle: false),
         body: Center(
           child: Text(
             'Không thể tải thông tin người dùng',
@@ -91,49 +136,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // Custom AppBar với avatar
-          SliverAppBar(
-            expandedHeight: 300,
-            floating: false,
-            pinned: true,
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            iconTheme: IconThemeData(color: GlobalVariables.white),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: isDarkMode
-                        ? GlobalVariables.darkPrimaryGradient
-                        : GlobalVariables.primaryGradient,
-                  ),
+      appBar: CustomAppBar(
+        actions: [
+          isCurrentUser
+              ? IconButton(
+                  icon: Icon(Icons.edit),
+                  onPressed: () {
+                    Navigator.pushNamed(context, EditProfileScreen.routeName);
+                  },
+                )
+              : IconButton(
+                  icon: Icon(Symbols.sms),
+                  onPressed: _openDirectChat,
                 ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Header với thông tin user
+            Container(
+              width: double.infinity,
+              color: Theme.of(context).appBarTheme.backgroundColor,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, 5, 20, 10),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(height: 40),
-                    // Avatar lớn
+                    // Avatar
                     Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: GlobalVariables.white,
-                          width: 4,
-                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 15,
-                            offset: Offset(0, 8),
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
                           ),
                         ],
                       ),
                       child: CircleAvatar(
-                        radius: 80,
-                        backgroundColor: Theme.of(context).colorScheme.surface,
+                        radius: 64,
+                        backgroundColor:
+                            profileUser!.avatarColor?.toColor() ??
+                            GlobalVariables.blueAvatar,
                         backgroundImage:
                             profileUser!.avatar != null &&
                                 profileUser!.avatar!.isNotEmpty
@@ -142,24 +187,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child:
                             profileUser!.avatar == null ||
                                 profileUser!.avatar!.isEmpty
-                            ? Icon(
-                                Icons.person,
-                                size: 60,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.6),
+                            ? Text(
+                                profileUser!.name.isNotEmpty
+                                    ? profileUser!.name
+                                          .substring(0, 1)
+                                          .toUpperCase()
+                                    : "U",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 60,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               )
                             : null,
                       ),
                     ),
                     SizedBox(height: 16),
-                    // Tên
+                    // Tên user
                     Text(
                       profileUser!.name,
                       style: TextStyle(
-                        fontSize: 28,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: GlobalVariables.white,
+                        color: GlobalVariables.black,
                       ),
                     ),
                     SizedBox(height: 4),
@@ -168,27 +218,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       profileUser!.email,
                       style: TextStyle(
                         fontSize: 16,
-                        color: GlobalVariables.white.withValues(alpha: 0.9),
+                        color: GlobalVariables.black.withValues(alpha: 0.8),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            actions: [
-              if (isCurrentUser)
-                IconButton(
-                  icon: Icon(Icons.edit, color: GlobalVariables.white),
-                  onPressed: () {
-                    Navigator.pushNamed(context, EditProfileScreen.routeName);
-                  },
-                ),
-            ],
-          ),
 
-          // Content
-          SliverToBoxAdapter(
-            child: Padding(
+            Divider(
+              height: 1,
+              thickness: 1,
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+            ),
+
+            // Content
+            Padding(
               padding: EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,8 +352,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

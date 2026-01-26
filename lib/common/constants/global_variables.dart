@@ -5,7 +5,7 @@ import 'package:frontend/features/home/screens/home_screen.dart';
 import 'package:frontend/features/tasks/screens/tasks_screen.dart';
 
 //String uri = "https://projexy-backend.me";
-String uri = "http://192.168.1.9:3000";
+String uri = "http://192.168.1.3:3000";
 const webScreenSize = 600;
 List<Widget> bottomBarItems = [
   const HomeScreen(),
@@ -37,25 +37,17 @@ extension HexColor on String {
 }
 
 class GlobalVariables {
-  // ==================== LIGHT THEME COLORS ====================
-  // Ghi chú: Bảng màu được làm mới để có cảm giác hiện đại, dễ tiếp cận và chuyên nghiệp hơn.
-  // Màu xanh dương chính (Primary Blue) được chọn để tạo cảm giác năng động và đáng tin cậy.
-  // Các màu phụ và màu trạng thái được cân chỉnh lại để hài hòa với nhau.
-
-  // Primary Brand Colors (Light Theme)
-
-  // Cập nhật primary blue theo yêu cầu
   static const Color primaryBlue = Color(0xFF274BFF); // #3443FD
   static const Color primaryBlueLight = Color(0xFF4B58F0);
   static const Color primaryBlueDark = Color(0xFF2B38D3);
 
   static const Color backgroundBlueLight = Color(0xFF007FFF);
 
-  // Secondary Colors (Light Theme)
-  // Cập nhật secondary coral theo yêu cầu
+
   static const Color secondaryCoral = Color(0xFFEF736B); // #EF736B
   static const Color secondaryAlternate = Color(0xFFD5502B);
 
+  static const Color blueAvatar = Color(0xFF4285F4);
   // Background Colors (Light Theme)
   static const Color backgroundPrimary = Color(
     0xFFFFFFFF,

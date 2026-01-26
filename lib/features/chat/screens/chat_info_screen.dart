@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/constants/utils.dart';
 import 'package:frontend/common/services/stream_chat_service.dart';
@@ -37,7 +38,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
         appBar: AppBar(
           leading: IconButton(
             icon: Icon(
-              Icons.arrow_back,
+              Symbols.arrow_back,
               color: isDarkMode
                   ? GlobalVariables.darkTextPrimary
                   : GlobalVariables.textPrimary,
@@ -69,7 +70,8 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
               const SizedBox(height: 12),
               _buildActionRow(
                 context: context,
-                icon: Icons.people,
+                icon: Symbols.group,
+                fill: 1,
                 title: tr('see_chat_members'),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
@@ -85,7 +87,8 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
             const SizedBox(height: 12),
             _buildActionRow(
               context: context,
-              icon: Icons.image_outlined,
+              icon: Symbols.image,
+              weight: 900,
               title: tr('view_media_files_links'),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -96,7 +99,8 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
             const SizedBox(height: 16),
             _buildActionRow(
               context: context,
-              icon: Icons.push_pin,
+              icon: Symbols.push_pin,
+              fill: 1,
               title: tr('pinned_messages'),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -108,7 +112,8 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
             const SizedBox(height: 16),
             _buildActionRow(
               context: context,
-              icon: Icons.search,
+              icon: Symbols.search,
+              fill: 1,
               title: tr('search_in_conversation'),
             ),
           ],
@@ -138,9 +143,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
             children: [
               // Avatar
               Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(shape: BoxShape.circle),
                 child: _isUploadingAvatar
                     ? CircleAvatar(
                         radius: 64,
@@ -156,8 +159,8 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
               // Edit button (chỉ hiển thị cho project/team channel)
               if (canEditAvatar)
                 Positioned(
-                  bottom: -2,
-                  right: 5,
+                  bottom: 0,
+                  right: 6,
                   child: GestureDetector(
                     onTap: _isUploadingAvatar ? null : _selectAndUploadAvatar,
                     child: Container(
@@ -167,7 +170,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        Icons.camera_alt,
+                        Symbols.camera_alt,
                         color: GlobalVariables.white,
                         size: 18,
                       ),
@@ -195,23 +198,8 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
           const SizedBox(height: 8),
 
           // Category badge
-          _buildCategoryBadge(context, category),
-
-          // Hint text cho direct channel
-          if (isDirect)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                tr('direct_chat_avatar_hint'),
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDarkMode
-                      ? GlobalVariables.darkTextTertiary
-                      : GlobalVariables.textTertiary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
+          if(isDirect == false)
+            _buildCategoryBadge(context, category),
         ],
       ),
     );
@@ -361,6 +349,8 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
     required IconData icon,
     required String title,
     VoidCallback? onTap,
+    double fill = 0,
+    double weight = 600,
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDarkMode
@@ -370,7 +360,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, size: 26, color: textColor),
+          Icon(icon, size: 28, fill: fill, weight: weight, grade: 210),
           const SizedBox(width: 16),
           Expanded(
             child: Text(
@@ -530,7 +520,7 @@ class _PinnedMessagesScreen extends StatelessWidget {
                 final userName = m.user?.name ?? m.user?.id ?? 'User';
                 final text = (m.text ?? '').trim();
                 return ListTile(
-                  leading: const Icon(Icons.push_pin_outlined),
+                  leading: const Icon(Symbols.push_pin),
                   title: Text(userName),
                   subtitle: Text(
                     text.isNotEmpty ? text : tr('message_with_attachments'),
@@ -622,7 +612,7 @@ class _ChannelMediaScreen extends StatelessWidget {
                       if (url.isEmpty) {
                         return Container(
                           color: GlobalVariables.borderPrimary,
-                          child: const Icon(Icons.broken_image_outlined),
+                          child: const Icon(Symbols.broken_image),
                         );
                       }
                       return ClipRRect(
@@ -658,14 +648,14 @@ class _ChannelMediaScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: ListTile(
-                        leading: const Icon(Icons.insert_drive_file_outlined),
+                        leading: const Icon(Symbols.insert_drive_file),
                         title: Text(title),
                         subtitle: size != null
                             ? Text(
                                 '${(size / (1024 * 1024)).toStringAsFixed(2)} MB',
                               )
                             : null,
-                        trailing: const Icon(Icons.chevron_right_rounded),
+                        trailing: const Icon(Symbols.chevron_right),
                         onTap: () {
                           final url =
                               f.assetUrl ?? f.file?.path ?? f.titleLink ?? '';

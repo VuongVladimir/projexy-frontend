@@ -126,7 +126,7 @@ class AccountScreen extends StatelessWidget {
                         radius: 64,
                         backgroundColor:
                             user.avatarColor?.toColor() ??
-                            GlobalVariables.primaryBlue,
+                            GlobalVariables.blueAvatar,
                         backgroundImage:
                             user.avatar != null && user.avatar!.isNotEmpty
                             ? NetworkImage(user.avatar!)
