@@ -1,15 +1,21 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
+import 'package:frontend/common/widgets/collapsible_section.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/task_card.dart';
 import 'package:frontend/features/projects/services/projects_service.dart';
 import 'package:frontend/features/tasks/screens/create_task_screen.dart';
 import 'package:frontend/features/tasks/screens/edit_task_screen.dart';
 import 'package:frontend/features/tasks/services/tasks_service.dart';
+import 'package:frontend/features/tasks/services/dependency_service.dart';
 import 'package:frontend/features/tasks/widgets/assign_task_dialog.dart';
+import 'package:frontend/features/tasks/widgets/add_dependency_dialog.dart';
+import 'package:frontend/features/tasks/widgets/shift_task_dialog.dart';
+import 'package:frontend/common/constants/utils.dart';
 import 'package:frontend/models/project.dart';
 import 'package:frontend/models/task.dart';
+import 'package:frontend/models/dependency.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -28,6 +34,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Task? _task;
   Project? _project;
   List<Task> _subtasks = [];
+  List<Dependency> _predecessors = [];
+  List<Dependency> _successors = [];
+  DependencyViolation? _violation;
   bool _isLoading = true;
   bool _isLoadingSubtasks = false;
 
@@ -46,14 +55,49 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       onSuccess: (task) {
         // Set task first
         _task = task;
-        
-        // Gọi song song cả project và subtasks để giảm thời gian chờ
+
+        // Gọi song song cả project, subtasks, dependencies và violations
         _loadProject();
         _loadSubtasks();
-        
+        _loadDependencies();
+        _loadViolations();
+
         setState(() {
           _isLoading = false;
         });
+      },
+    );
+  }
+
+  Future<void> _loadDependencies() async {
+    if (_task == null) return;
+
+    await DependencyService.getTaskDependencies(
+      context: context,
+      taskId: _task!.id,
+      onSuccess: (predecessors, successors) {
+        if (mounted) {
+          setState(() {
+            _predecessors = predecessors;
+            _successors = successors;
+          });
+        }
+      },
+    );
+  }
+
+  Future<void> _loadViolations() async {
+    if (_task == null) return;
+
+    await DependencyService.getTaskViolations(
+      context: context,
+      taskId: _task!.id,
+      onSuccess: (violation) {
+        if (mounted) {
+          setState(() {
+            _violation = violation;
+          });
+        }
       },
     );
   }
@@ -154,6 +198,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     break;
                   case 'mark_todo':
                     _updateTaskStatus('todo');
+                    break;
+                  case 'toggle_mode':
+                    _toggleSchedulingMode();
+                    break;
+                  case 'shift':
+                    _showShiftDialog();
+                    break;
+                  case 'manage_dependencies':
+                    _showAddDependencyDialog();
                     break;
                 }
               },
@@ -264,6 +317,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   );
                 }
 
+                // Shift Summary Task
+                if (_task!.subTaskCount > 0 && canEdit) {
+                  menuItems.add(
+                    PopupMenuItem<String>(
+                      value: 'shift',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.fast_forward_rounded,
+                            color: GlobalVariables.secondaryCoral,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(tr('shift_task')),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
                 // Delete Task
                 if (canDelete) {
                   menuItems.add(
@@ -335,12 +407,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Due Date và Priority
+              // Date Range và Priority
               Row(
                 children: [
                   Icon(
                     Icons.calendar_today_outlined,
-                    size: 24,
+                    size: 26,
                     color: isDarkMode
                         ? GlobalVariables.darkTextSecondary
                         : GlobalVariables.textSecondary,
@@ -350,18 +422,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${tr('due_date')}:',
+                        '${tr('schedule')}:',
                         style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 16,
                           color: isDarkMode
                               ? GlobalVariables.darkTextSecondary
                               : GlobalVariables.textSecondary,
                         ),
                       ),
                       Text(
-                        _task!.dueDate == null
-                            ? tr('no_deadline')
-                            : ' ${DateFormat('MMMM dd, yyyy').format(_task!.dueDate!)}',
+                        _task!.hasValidDates
+                            ? '${DateFormat('dd/MM/yyyy').format(_task!.startDate!)} - ${DateFormat('dd/MM/yyyy').format(_task!.endDate!)}'
+                            : tr('no_schedule'),
                         style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 15,
                           color: isDarkMode
                               ? GlobalVariables.darkTextSecondary
                               : GlobalVariables.textSecondary,
@@ -369,118 +443,147 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                     ],
                   ),
-                  Spacer(),
-                  Text.rich(
-                    TextSpan(
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // General Section
+              CollapsibleSection(
+                header: tr('general'),
+                subheader: tr('description_project_priority'),
+                initiallyExpanded: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Description
+                    Text(
+                      tr('description'),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isDarkMode
+                            ? GlobalVariables.darkTextSecondary
+                            : GlobalVariables.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _task!.description == null || _task!.description!.isEmpty
+                          ? tr('no_description')
+                          : _task!.description!,
+                      style: TextStyle(
+                        fontSize: 17,
+                        color: isDarkMode
+                            ? GlobalVariables.darkTextPrimary
+                            : GlobalVariables.textPrimary,
+                        height: 1.5,
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '${tr('priority')}:  ',
+                            style: TextStyle(
+                              color: isDarkMode
+                                  ? GlobalVariables.darkTextSecondary
+                                  : GlobalVariables.textSecondary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                          TextSpan(
+                            text: _task!.priorityDisplayName,
+                            style: TextStyle(
+                              color: GlobalVariables.getPriorityColor(
+                                _task!.priority,
+                              ),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 17,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Project Info
+                    if (_project != null) ...[
+                      const SizedBox(height: 18),
+                      _buildInfoItem(
+                        tr('belongs_to_project'),
+                        _project!.title,
+                        Icons.folder_rounded,
+                        GlobalVariables.warningAmber,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+              // Details Section
+              CollapsibleSection(
+                header: tr('details'),
+                subheader: tr('assignee_subtasks_progress'),
+                initiallyExpanded: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_task!.assignedTo.isNotEmpty) ...[
+                      _buildAssigneesSection(),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Progress
+                    Text(
+                      tr('progress'),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isDarkMode
+                            ? GlobalVariables.darkTextPrimary
+                            : GlobalVariables.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        TextSpan(
-                          text: '${tr('priority')}: ',
+                        Text(
+                          '${_task!.progress}% ${tr('done')}',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: isDarkMode
                                 ? GlobalVariables.darkTextSecondary
                                 : GlobalVariables.textSecondary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          ),
-                        ),
-                        TextSpan(
-                          text: _task!.priorityDisplayName,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: GlobalVariables.getPriorityColor(
-                              _task!.priority,
-                            ),
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Description
-              Text(
-                tr('description'),
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isDarkMode
-                      ? GlobalVariables.darkTextPrimary
-                      : GlobalVariables.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _task!.description == null || _task!.description!.isEmpty
-                    ? tr('no_description')
-                    : _task!.description!,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: isDarkMode
-                      ? GlobalVariables.darkTextSecondary
-                      : GlobalVariables.textSecondary,
-                  height: 1.5,
-                ),
-              ),
-
-              // Project Info
-              if (_project != null) ...[
-                const SizedBox(height: 16),
-                _buildInfoItem(
-                  tr('belongs_to_project'),
-                  _project!.title,
-                  Icons.folder_rounded,
-                  GlobalVariables.warningAmber,
-                ),
-              ],
-
-              if (_task!.assignedTo.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                _buildAssigneesSection(),
-              ],
-              const SizedBox(height: 24),
-
-              // Progress
-              Text(
-                tr('progress'),
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isDarkMode
-                      ? GlobalVariables.darkTextPrimary
-                      : GlobalVariables.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${_task!.progress}% ${tr('done')}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: isDarkMode
-                          ? GlobalVariables.darkTextSecondary
-                          : GlobalVariables.textSecondary,
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: _task!.progressPercentage,
+                        backgroundColor: isDarkMode
+                            ? GlobalVariables.darkBorderPrimary
+                            : GlobalVariables.borderPrimary,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          GlobalVariables.primaryBlue,
+                        ),
+                        minHeight: 8,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: _task!.progressPercentage,
-                  backgroundColor: isDarkMode
-                      ? GlobalVariables.darkBorderPrimary
-                      : GlobalVariables.borderPrimary,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    GlobalVariables.primaryBlue,
-                  ),
-                  minHeight: 8,
+                    const SizedBox(height: 32),
+
+                    _buildSubtasksSection(),
+                  ],
                 ),
               ),
-              const SizedBox(height: 32),
-
-              _buildSubtasksSection(),
+              const SizedBox(height: 24),
+              // More Fields Section
+              _buildMoreFieldsSection(),
             ],
           ),
         ),
@@ -490,7 +593,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildSubtasksSection() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
 
     // Kiểm tra quyền create task
     final currentUser = Provider.of<UserProvider>(context, listen: false).user;
@@ -515,11 +617,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           children: [
             Text(
               '${tr('subtask')} (${_subtasks.length})',
-              style: theme.textTheme.titleLarge?.copyWith(
+              style: TextStyle(
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: isDarkMode
-                    ? GlobalVariables.darkTextPrimary
-                    : GlobalVariables.textPrimary,
+                    ? GlobalVariables.darkTextSecondary
+                    : GlobalVariables.textSecondary,
               ),
             ),
             if (_subtasks.isNotEmpty && canCreateTask)
@@ -564,27 +667,26 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildAssigneesSection() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- Phần tiêu đề "Assigned to" giữ nguyên ---
         Row(
           children: [
             Icon(
               Icons.people_rounded,
-              size: 20,
+              size: 23,
               color: GlobalVariables.primaryBlue,
             ),
             const SizedBox(width: 6),
             Text(
               tr('assigned_to'),
-              style: theme.textTheme.titleMedium?.copyWith(
+              style: TextStyle(
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: isDarkMode
-                    ? GlobalVariables.darkTextPrimary
-                    : GlobalVariables.textPrimary,
+                    ? GlobalVariables.darkTextSecondary
+                    : GlobalVariables.textSecondary,
               ),
             ),
           ],
@@ -718,37 +820,38 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     Color color,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: isDarkMode
+                ? GlobalVariables.darkTextSecondary
+                : GlobalVariables.textSecondary,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 4),
         Row(
           children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: 6),
+            Icon(icon, size: 23, color: color),
+            const SizedBox(width: 9),
             Expanded(
               child: Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(
+                value,
+                style: TextStyle(
+                  fontSize: 16,
                   color: isDarkMode
-                      ? GlobalVariables.darkTextSecondary
-                      : GlobalVariables.textSecondary,
+                      ? GlobalVariables.darkTextPrimary
+                      : GlobalVariables.textPrimary,
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: isDarkMode
-                ? GlobalVariables.darkTextPrimary
-                : GlobalVariables.textPrimary,
-          ),
         ),
       ],
     );
@@ -1111,6 +1214,583 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMoreFieldsSection() {
+    // Check edit permission
+    final currentUser = Provider.of<UserProvider>(context, listen: false).user;
+    final isOwner = _project?.createdBy['id'] == currentUser.id;
+    final currentUserMember = _project?.members.firstWhere(
+      (member) => member.userId == currentUser.id,
+      orElse: () => ProjectMember(
+        userId: currentUser.id,
+        role: 'Viewer',
+        permissions: ProjectPermissions(),
+        joinedAt: DateTime.now(),
+      ),
+    );
+    final canEdit =
+        isOwner || (currentUserMember?.permissions.editTask ?? false);
+
+    return CollapsibleSection(
+      header: tr('more_fields'),
+      subheader: tr('scheduling_and_dependencies'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Scheduling Mode Section
+          _buildSchedulingModeContent(canEdit),
+          const SizedBox(height: 18),
+
+          // Dependencies Section
+          _buildDependenciesContent(canEdit),
+
+          // Violation Warning
+          if (_violation != null) ...[
+            const SizedBox(height: 18),
+            _buildViolationWarning(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSchedulingModeContent(bool canEdit) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              tr('scheduling_mode'),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isDarkMode
+                    ? GlobalVariables.darkTextSecondary
+                    : GlobalVariables.textSecondary,
+              ),
+            ),
+            if (canEdit)
+              TextButton.icon(
+                onPressed: _toggleSchedulingMode,
+                icon: Icon(
+                  _task!.isAutoScheduled
+                      ? Icons.lock_open_rounded
+                      : Icons.lock_rounded,
+                  size: 18,
+                ),
+                label: Text(
+                  _task!.isAutoScheduled
+                      ? tr('switch_to_manual')
+                      : tr('switch_to_auto'),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: GlobalVariables.primaryBlue,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _task!.isAutoScheduled
+                ? GlobalVariables.primaryBlue.withValues(alpha: 0.1)
+                : GlobalVariables.warningAmber.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _task!.isAutoScheduled
+                  ? GlobalVariables.primaryBlue
+                  : GlobalVariables.warningAmber,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _task!.isAutoScheduled
+                    ? Icons.auto_awesome_rounded
+                    : Icons.edit_rounded,
+                color: _task!.isAutoScheduled
+                    ? GlobalVariables.primaryBlue
+                    : GlobalVariables.warningAmber,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _task!.isAutoScheduled
+                      ? tr('auto_scheduling_description')
+                      : tr('manual_scheduling_description'),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextPrimary
+                        : GlobalVariables.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDependenciesContent(bool canEdit) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              tr('dependencies'),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isDarkMode
+                    ? GlobalVariables.darkTextSecondary
+                    : GlobalVariables.textSecondary,
+              ),
+            ),
+            if (canEdit)
+              TextButton.icon(
+                onPressed: _showAddDependencyDialog,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: Text(tr('add')),
+                style: TextButton.styleFrom(
+                  foregroundColor: GlobalVariables.primaryBlue,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        if (_predecessors.isEmpty && _successors.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDarkMode
+                  ? GlobalVariables.darkBackgroundSecondary
+                  : GlobalVariables.backgroundSecondary,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.link_off_rounded,
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextSecondary
+                      : GlobalVariables.textSecondary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    tr('no_dependencies'),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode
+                          ? GlobalVariables.darkTextSecondary
+                          : GlobalVariables.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else ...[
+          // Predecessors
+          if (_predecessors.isNotEmpty) ...[
+            Text(
+              tr('predecessors'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDarkMode
+                    ? GlobalVariables.darkTextSecondary
+                    : GlobalVariables.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ..._predecessors.map(
+              (dep) => _buildDependencyCard(dep, isPredecessor: true),
+            ),
+          ],
+
+          // Successors
+          if (_successors.isNotEmpty) ...[
+            if (_predecessors.isNotEmpty) const SizedBox(height: 16),
+            Text(
+              tr('successors'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDarkMode
+                    ? GlobalVariables.darkTextSecondary
+                    : GlobalVariables.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ..._successors.map(
+              (dep) => _buildDependencyCard(dep, isPredecessor: false),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSchedulingModeSection() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          tr('scheduling_mode'),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: isDarkMode
+                ? GlobalVariables.darkTextPrimary
+                : GlobalVariables.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _task!.isAutoScheduled
+                ? GlobalVariables.primaryBlue.withValues(alpha: 0.1)
+                : GlobalVariables.warningAmber.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _task!.isAutoScheduled
+                  ? GlobalVariables.primaryBlue
+                  : GlobalVariables.warningAmber,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _task!.isAutoScheduled
+                    ? Icons.auto_awesome_rounded
+                    : Icons.edit_rounded,
+                color: _task!.isAutoScheduled
+                    ? GlobalVariables.primaryBlue
+                    : GlobalVariables.warningAmber,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _task!.isAutoScheduled
+                      ? tr('auto_scheduling_description')
+                      : tr('manual_scheduling_description'),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextPrimary
+                        : GlobalVariables.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDependenciesSection() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          tr('dependencies'),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: isDarkMode
+                ? GlobalVariables.darkTextPrimary
+                : GlobalVariables.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Predecessors
+        if (_predecessors.isNotEmpty) ...[
+          Text(
+            tr('predecessors'),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: isDarkMode
+                  ? GlobalVariables.darkTextSecondary
+                  : GlobalVariables.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._predecessors.map(
+            (dep) => _buildDependencyCard(dep, isPredecessor: true),
+          ),
+        ],
+
+        // Successors
+        if (_successors.isNotEmpty) ...[
+          if (_predecessors.isNotEmpty) const SizedBox(height: 16),
+          Text(
+            tr('successors'),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: isDarkMode
+                  ? GlobalVariables.darkTextSecondary
+                  : GlobalVariables.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._successors.map(
+            (dep) => _buildDependencyCard(dep, isPredecessor: false),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDependencyCard(Dependency dep, {required bool isPredecessor}) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final task = isPredecessor ? dep.predecessor : dep.successor;
+
+    if (task == null) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDarkMode
+            ? GlobalVariables.darkSurfaceCard
+            : GlobalVariables.surfaceCard,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDarkMode
+              ? GlobalVariables.darkBorderPrimary
+              : GlobalVariables.borderPrimary,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isPredecessor
+                ? Icons.arrow_back_rounded
+                : Icons.arrow_forward_rounded,
+            color: GlobalVariables.primaryBlue,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.title,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextPrimary
+                        : GlobalVariables.textPrimary,
+                  ),
+                ),
+                if (task.hasValidDates)
+                  Text(
+                    '${DateFormat('dd/MM/yyyy').format(task.startDate!)} - ${DateFormat('dd/MM/yyyy').format(task.endDate!)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isDarkMode
+                          ? GlobalVariables.darkTextSecondary
+                          : GlobalVariables.textSecondary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.delete_outline_rounded,
+              color: GlobalVariables.errorRed,
+            ),
+            onPressed: () => _deleteDependency(dep),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildViolationWarning() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    if (_violation == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: GlobalVariables.errorRed.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: GlobalVariables.errorRed, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.warning_rounded,
+                color: GlobalVariables.errorRed,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  tr('dependency_violation'),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: GlobalVariables.errorRed,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            tr(
+              'violation_description',
+              namedArgs: {
+                'gap': '${_violation!.gap}',
+                'requiredStart': DateFormat(
+                  'dd/MM/yyyy',
+                ).format(_violation!.requiredStart),
+              },
+            ),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: isDarkMode
+                  ? GlobalVariables.darkTextPrimary
+                  : GlobalVariables.textPrimary,
+            ),
+          ),
+
+          // Critical Predecessors
+          if (_violation!.criticalPredecessors.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              tr('blocking_tasks'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDarkMode
+                    ? GlobalVariables.darkTextPrimary
+                    : GlobalVariables.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ..._violation!.criticalPredecessors.map(
+              (pred) => Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 4),
+                child: Text(
+                  '• ${pred.title}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextSecondary
+                        : GlobalVariables.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _toggleSchedulingMode() {
+    final newMode = _task!.isAutoScheduled ? 'MANUAL' : 'AUTO';
+
+    TasksService.updateTask(
+      context: context,
+      taskId: _task!.id,
+      schedulingMode: newMode,
+      onSuccess: () {
+        _loadTaskDetails();
+        showSnackBar(context, tr('scheduling_mode_updated'));
+      },
+    );
+  }
+
+  void _showShiftDialog() {
+    if (_task == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => ShiftTaskDialog(
+        task: _task!,
+        onShifted: () {
+          _loadTaskDetails();
+        },
+      ),
+    );
+  }
+
+  void _showAddDependencyDialog() {
+    if (_task == null || _project == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AddDependencyDialog(
+        task: _task!,
+        project: _project!,
+        onAdded: () {
+          _loadDependencies();
+          _loadViolations();
+          _loadTaskDetails();
+        },
+      ),
+    );
+  }
+
+  void _deleteDependency(Dependency dep) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(tr('confirm_delete')),
+        content: Text(tr('confirm_delete_dependency')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(tr('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              DependencyService.deleteDependency(
+                context: context,
+                dependencyId: dep.id,
+                onSuccess: () {
+                  _loadDependencies();
+                  _loadViolations();
+                  showSnackBar(context, tr('dependency_deleted'));
+                },
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GlobalVariables.errorRed,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(tr('delete')),
+          ),
+        ],
       ),
     );
   }

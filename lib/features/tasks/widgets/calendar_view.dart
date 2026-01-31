@@ -37,11 +37,12 @@ class _TaskCalendarViewState extends State<TaskCalendarView> {
     final Map<DateTime, List<Task>> taskMap = {};
 
     for (var task in widget.tasks) {
-      if (task.dueDate != null) {
+      // Hiển thị task dựa trên endDate (deadline)
+      if (task.endDate != null) {
         final date = DateTime(
-          task.dueDate!.year,
-          task.dueDate!.month,
-          task.dueDate!.day,
+          task.endDate!.year,
+          task.endDate!.month,
+          task.endDate!.day,
         );
         if (taskMap[date] == null) {
           taskMap[date] = [];

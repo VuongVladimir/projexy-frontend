@@ -312,8 +312,8 @@ class _KanbanCard extends StatelessWidget {
                 ),
                 const Spacer(),
 
-                // Due date
-                if (task.dueDate != null)
+                // Date range hoặc end date
+                if (task.hasValidDates)
                   Row(
                     children: [
                       Icon(
@@ -327,7 +327,7 @@ class _KanbanCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        DateFormat('MMM dd').format(task.dueDate!),
+                        '${DateFormat('MMM dd').format(task.startDate!)} - ${DateFormat('MMM dd').format(task.endDate!)}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: task.isOverdue
                               ? GlobalVariables.errorRed

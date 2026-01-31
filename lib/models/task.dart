@@ -10,7 +10,9 @@ class Task {
   final String projectId;
   final List<Map<String, dynamic>> assignedTo;
   final String createdBy;
-  final DateTime? dueDate;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String schedulingMode;
   final int weight;
   final String? parentTaskId;
   final String path;
@@ -31,7 +33,9 @@ class Task {
     required this.projectId,
     this.assignedTo = const [],
     required this.createdBy,
-    this.dueDate,
+    this.startDate,
+    this.endDate,
+    this.schedulingMode = 'AUTO',
     this.weight = 1,
     this.parentTaskId,
     required this.path,
@@ -54,7 +58,9 @@ class Task {
       'projectId': projectId,
       'assignedTo': assignedTo.map((user) => user['_id']).toList(),
       'createdBy': createdBy,
-      'dueDate': dueDate?.toIso8601String(),
+      'startDate': startDate?.toIso8601String(),
+      'endDate': endDate?.toIso8601String(),
+      'schedulingMode': schedulingMode,
       'weight': weight,
       'parentTaskId': parentTaskId,
       'path': path,
@@ -107,7 +113,9 @@ class Task {
       createdBy: map['createdBy'] is String 
           ? map['createdBy'] 
           : (map['createdBy'] is Map ? map['createdBy']['_id']?.toString() ?? '' : ''),
-      dueDate: map['dueDate'] != null ? DateTime.parse(map['dueDate']) : null,
+      startDate: map['startDate'] != null ? DateTime.parse(map['startDate']) : null,
+      endDate: map['endDate'] != null ? DateTime.parse(map['endDate']) : null,
+      schedulingMode: map['schedulingMode']?.toString() ?? 'AUTO',
       weight: map['weight']?.toInt() ?? 1,
       parentTaskId: map['parentTaskId'] is String 
           ? map['parentTaskId'] 
@@ -142,7 +150,9 @@ class Task {
     String? projectId,
     List<Map<String, dynamic>>? assignedTo,
     String? createdBy,
-    DateTime? dueDate,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? schedulingMode,
     int? weight,
     String? parentTaskId,
     String? path,
@@ -163,7 +173,9 @@ class Task {
       projectId: projectId ?? this.projectId,
       assignedTo: assignedTo ?? this.assignedTo,
       createdBy: createdBy ?? this.createdBy,
-      dueDate: dueDate ?? this.dueDate,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      schedulingMode: schedulingMode ?? this.schedulingMode,
       weight: weight ?? this.weight,
       parentTaskId: parentTaskId ?? this.parentTaskId,
       path: path ?? this.path,
@@ -179,7 +191,7 @@ class Task {
 
   @override
   String toString() {
-    return 'Task(id: $id, title: $title, description: $description, status: $status, priority: $priority, projectId: $projectId, assignedTo: $assignedTo, createdBy: $createdBy, dueDate: $dueDate, parentTaskId: $parentTaskId, path: $path, level: $level, order: $order, progress: $progress, subTaskCount: $subTaskCount, createdAt: $createdAt, updatedAt: $updatedAt, subtasks: $subtasks)';
+    return 'Task(id: $id, title: $title, description: $description, status: $status, priority: $priority, projectId: $projectId, assignedTo: $assignedTo, createdBy: $createdBy, startDate: $startDate, endDate: $endDate, schedulingMode: $schedulingMode, parentTaskId: $parentTaskId, path: $path, level: $level, order: $order, progress: $progress, subTaskCount: $subTaskCount, createdAt: $createdAt, updatedAt: $updatedAt, subtasks: $subtasks)';
   }
 
   @override
@@ -244,16 +256,27 @@ class Task {
 
   // Kiểm tra thời hạn
   bool get isOverdue {
-    if (dueDate == null || isCompleted) return false;
-    return DateTime.now().isAfter(dueDate!);
+    if (endDate == null || isCompleted) return false;
+    return DateTime.now().isAfter(endDate!);
   }
   
   int get daysRemaining {
-    if (dueDate == null || isCompleted) return 0;
+    if (endDate == null || isCompleted) return 0;
     final now = DateTime.now();
-    final difference = dueDate!.difference(now).inDays;
+    final difference = endDate!.difference(now).inDays;
     return difference < 0 ? 0 : difference;
   }
+  
+  // Scheduling helpers
+  bool get hasValidDates => startDate != null && endDate != null;
+  
+  int get durationDays {
+    if (!hasValidDates) return 0;
+    return endDate!.difference(startDate!).inDays;
+  }
+  
+  bool get isAutoScheduled => schedulingMode == 'AUTO';
+  bool get isManualScheduled => schedulingMode == 'MANUAL';
 
   // Kiểm tra phân cấp
   bool get isRootTask => parentTaskId == null;

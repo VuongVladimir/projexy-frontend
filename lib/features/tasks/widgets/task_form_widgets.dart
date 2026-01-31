@@ -326,6 +326,49 @@ class TaskFormWidgets {
     );
   }
 
+  /// Widget chọn date range cho task
+  static Widget buildDateRangeFields({
+    required DateTime? startDate,
+    required DateTime? endDate,
+    required Function(DateTime?) onStartDateChanged,
+    required Function(DateTime?) onEndDateChanged,
+    required BuildContext context,
+  }) {
+    return Column(
+      children: [
+        buildModernDateField(
+          label: tr('start_date'),
+          date: startDate,
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: startDate ?? DateTime.now(),
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2030),
+            );
+            if (date != null) onStartDateChanged(date);
+          },
+          context: context,
+        ),
+        const SizedBox(height: 16),
+        buildModernDateField(
+          label: tr('end_date'),
+          date: endDate,
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: endDate ?? startDate?.add(Duration(days: 7)) ?? DateTime.now(),
+              firstDate: startDate ?? DateTime(2020),
+              lastDate: DateTime(2030),
+            );
+            if (date != null) onEndDateChanged(date);
+          },
+          context: context,
+        ),
+      ],
+    );
+  }
+
   /// Widget chọn người được gán
   static Widget buildAssigneeSelector({
     required List<String> selectedAssignees,

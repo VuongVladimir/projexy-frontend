@@ -209,6 +209,8 @@ class Project {
 
   // Tính phần trăm hoàn thành
   double get progressPercentage => progress / 100.0;
+
+  bool get hasValidDates => startDate != null && endDate != null;
 }
 
 class ProjectMember {

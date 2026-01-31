@@ -8,6 +8,7 @@ import 'package:frontend/features/notifications/services/invitation_service.dart
 import 'package:frontend/features/projects/services/projects_service.dart';
 import 'package:frontend/features/projects/widgets/member_invitation_form.dart';
 import 'package:frontend/features/projects/widgets/permissions_dialog.dart';
+import 'package:frontend/features/projects/widgets/shift_project_dialog.dart';
 import 'package:frontend/features/tasks/services/tasks_service.dart';
 import 'package:frontend/features/tasks/screens/task_detail_screen.dart';
 import 'package:frontend/features/tasks/screens/create_task_screen.dart';
@@ -75,15 +76,15 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
             joinedAt: DateTime.now(),
           ),
         );
-        
+
         // Set project first, then immediately start loading tasks
         _project = project;
         _isOwner = isOwner;
         _currentUserMember = currentUserMember;
-        
+
         // Gọi load tasks ngay lập tức (không đợi setState rebuild)
         _loadTasks();
-        
+
         // Sau đó mới setState để trigger rebuild
         setState(() {
           _isLoading = false;
@@ -184,6 +185,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                   case 'leave':
                     _showLeaveProjectDialog();
                     break;
+                  case 'shift_project':
+                    _showShiftProjectDialog();
+                    break;
                 }
               },
               itemBuilder: (BuildContext context) {
@@ -213,6 +217,19 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                           ),
                           const SizedBox(width: 8),
                           Text(tr('update_status')),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'shift_project',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.fast_forward_rounded,
+                            color: GlobalVariables.secondaryCoral,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(tr('shift_project')),
                         ],
                       ),
                     ),
@@ -375,17 +392,18 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${tr('due_date')}:',
+                      '${tr('schedule')}:',
                       style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: 16,
                         color: isDarkMode
                             ? GlobalVariables.darkTextSecondary
                             : GlobalVariables.textSecondary,
                       ),
                     ),
                     Text(
-                      _project!.endDate != null
-                          ? ' ${DateFormat('MMMM dd, yyyy').format(_project!.endDate!)}'
-                          : tr('no_deadline'),
+                      _project!.hasValidDates
+                          ? '${DateFormat('dd/MM/yyyy').format(_project!.startDate!)} - ${DateFormat('dd/MM/yyyy').format(_project!.endDate!)}'
+                          : tr('no_schedule'),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: isDarkMode
                             ? GlobalVariables.darkTextSecondary
@@ -424,7 +442,6 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
               ],
             ),
             const SizedBox(height: 24),
-
 
             // Description
             Text(
@@ -646,10 +663,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   /// Gọi song song cả tasks và project details để tối ưu hiệu năng
   Future<void> _refreshAfterTaskChange() async {
     // Gọi song song cả hai để giảm thời gian chờ
-    await Future.wait([
-      _loadTasks(),
-      _loadProjectDetails(),
-    ]);
+    await Future.wait([_loadTasks(), _loadProjectDetails()]);
   }
 
   Widget _buildEmptyTasksState(
@@ -884,7 +898,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                           : null,
                       child: member.avatar == null || member.avatar!.isEmpty
                           ? Text(
-                              member.userName != null && member.userName!.isNotEmpty
+                              member.userName != null &&
+                                      member.userName!.isNotEmpty
                                   ? member.userName![0].toUpperCase()
                                   : 'U',
                               style: TextStyle(
@@ -953,7 +968,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                         ],
                       ),
                     ),
-            
+
                     // Actions menu - CHỈ hiện nếu có quyền editRole hoặc removeMember
                     // Nếu membercard này là current user thì không hiện menu
                     if ((member.userId != currentUserMember.userId) &&
@@ -980,9 +995,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                         itemBuilder: (context) {
                           // Tạo danh sách menu items dựa trên quyền
                           List<PopupMenuEntry<String>> menuItems = [];
-            
+
                           // Chỉ hiện Manage Role nếu có quyền editRole
-                          if (isOwner || currentUserMember.permissions.editRole) {
+                          if (isOwner ||
+                              currentUserMember.permissions.editRole) {
                             menuItems.add(
                               PopupMenuItem(
                                 value: 'permissions',
@@ -999,9 +1015,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                               ),
                             );
                           }
-            
+
                           // Chỉ hiện Remove nếu có quyền removeMember
-                          if (isOwner || currentUserMember.permissions.removeMember) {
+                          if (isOwner ||
+                              currentUserMember.permissions.removeMember) {
                             menuItems.add(
                               PopupMenuItem(
                                 value: 'remove',
@@ -1023,13 +1040,13 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                               ),
                             );
                           }
-            
+
                           return menuItems;
                         },
                       ),
                   ],
                 ),
-            
+
                 // Permissions (nếu có quyền)
                 if (member.permissions.hasAnyPermission) ...[
                   const SizedBox(height: 12),
@@ -1037,10 +1054,14 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: GlobalVariables.primaryBlue.withValues(alpha: 0.05),
+                      color: GlobalVariables.primaryBlue.withValues(
+                        alpha: 0.05,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: GlobalVariables.primaryBlue.withValues(alpha: 0.2),
+                        color: GlobalVariables.primaryBlue.withValues(
+                          alpha: 0.2,
+                        ),
                       ),
                     ),
                     child: Column(
@@ -1065,9 +1086,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: GlobalVariables.primaryBlue.withValues(
-                                      alpha: 0.1,
-                                    ),
+                                    color: GlobalVariables.primaryBlue
+                                        .withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -1443,6 +1463,21 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       onSuccess: () {
         _loadProjectDetails(); // Reload project after status update
       },
+    );
+  }
+
+  void _showShiftProjectDialog() {
+    if (_project == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => ShiftProjectDialog(
+        project: _project!,
+        onShifted: () {
+          _loadProjectDetails();
+          _loadTasks();
+        },
+      ),
     );
   }
 

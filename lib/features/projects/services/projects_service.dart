@@ -374,4 +374,33 @@ class ProjectsService {
       }
     }
   }
+
+  // Shift project
+  static Future<void> shiftProject({
+    required BuildContext context,
+    required String projectId,
+    required int deltaDays,
+    required VoidCallback onSuccess,
+  }) async {
+    try {
+      final body = {'deltaDays': deltaDays};
+      
+      final response = await ApiClient.post(
+        url: '$uri/api/project/$projectId/shift',
+        body: json.encode(body),
+      );
+      
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: onSuccess,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
 }

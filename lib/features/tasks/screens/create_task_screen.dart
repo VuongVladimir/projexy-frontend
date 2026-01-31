@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
+import 'package:frontend/common/constants/utils.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/custom_button.dart';
 import 'package:frontend/common/widgets/custom_textfield.dart';
@@ -30,7 +31,8 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  DateTime? _dueDate;
+  DateTime? _startDate;
+  DateTime? _endDate;
   String _selectedPriority = 'medium';
   int _selectedWeight = 3;
   bool _isLoading = false;
@@ -149,9 +151,9 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Due Date
+              // Start & End Date
               Text(
-                tr('due_date_optional'),
+                tr('schedule_dates_optional'),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: isDarkMode
@@ -160,10 +162,11 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              TaskFormWidgets.buildModernDateField(
-                label: tr('due_date'),
-                date: _dueDate,
-                onTap: () => _selectDueDate(),
+              TaskFormWidgets.buildDateRangeFields(
+                startDate: _startDate,
+                endDate: _endDate,
+                onStartDateChanged: (date) => setState(() => _startDate = date),
+                onEndDateChanged: (date) => setState(() => _endDate = date),
                 context: context,
               ),
               const SizedBox(height: 35),
@@ -184,23 +187,20 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
   }
 
 
-  Future<void> _selectDueDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _dueDate ?? DateTime.now().add(const Duration(days: 7)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-    );
-
-    if (date != null) {
-      setState(() {
-        _dueDate = date;
-      });
-    }
-  }
-
   Future<void> _createTask() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Validation: nếu có startDate thì phải có endDate và ngược lại
+    if ((_startDate != null && _endDate == null) || 
+        (_startDate == null && _endDate != null)) {
+      showSnackBar(context, tr('both_dates_required'));
+      return;
+    }
+    
+    if (_startDate != null && _endDate != null && _startDate!.isAfter(_endDate!)) {
+      showSnackBar(context, tr('start_must_be_before_end'));
       return;
     }
 
@@ -218,7 +218,9 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
       parentTaskId: widget.parentTaskId,
       priority: _selectedPriority,
       weight: _selectedWeight,
-      dueDate: _dueDate,
+      startDate: _startDate,
+      endDate: _endDate,
+      schedulingMode: 'AUTO',
       onSuccess: (task) {
         Navigator.of(context).pop(true); // Return true để báo có tạo mới
       },

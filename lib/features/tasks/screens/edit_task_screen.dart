@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
+import 'package:frontend/common/constants/utils.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/custom_button.dart';
 import 'package:frontend/common/widgets/custom_textfield.dart';
@@ -25,15 +26,18 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  DateTime? _dueDate;
+  DateTime? _startDate;
+  DateTime? _endDate;
   String _selectedPriority = 'medium';
   int _selectedWeight = 3;
   bool _isLoading = false;
+  bool _isSchedulable = true;
 
   @override
   void initState() {
     super.initState();
     _initializeForm();
+    _checkTaskType();
   }
 
   void _initializeForm() {
@@ -41,7 +45,16 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     _descriptionController.text = widget.task.description ?? '';
     _selectedPriority = widget.task.priority;
     _selectedWeight = widget.task.weight;
-    _dueDate = widget.task.dueDate;
+    _startDate = widget.task.startDate;
+    _endDate = widget.task.endDate;
+  }
+
+  void _checkTaskType() {
+    // Check nếu task có children
+    final hasChildren = widget.task.subTaskCount > 0;
+    setState(() {
+      _isSchedulable = !hasChildren;
+    });
   }
 
   @override
@@ -156,24 +169,41 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Due Date
-              Text(
-                tr('due_date_optional'),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isDarkMode
-                      ? GlobalVariables.darkTextPrimary
-                      : GlobalVariables.textPrimary,
+              // Schedule Dates - Chỉ hiện nếu là schedulable task
+              if (_isSchedulable) ...[
+                Text(
+                  tr('schedule_dates_optional'),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextPrimary
+                        : GlobalVariables.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TaskFormWidgets.buildModernDateField(
-                label: tr('due_date'),
-                date: _dueDate,
-                onTap: () => _selectDueDate(),
-                context: context,
-              ),
-              const SizedBox(height: 35),
+                const SizedBox(height: 12),
+                TaskFormWidgets.buildDateRangeFields(
+                  startDate: _startDate,
+                  endDate: _endDate,
+                  onStartDateChanged: (date) => setState(() => _startDate = date),
+                  onEndDateChanged: (date) => setState(() => _endDate = date),
+                  context: context,
+                ),
+                const SizedBox(height: 35),
+              ] else ...[
+                // Summary task: hiển thị dates read-only
+                Text(
+                  tr('schedule_dates'),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextPrimary
+                        : GlobalVariables.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildReadOnlyDates(isDarkMode, theme),
+                const SizedBox(height: 35),
+              ],
 
               CustomButton(
                 text: tr('update_task'),
@@ -191,24 +221,96 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   }
 
 
-  Future<void> _selectDueDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _dueDate ?? DateTime.now().add(const Duration(days: 7)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+  Widget _buildReadOnlyDates(bool isDarkMode, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDarkMode 
+            ? GlobalVariables.darkSurfaceCard.withValues(alpha: 0.5)
+            : GlobalVariables.surfaceCard.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDarkMode
+              ? GlobalVariables.darkBorderPrimary
+              : GlobalVariables.borderPrimary,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 20,
+                color: GlobalVariables.warningAmber,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  tr('summary_task_dates_readonly'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontStyle: FontStyle.italic,
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextSecondary
+                        : GlobalVariables.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.calendar_today, size: 18, color: GlobalVariables.primaryBlue),
+              const SizedBox(width: 8),
+              Text(
+                '${tr('start')}: ${_startDate != null ? DateFormat('dd/MM/yyyy').format(_startDate!) : tr('not_set')}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextPrimary
+                      : GlobalVariables.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.event, size: 18, color: GlobalVariables.primaryBlue),
+              const SizedBox(width: 8),
+              Text(
+                '${tr('end')}: ${_endDate != null ? DateFormat('dd/MM/yyyy').format(_endDate!) : tr('not_set')}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextPrimary
+                      : GlobalVariables.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
-
-    if (date != null) {
-      setState(() {
-        _dueDate = date;
-      });
-    }
   }
 
   Future<void> _updateTask() async {
     if (!_formKey.currentState!.validate()) {
       return;
+    }
+
+    // Validation cho schedulable tasks
+    if (_isSchedulable) {
+      if ((_startDate != null && _endDate == null) || 
+          (_startDate == null && _endDate != null)) {
+        showSnackBar(context, tr('both_dates_required'));
+        return;
+      }
+      
+      if (_startDate != null && _endDate != null && _startDate!.isAfter(_endDate!)) {
+        showSnackBar(context, tr('start_must_be_before_end'));
+        return;
+      }
     }
 
     setState(() {
@@ -224,7 +326,8 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
           : _descriptionController.text.trim(),
       priority: _selectedPriority,
       weight: _selectedWeight,
-      dueDate: _dueDate,
+      startDate: _isSchedulable ? _startDate : null,
+      endDate: _isSchedulable ? _endDate : null,
       onSuccess: () {
         Navigator.of(context).pop(true); // Return true để báo có cập nhật
       },

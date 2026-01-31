@@ -108,7 +108,9 @@ class TasksService {
     String? parentTaskId,
     String priority = 'medium',
     int weight = 1,
-    DateTime? dueDate,
+    DateTime? startDate,
+    DateTime? endDate,
+    String schedulingMode = 'AUTO',
     required Function(Task) onSuccess,
   }) async {
     try {
@@ -119,7 +121,9 @@ class TasksService {
         'parentTaskId': parentTaskId,
         'priority': priority,
         'weight': weight,
-        'dueDate': dueDate?.toIso8601String(),
+        'startDate': startDate?.toIso8601String(),
+        'endDate': endDate?.toIso8601String(),
+        'schedulingMode': schedulingMode,
       };
 
       final response = await ApiClient.post(
@@ -164,7 +168,9 @@ class TasksService {
     String? status,
     String? priority,
     int? weight,
-    DateTime? dueDate,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? schedulingMode,
     required VoidCallback onSuccess,
   }) async {
     try {
@@ -174,7 +180,9 @@ class TasksService {
       if (status != null) body['status'] = status;
       if (priority != null) body['priority'] = priority;
       if (weight != null) body['weight'] = weight;
-      if (dueDate != null) body['dueDate'] = dueDate.toIso8601String();
+      if (startDate != null) body['startDate'] = startDate.toIso8601String();
+      if (endDate != null) body['endDate'] = endDate.toIso8601String();
+      if (schedulingMode != null) body['schedulingMode'] = schedulingMode;
 
       final response = await ApiClient.put(
         url: '$uri/api/task/$taskId',
@@ -330,6 +338,35 @@ class TasksService {
             }).where((task) => task != null).cast<Task>().toList();
             onSuccess(tasks);
           },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
+  // Shift task/subtree
+  static Future<void> shiftTask({
+    required BuildContext context,
+    required String taskId,
+    required int deltaDays,
+    required VoidCallback onSuccess,
+  }) async {
+    try {
+      final body = {'deltaDays': deltaDays};
+      
+      final response = await ApiClient.post(
+        url: '$uri/api/task/$taskId/shift',
+        body: json.encode(body),
+      );
+      
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: onSuccess,
         );
       }
     } catch (e) {
