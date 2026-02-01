@@ -23,7 +23,7 @@ class TasksService {
       Map<String, String> queryParams = {
         'includeSubtasks': includeSubtasks.toString(),
       };
-      
+
       // Luôn gửi parentTaskId, dùng 'null' nếu không có để lấy root tasks
       queryParams['parentTaskId'] = parentTaskId ?? 'null';
       if (status != null) queryParams['status'] = status;
@@ -44,12 +44,16 @@ class TasksService {
               onSuccess([]);
               return;
             }
-            
+
             final List<dynamic> taskData = json.decode(responseBody);
-            final tasks = taskData.map((json) {
-              if (json == null) return null;
-              return Task.fromMap(json as Map<String, dynamic>);
-            }).where((task) => task != null).cast<Task>().toList();
+            final tasks = taskData
+                .map((json) {
+                  if (json == null) return null;
+                  return Task.fromMap(json as Map<String, dynamic>);
+                })
+                .where((task) => task != null)
+                .cast<Task>()
+                .toList();
             onSuccess(tasks);
           },
         );
@@ -68,9 +72,7 @@ class TasksService {
     required Function(Task) onSuccess,
   }) async {
     try {
-      final response = await ApiClient.get(
-        url: '$uri/api/task/$taskId',
-      );
+      final response = await ApiClient.get(url: '$uri/api/task/$taskId');
 
       if (context.mounted) {
         httpResponseHandle(
@@ -81,12 +83,12 @@ class TasksService {
             if (responseBody.isEmpty) {
               throw Exception('Empty response body');
             }
-            
+
             final taskData = json.decode(responseBody);
             if (taskData == null) {
               throw Exception('Task data is null');
             }
-            
+
             final task = Task.fromMap(taskData as Map<String, dynamic>);
             onSuccess(task);
           },
@@ -121,8 +123,8 @@ class TasksService {
         'parentTaskId': parentTaskId,
         'priority': priority,
         'weight': weight,
-        'startDate': startDate?.toIso8601String(),
-        'endDate': endDate?.toIso8601String(),
+        'startDate': startDate != null ? formatDateForApi(startDate) : null,
+        'endDate': endDate != null ? formatDateForApi(endDate) : null,
         'schedulingMode': schedulingMode,
       };
 
@@ -140,12 +142,12 @@ class TasksService {
             if (responseBody.isEmpty) {
               throw Exception('Empty response body');
             }
-            
+
             final taskData = json.decode(responseBody);
             if (taskData == null) {
               throw Exception('Task data is null');
             }
-            
+
             final task = Task.fromMap(taskData as Map<String, dynamic>);
             //showSnackBar(context, 'Tạo công việc thành công!');
             onSuccess(task);
@@ -180,8 +182,8 @@ class TasksService {
       if (status != null) body['status'] = status;
       if (priority != null) body['priority'] = priority;
       if (weight != null) body['weight'] = weight;
-      if (startDate != null) body['startDate'] = startDate.toIso8601String();
-      if (endDate != null) body['endDate'] = endDate.toIso8601String();
+      if (startDate != null) body['startDate'] = formatDateForApi(startDate);
+      if (endDate != null) body['endDate'] = formatDateForApi(endDate);
       if (schedulingMode != null) body['schedulingMode'] = schedulingMode;
 
       final response = await ApiClient.put(
@@ -213,9 +215,7 @@ class TasksService {
     required VoidCallback onSuccess,
   }) async {
     try {
-      final response = await ApiClient.delete(
-        url: '$uri/api/task/$taskId',
-      );
+      final response = await ApiClient.delete(url: '$uri/api/task/$taskId');
 
       if (context.mounted) {
         httpResponseHandle(
@@ -242,9 +242,7 @@ class TasksService {
     required VoidCallback onSuccess,
   }) async {
     try {
-      final body = {
-        'assignedTo': assignedTo,
-      };
+      final body = {'assignedTo': assignedTo};
 
       final response = await ApiClient.put(
         url: '$uri/api/task/$taskId/assign',
@@ -275,9 +273,7 @@ class TasksService {
     required VoidCallback onSuccess,
   }) async {
     try {
-      final body = {
-        'isCompleted': isCompleted,
-      };
+      final body = {'isCompleted': isCompleted};
 
       final response = await ApiClient.put(
         url: '$uri/api/task/$taskId/mark-complete',
@@ -330,12 +326,16 @@ class TasksService {
               onSuccess([]);
               return;
             }
-            
+
             final List<dynamic> taskData = json.decode(responseBody);
-            final tasks = taskData.map((json) {
-              if (json == null) return null;
-              return Task.fromMap(json as Map<String, dynamic>);
-            }).where((task) => task != null).cast<Task>().toList();
+            final tasks = taskData
+                .map((json) {
+                  if (json == null) return null;
+                  return Task.fromMap(json as Map<String, dynamic>);
+                })
+                .where((task) => task != null)
+                .cast<Task>()
+                .toList();
             onSuccess(tasks);
           },
         );
@@ -356,12 +356,12 @@ class TasksService {
   }) async {
     try {
       final body = {'deltaDays': deltaDays};
-      
+
       final response = await ApiClient.post(
         url: '$uri/api/task/$taskId/shift',
         body: json.encode(body),
       );
-      
+
       if (context.mounted) {
         httpResponseHandle(
           response: response,

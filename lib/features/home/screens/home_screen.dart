@@ -4,6 +4,7 @@ import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/project_card.dart';
 import 'package:frontend/common/widgets/task_card.dart';
+import 'package:frontend/features/projects/screens/create_project_screen.dart';
 import 'package:frontend/features/projects/screens/projects_screen.dart';
 import 'package:frontend/features/projects/services/projects_service.dart';
 import 'package:frontend/features/tasks/screens/task_detail_screen.dart';
@@ -11,6 +12,7 @@ import 'package:frontend/features/tasks/services/tasks_service.dart';
 import 'package:frontend/models/project.dart';
 import 'package:frontend/models/task.dart';
 import 'package:frontend/providers/user_provider.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -119,6 +121,18 @@ class _HomeScreenState extends State<HomeScreen> {
         showNotificationIcon: true,
         centerTitle: false,
         leadingWidth: MediaQuery.of(context).size.width * 0.62,
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'fab_right',
+        onPressed: () => _navigateToCreateProject(),
+        backgroundColor: GlobalVariables.primaryBlue,
+        shape: const CircleBorder(),
+        child: const Icon(
+          Symbols.add,
+          weight: 300,
+          size: 36,
+          color: Colors.white,
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _loadData,
@@ -384,6 +398,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     ).then((_) {
       _loadRecentTasks();
+    });
+  }
+
+  void _navigateToCreateProject() {
+    Navigator.pushNamed(context, CreateProjectScreen.routeName).then((_) {
+      _loadProjects();
     });
   }
 }

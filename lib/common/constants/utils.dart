@@ -3,14 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show Uint8List, kIsWeb;
 import 'package:file_picker/file_picker.dart';
 
+/// Helper function để format DateTime thành ISO8601 string mà không bị lệch timezone
+/// Chuyển date về UTC noon (12:00 PM) để tránh vấn đề timezone khi gửi lên server
+String formatDateForApi(DateTime date) {
+  final utcDate = DateTime.utc(date.year, date.month, date.day, 12, 0, 0);
+  return utcDate.toIso8601String();
+}
 
-void showSnackBar(BuildContext context, String text, {Duration duration = const Duration(seconds: 2)}) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(text),
-      duration: duration,
-    ),
-  );
+void showSnackBar(
+  BuildContext context,
+  String text, {
+  Duration duration = const Duration(seconds: 2),
+}) {
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(text), duration: duration));
 }
 
 Future<List<dynamic>> pickImages() async {

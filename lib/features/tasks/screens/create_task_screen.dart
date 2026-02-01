@@ -153,7 +153,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
 
               // Start & End Date
               Text(
-                tr('schedule_dates_optional'),
+                tr('schedule_dates'),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: isDarkMode

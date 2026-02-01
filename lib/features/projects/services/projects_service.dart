@@ -27,12 +27,14 @@ class ProjectsService {
         'page': page.toString(),
         'limit': limit.toString(),
       };
-      
+
       if (status != null && status.isNotEmpty) queryParams['status'] = status;
-      if (priority != null && priority.isNotEmpty) queryParams['priority'] = priority;
+      if (priority != null && priority.isNotEmpty)
+        queryParams['priority'] = priority;
       if (search != null && search.isNotEmpty) queryParams['search'] = search;
       if (sortBy != null && sortBy.isNotEmpty) queryParams['sortBy'] = sortBy;
-      if (sortOrder != null && sortOrder.isNotEmpty) queryParams['sortOrder'] = sortOrder;
+      if (sortOrder != null && sortOrder.isNotEmpty)
+        queryParams['sortOrder'] = sortOrder;
 
       final response = await ApiClient.get(
         url: '$uri/api/projects',
@@ -46,15 +48,20 @@ class ProjectsService {
           onSuccess: () {
             final responseBody = response.body;
             if (responseBody.isEmpty) {
-              onSuccess({'projects': [], 'total': 0, 'totalPages': 0, 'currentPage': 1});
+              onSuccess({
+                'projects': [],
+                'total': 0,
+                'totalPages': 0,
+                'currentPage': 1,
+              });
               return;
             }
-            
+
             final data = json.decode(responseBody);
             if (data == null) {
               throw Exception('Response data is null');
             }
-            
+
             onSuccess(data);
           },
         );
@@ -82,8 +89,8 @@ class ProjectsService {
       final body = {
         'title': title,
         'description': description,
-        'startDate': startDate.toIso8601String(),
-        'endDate': endDate.toIso8601String(),
+        'startDate': formatDateForApi(startDate),
+        'endDate': formatDateForApi(endDate),
         'priority': priority,
         'tags': tags,
         'members': members,
@@ -132,8 +139,8 @@ class ProjectsService {
       final body = <String, dynamic>{};
       if (title != null) body['title'] = title;
       if (description != null) body['description'] = description;
-      if (startDate != null) body['startDate'] = startDate.toIso8601String();
-      if (endDate != null) body['endDate'] = endDate.toIso8601String();
+      if (startDate != null) body['startDate'] = formatDateForApi(startDate);
+      if (endDate != null) body['endDate'] = formatDateForApi(endDate);
       if (status != null) body['status'] = status;
       if (priority != null) body['priority'] = priority;
       if (tags != null) body['tags'] = tags;
@@ -238,13 +245,15 @@ class ProjectsService {
             if (responseBody.isEmpty) {
               throw Exception('Empty response body');
             }
-            
+
             final projectData = json.decode(responseBody);
             if (projectData == null) {
               throw Exception('Project data is null');
             }
-            
-            final project = Project.fromMap(projectData as Map<String, dynamic>);
+
+            final project = Project.fromMap(
+              projectData as Map<String, dynamic>,
+            );
             onSuccess(project);
           },
         );
@@ -384,12 +393,12 @@ class ProjectsService {
   }) async {
     try {
       final body = {'deltaDays': deltaDays};
-      
+
       final response = await ApiClient.post(
         url: '$uri/api/project/$projectId/shift',
         body: json.encode(body),
       );
-      
+
       if (context.mounted) {
         httpResponseHandle(
           response: response,

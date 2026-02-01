@@ -128,7 +128,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
 
               // Due Date
               Text(
-                tr('due_date'),
+                tr('schedule_dates'),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: isDarkMode
