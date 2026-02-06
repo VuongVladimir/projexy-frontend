@@ -62,3 +62,55 @@ Future<dynamic> pickImage() async {
   }
   return null;
 }
+
+// Pick multiple files (images, documents, videos)
+Future<List<Map<String, dynamic>>> pickFiles({FileType type = FileType.any}) async {
+  List<Map<String, dynamic>> files = [];
+  try {
+    var result = await FilePicker.platform.pickFiles(
+      type: type,
+      allowMultiple: true,
+      withData: true,
+    );
+
+    if (result != null && result.files.isNotEmpty) {
+      for (var file in result.files) {
+        Map<String, dynamic> fileData = {
+          'name': file.name,
+          'size': file.size,
+          'extension': file.extension ?? '',
+        };
+
+        if (kIsWeb) {
+          fileData['bytes'] = file.bytes!;
+        } else {
+          fileData['file'] = File(file.path!);
+        }
+
+        files.add(fileData);
+      }
+    }
+  } catch (e) {
+    debugPrint('Error picking files: ${e.toString()}');
+  }
+  return files;
+}
+
+// Determine file type based on extension
+String getFileTypeFromExtension(String extension) {
+  extension = extension.toLowerCase();
+
+  // Images
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].contains(extension)) {
+    return 'image';
+  }
+
+  // Videos
+  if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm'].contains(extension)) {
+    return 'video';
+  }
+
+  // Documents (default)
+  return 'document';
+}
+

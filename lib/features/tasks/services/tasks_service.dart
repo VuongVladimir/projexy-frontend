@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/constants/http_handling.dart';
 import 'package:frontend/common/constants/utils.dart';
@@ -367,6 +369,105 @@ class TasksService {
           response: response,
           context: context,
           onSuccess: onSuccess,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
+  // Upload attachment to Cloudinary and add to task
+  static Future<void> addAttachment({
+    required BuildContext context,
+    required String taskId,
+    required dynamic file,
+    required String fileName,
+    required String fileExtension,
+    required int fileSize,
+    required VoidCallback onSuccess,
+  }) async {
+    try {
+      // Determine file type and folder
+      final fileType = getFileTypeFromExtension(fileExtension);
+      final folder = 'task/$taskId/${fileType}s'; // tasks/{taskId}/images, documents, videos
+
+      // Upload to Cloudinary
+      final cloudinary = CloudinaryPublic('dkwp4prjj', 'projexy_preset');
+      CloudinaryResponse response;
+
+      if (kIsWeb) {
+        response = await cloudinary.uploadFile(
+          CloudinaryFile.fromBytesData(
+            file,
+            identifier: '${fileName}_${DateTime.now().millisecondsSinceEpoch}',
+            folder: folder,
+            resourceType: fileType == 'video' ? CloudinaryResourceType.Video : CloudinaryResourceType.Auto,
+          ),
+        );
+      } else {
+        response = await cloudinary.uploadFile(
+          CloudinaryFile.fromFile(
+            file.path,
+            folder: folder,
+            resourceType: fileType == 'video' ? CloudinaryResourceType.Video : CloudinaryResourceType.Auto,
+          ),
+        );
+      }
+
+      final fileUrl = response.secureUrl;
+
+      // Add attachment to task via API
+      final body = {
+        'url': fileUrl,
+        'fileName': fileName,
+        'fileType': fileType,
+        'fileSize': fileSize,
+      };
+
+      final apiResponse = await ApiClient.post(
+        url: '$uri/api/task/$taskId/attachments',
+        body: json.encode(body),
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: apiResponse,
+          context: context,
+          onSuccess: () {
+            showSnackBar(context, 'Đã thêm tệp đính kèm!');
+            onSuccess();
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi khi tải lên: ${e.toString()}');
+      }
+    }
+  }
+
+  // Delete attachment from task
+  static Future<void> deleteAttachment({
+    required BuildContext context,
+    required String taskId,
+    required String attachmentId,
+    required VoidCallback onSuccess,
+  }) async {
+    try {
+      final response = await ApiClient.delete(
+        url: '$uri/api/task/$taskId/attachments/$attachmentId',
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            showSnackBar(context, 'Đã xóa tệp đính kèm!');
+            onSuccess();
+          },
         );
       }
     } catch (e) {

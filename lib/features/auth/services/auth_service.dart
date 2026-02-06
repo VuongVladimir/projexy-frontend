@@ -58,7 +58,7 @@ class AuthService {
     required dynamic avatar,
   }) async {
     try {
-      final cloudinary = CloudinaryPublic('dvgeq2l6e', 'xuvwiao4');
+      final cloudinary = CloudinaryPublic('dkwp4prjj', 'projexy_preset');
       String avatarUrl = '';
       if (avatar != null) {
         CloudinaryResponse response;

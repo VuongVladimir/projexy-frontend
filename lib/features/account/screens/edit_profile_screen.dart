@@ -28,6 +28,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   List<String> skills = [];
   dynamic selectedAvatar;
   bool isLoading = false;
+  bool isProcessingImage = false;
 
   @override
   void initState() {
@@ -48,6 +49,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   void _selectAvatar() async {
     try {
+      setState(() => isProcessingImage = true);
+
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowMultiple: false,
@@ -67,6 +70,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         context,
         tr('error_selecting_image').replaceAll('{error}', e.toString()),
       );
+    } finally {
+      setState(() => isProcessingImage = false);
     }
   }
 
@@ -156,14 +161,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   backgroundColor:
                                       user.avatarColor?.toColor() ??
                                       GlobalVariables.blueAvatar,
-                                  backgroundImage:
-                                      user.avatar != null &&
-                                          user.avatar!.isNotEmpty
-                                      ? NetworkImage(user.avatar!)
-                                      : null,
-                                  child:
-                                      user.avatar == null ||
-                                          user.avatar!.isEmpty
+                                  backgroundImage: _getAvatarImage(),
+                                  child: _getAvatarImage() == null
                                       ? Text(
                                           user.name.isNotEmpty
                                               ? user.name
@@ -179,11 +178,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       : null,
                                 ),
 
+                                // Loading overlay khi đang xử lý ảnh
+                                if (isProcessingImage)
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          color: GlobalVariables.white,
+                                          strokeWidth: 3,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
                                 Positioned(
                                   bottom: 0,
                                   right: 6,
                                   child: GestureDetector(
-                                    onTap: _selectAvatar,
+                                    onTap: isProcessingImage
+                                        ? null
+                                        : _selectAvatar,
                                     child: Container(
                                       padding: EdgeInsets.all(6),
                                       decoration: BoxDecoration(

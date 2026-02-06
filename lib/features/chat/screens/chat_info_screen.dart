@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
@@ -21,6 +23,8 @@ class ChatInfoScreen extends StatefulWidget {
 
 class _ChatInfoScreenState extends State<ChatInfoScreen> {
   bool _isUploadingAvatar = false;
+  bool _isProcessingImage = false;
+  dynamic _selectedAvatar;
 
   @override
   Widget build(BuildContext context) {
@@ -144,17 +148,31 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
               // Avatar
               Container(
                 decoration: BoxDecoration(shape: BoxShape.circle),
-                child: _isUploadingAvatar
+                child: _selectedAvatar != null
                     ? CircleAvatar(
                         radius: 64,
                         backgroundColor: widget.channel.avatarColor,
-                        child: const CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 3,
-                        ),
+                        backgroundImage: _getAvatarImage(),
                       )
                     : ChannelAvatarWidget(channel: widget.channel, radius: 64),
               ),
+
+              // Loading overlay khi đang upload
+              if (_isUploadingAvatar || _isProcessingImage)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: GlobalVariables.white,
+                        strokeWidth: 3,
+                      ),
+                    ),
+                  ),
+                ),
 
               // Edit button (chỉ hiển thị cho project/team channel)
               if (canEditAvatar)
@@ -162,7 +180,9 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                   bottom: 0,
                   right: 6,
                   child: GestureDetector(
-                    onTap: _isUploadingAvatar ? null : _selectAndUploadAvatar,
+                    onTap: (_isUploadingAvatar || _isProcessingImage)
+                        ? null
+                        : _selectAndUploadAvatar,
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
@@ -170,7 +190,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        Symbols.camera_alt,
+                        Icons.camera_alt,
                         color: GlobalVariables.white,
                         size: 18,
                       ),
@@ -198,8 +218,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
           const SizedBox(height: 8),
 
           // Category badge
-          if(isDirect == false)
-            _buildCategoryBadge(context, category),
+          if (isDirect == false) _buildCategoryBadge(context, category),
         ],
       ),
     );
@@ -245,18 +264,33 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
   /// Chọn và upload avatar mới cho channel
   Future<void> _selectAndUploadAvatar() async {
     try {
+      // Set processing state khi bắt đầu chọn ảnh
+      setState(() => _isProcessingImage = true);
+
       // Chọn ảnh
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowMultiple: false,
       );
 
-      if (result == null || result.files.isEmpty) return;
+      if (result == null || result.files.isEmpty) {
+        setState(() => _isProcessingImage = false);
+        return;
+      }
 
-      setState(() => _isUploadingAvatar = true);
+      // Lưu selected avatar để preview
+      setState(() {
+        if (kIsWeb) {
+          _selectedAvatar = result.files.first.bytes;
+        } else {
+          _selectedAvatar = File(result.files.single.path!);
+        }
+        _isProcessingImage = false;
+        _isUploadingAvatar = true; // Bắt đầu upload
+      });
 
       // Upload lên Cloudinary
-      final cloudinary = CloudinaryPublic('dvgeq2l6e', 'xuvwiao4');
+      final cloudinary = CloudinaryPublic('dkwp4prjj', 'projexy_preset');
       CloudinaryResponse response;
 
       if (kIsWeb) {
@@ -302,6 +336,8 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
       );
 
       if (success) {
+        // Clear selected avatar sau khi upload thành công
+        setState(() => _selectedAvatar = null);
         if (mounted) {
           showSnackBar(context, tr('channel_avatar_updated'));
         }
@@ -315,20 +351,37 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
           avatarColor: previousAvatarColor,
           clearImage: previousImage == null || previousImage.isEmpty,
         );
+        setState(() => _selectedAvatar = null);
         if (mounted) {
           showSnackBar(context, tr('error_updating_channel_avatar'));
         }
       }
     } catch (e) {
       debugPrint('Error uploading channel avatar: $e');
+      setState(() => _selectedAvatar = null);
       if (mounted) {
         showSnackBar(context, tr('error_uploading_image'));
       }
     } finally {
       if (mounted) {
-        setState(() => _isUploadingAvatar = false);
+        setState(() {
+          _isUploadingAvatar = false;
+          _isProcessingImage = false;
+        });
       }
     }
+  }
+
+  /// Get avatar image từ selectedAvatar hoặc channel
+  ImageProvider? _getAvatarImage() {
+    if (_selectedAvatar != null) {
+      if (kIsWeb) {
+        return MemoryImage(_selectedAvatar as Uint8List);
+      } else {
+        return FileImage(_selectedAvatar as File);
+      }
+    }
+    return null;
   }
 
   Widget _buildSectionHeader(BuildContext context, String title) {

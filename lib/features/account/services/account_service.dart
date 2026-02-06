@@ -5,18 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/http_handling.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/constants/utils.dart';
+import 'package:frontend/common/services/stream_chat_service.dart';
 import 'package:frontend/models/user.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:stream_chat_flutter/stream_chat_flutter.dart' as stream_chat;
 
 class AccountService {
   // Lấy thông tin profile của user theo ID
   Future<User?> getUserProfile(BuildContext context, String userId) async {
     User? userProfile;
     try {
-      final response = await ApiClient.get(
-        url: '$uri/account/profile/$userId',
-      );
+      final response = await ApiClient.get(url: '$uri/account/profile/$userId');
 
       if (!context.mounted) return null;
       httpResponseHandle(
@@ -47,7 +47,7 @@ class AccountService {
 
       // Upload avatar nếu có thay đổi
       if (avatar != null) {
-        final cloudinary = CloudinaryPublic('dvgeq2l6e', 'xuvwiao4');
+        final cloudinary = CloudinaryPublic('dkwp4prjj', 'projexy_preset');
         CloudinaryResponse response;
 
         if (kIsWeb) {
@@ -87,14 +87,49 @@ class AccountService {
       httpResponseHandle(
         response: response,
         context: context,
-        onSuccess: () {
+        onSuccess: () async {
           // Cập nhật UserProvider với thông tin mới
           final userData = json.decode(response.body);
           final userProvider = Provider.of<UserProvider>(
             context,
             listen: false,
           );
+
+          // Preserve token và password hiện tại (vì backend không trả về)
+          final currentUser = userProvider.user;
+          userData['token'] = currentUser.token;
+          userData['password'] = currentUser.password;
+
           userProvider.setUser(json.encode(userData));
+
+          // Cập nhật Stream Chat user info nếu có thay đổi avatar hoặc name
+          try {
+            final client = StreamChatService.client;
+            if (client != null && StreamChatService.isConnected) {
+              final updateData = <String, dynamic>{};
+
+              // Cập nhật name nếu khác
+              if (name.trim() != currentUser.name) {
+                updateData['name'] = name.trim();
+              }
+
+              // Cập nhật avatar nếu có
+              if (avatarUrl != null) {
+                updateData['image'] = avatarUrl;
+              }
+
+              // Chỉ update nếu có thay đổi
+              if (updateData.isNotEmpty) {
+                await client.updateUser(
+                  stream_chat.User(id: currentUser.id, extraData: updateData),
+                );
+                debugPrint('✅ Stream Chat user info updated successfully');
+              }
+            }
+          } catch (e) {
+            debugPrint('⚠️ Failed to update Stream Chat user info: $e');
+            // Không throw error vì đây không phải critical operation
+          }
         },
       );
     } catch (e) {
