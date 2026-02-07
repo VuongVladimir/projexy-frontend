@@ -1,6 +1,79 @@
 import 'dart:convert';
 import 'package:easy_localization/easy_localization.dart';
 
+/// Model cho tệp đính kèm của Task
+class TaskAttachment {
+  final String id;
+  final String url;
+  final String fileName;
+  final String fileType; // 'image', 'document', 'video'
+  final int fileSize;
+  final Map<String, dynamic>? uploadedBy;
+  final DateTime uploadedAt;
+
+  TaskAttachment({
+    required this.id,
+    required this.url,
+    required this.fileName,
+    required this.fileType,
+    this.fileSize = 0,
+    this.uploadedBy,
+    required this.uploadedAt,
+  });
+
+  factory TaskAttachment.fromMap(Map<String, dynamic> map) {
+    return TaskAttachment(
+      id: map['_id']?.toString() ?? '',
+      url: map['url']?.toString() ?? '',
+      fileName: map['fileName']?.toString() ?? '',
+      fileType: map['fileType']?.toString() ?? 'document',
+      fileSize: map['fileSize']?.toInt() ?? 0,
+      uploadedBy: map['uploadedBy'] is Map
+          ? {
+              '_id': map['uploadedBy']['_id']?.toString() ?? '',
+              'name': map['uploadedBy']['name']?.toString() ?? '',
+              'email': map['uploadedBy']['email']?.toString() ?? '',
+              'avatar': map['uploadedBy']['avatar']?.toString() ?? '',
+              'avatarColor': map['uploadedBy']['avatarColor']?.toString() ?? '',
+            }
+          : null,
+      uploadedAt: map['uploadedAt'] != null
+          ? DateTime.parse(map['uploadedAt'])
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      '_id': id,
+      'url': url,
+      'fileName': fileName,
+      'fileType': fileType,
+      'fileSize': fileSize,
+      'uploadedBy': uploadedBy,
+      'uploadedAt': uploadedAt.toIso8601String(),
+    };
+  }
+
+  bool get isImage => fileType == 'image';
+  bool get isDocument => fileType == 'document';
+  bool get isVideo => fileType == 'video';
+
+  /// Lấy kích thước file dạng đọc được (KB, MB, GB)
+  String get formattedFileSize {
+    if (fileSize < 1024) return '$fileSize B';
+    if (fileSize < 1024 * 1024) return '${(fileSize / 1024).toStringAsFixed(1)} KB';
+    if (fileSize < 1024 * 1024 * 1024) return '${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(fileSize / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  /// Lấy extension của file
+  String get fileExtension {
+    final parts = fileName.split('.');
+    return parts.length > 1 ? parts.last.toLowerCase() : '';
+  }
+}
+
 class Task {
   final String id;
   final String title;
@@ -23,6 +96,7 @@ class Task {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<Task>? subtasks;
+  final List<TaskAttachment> attachments;
 
   Task({
     required this.id,
@@ -46,6 +120,7 @@ class Task {
     required this.createdAt,
     required this.updatedAt,
     this.subtasks,
+    this.attachments = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -71,6 +146,7 @@ class Task {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'subtasks': subtasks?.map((x) => x.toMap()).toList(),
+      'attachments': attachments.map((x) => x.toMap()).toList(),
     };
   }
 
@@ -134,6 +210,10 @@ class Task {
       subtasks: map['subtasks'] != null 
           ? List<Task>.from((map['subtasks'] as List).map((x) => Task.fromMap(x)))
           : null,
+      attachments: map['attachments'] != null
+          ? List<TaskAttachment>.from(
+              (map['attachments'] as List).map((x) => TaskAttachment.fromMap(x)))
+          : [],
     );
   }
 
@@ -163,6 +243,7 @@ class Task {
     DateTime? createdAt,
     DateTime? updatedAt,
     List<Task>? subtasks,
+    List<TaskAttachment>? attachments,
   }) {
     return Task(
       id: id ?? this.id,
@@ -186,6 +267,7 @@ class Task {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       subtasks: subtasks ?? this.subtasks,
+      attachments: attachments ?? this.attachments,
     );
   }
 
@@ -326,6 +408,16 @@ class Task {
 
   // Kiểm tra xem có thể xóa được không (phải xóa tất cả subtasks trước)
   bool get canBeDeleted => !hasSubtasks;
+
+  // Attachment helpers
+  bool get hasAttachments => attachments.isNotEmpty;
+  int get attachmentCount => attachments.length;
+  List<TaskAttachment> get imageAttachments => 
+      attachments.where((a) => a.isImage).toList();
+  List<TaskAttachment> get documentAttachments => 
+      attachments.where((a) => a.isDocument).toList();
+  List<TaskAttachment> get videoAttachments => 
+      attachments.where((a) => a.isVideo).toList();
 
   // So sánh để sắp xếp
   int compareTo(Task other) {

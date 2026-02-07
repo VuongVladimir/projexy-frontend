@@ -382,7 +382,8 @@ class TasksService {
   static Future<void> addAttachment({
     required BuildContext context,
     required String taskId,
-    required dynamic file,
+    dynamic fileBytes, // Uint8List for web or when withData is true
+    String? filePath, // File path for mobile
     required String fileName,
     required String fileExtension,
     required int fileSize,
@@ -397,23 +398,27 @@ class TasksService {
       final cloudinary = CloudinaryPublic('dkwp4prjj', 'projexy_preset');
       CloudinaryResponse response;
 
-      if (kIsWeb) {
+      if (kIsWeb || fileBytes != null) {
+        // Web hoặc khi có bytes data
         response = await cloudinary.uploadFile(
           CloudinaryFile.fromBytesData(
-            file,
+            fileBytes,
             identifier: '${fileName}_${DateTime.now().millisecondsSinceEpoch}',
             folder: folder,
             resourceType: fileType == 'video' ? CloudinaryResourceType.Video : CloudinaryResourceType.Auto,
           ),
         );
-      } else {
+      } else if (filePath != null) {
+        // Mobile với file path
         response = await cloudinary.uploadFile(
           CloudinaryFile.fromFile(
-            file.path,
+            filePath,
             folder: folder,
             resourceType: fileType == 'video' ? CloudinaryResourceType.Video : CloudinaryResourceType.Auto,
           ),
         );
+      } else {
+        throw Exception('No file data provided');
       }
 
       final fileUrl = response.secureUrl;

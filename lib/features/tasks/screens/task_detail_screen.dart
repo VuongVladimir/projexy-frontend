@@ -1,5 +1,15 @@
+import 'dart:io';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/collapsible_section.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
@@ -39,6 +49,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   DependencyViolation? _violation;
   bool _isLoading = true;
   bool _isLoadingSubtasks = false;
+  bool _isUploadingAttachment = false;
 
   @override
   void initState() {
@@ -584,6 +595,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               const SizedBox(height: 24),
               // More Fields Section
               _buildMoreFieldsSection(),
+
+              const SizedBox(height: 24),
+              // Attachments Section
+              _buildAttachmentsSection(),
             ],
           ),
         ),
@@ -1445,122 +1460,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildSchedulingModeSection() {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          tr('scheduling_mode'),
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: isDarkMode
-                ? GlobalVariables.darkTextPrimary
-                : GlobalVariables.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _task!.isAutoScheduled
-                ? GlobalVariables.primaryBlue.withValues(alpha: 0.1)
-                : GlobalVariables.warningAmber.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _task!.isAutoScheduled
-                  ? GlobalVariables.primaryBlue
-                  : GlobalVariables.warningAmber,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                _task!.isAutoScheduled
-                    ? Icons.auto_awesome_rounded
-                    : Icons.edit_rounded,
-                color: _task!.isAutoScheduled
-                    ? GlobalVariables.primaryBlue
-                    : GlobalVariables.warningAmber,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  _task!.isAutoScheduled
-                      ? tr('auto_scheduling_description')
-                      : tr('manual_scheduling_description'),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: isDarkMode
-                        ? GlobalVariables.darkTextPrimary
-                        : GlobalVariables.textPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDependenciesSection() {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          tr('dependencies'),
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: isDarkMode
-                ? GlobalVariables.darkTextPrimary
-                : GlobalVariables.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Predecessors
-        if (_predecessors.isNotEmpty) ...[
-          Text(
-            tr('predecessors'),
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: isDarkMode
-                  ? GlobalVariables.darkTextSecondary
-                  : GlobalVariables.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ..._predecessors.map(
-            (dep) => _buildDependencyCard(dep, isPredecessor: true),
-          ),
-        ],
-
-        // Successors
-        if (_successors.isNotEmpty) ...[
-          if (_predecessors.isNotEmpty) const SizedBox(height: 16),
-          Text(
-            tr('successors'),
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: isDarkMode
-                  ? GlobalVariables.darkTextSecondary
-                  : GlobalVariables.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ..._successors.map(
-            (dep) => _buildDependencyCard(dep, isPredecessor: false),
-          ),
-        ],
-      ],
-    );
-  }
-
   Widget _buildDependencyCard(Dependency dep, {required bool isPredecessor}) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
@@ -1759,6 +1658,812 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
+  // ==================== ATTACHMENTS SECTION ====================
+
+  Widget _buildAttachmentsSection() {
+    // Check edit permission
+    final currentUser = Provider.of<UserProvider>(context, listen: false).user;
+    final isOwner = _project?.createdBy['id'] == currentUser.id;
+    final currentUserMember = _project?.members.firstWhere(
+      (member) => member.userId == currentUser.id,
+      orElse: () => ProjectMember(
+        userId: currentUser.id,
+        role: 'Viewer',
+        permissions: ProjectPermissions(),
+        joinedAt: DateTime.now(),
+      ),
+    );
+    final canEdit =
+        isOwner || (currentUserMember?.permissions.editTask ?? false);
+
+    return CollapsibleSection(
+      header: tr('attachments'),
+      subheader: tr('attachments_description'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Upload button
+          if (canEdit) ...[_buildUploadButton(), const SizedBox(height: 16)],
+
+          // Attachments list
+          if (_task!.attachments.isEmpty)
+            _buildEmptyAttachmentsState(canEdit)
+          else
+            _buildAttachmentsList(canEdit),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUploadButton() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: _isUploadingAttachment ? null : _pickAndUploadFile,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        decoration: BoxDecoration(
+          color: isDarkMode
+              ? GlobalVariables.darkBackgroundSecondary
+              : GlobalVariables.backgroundSecondary,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _isUploadingAttachment
+                ? GlobalVariables.primaryBlue.withValues(alpha: 0.5)
+                : GlobalVariables.primaryBlue.withValues(alpha: 0.3),
+            style: BorderStyle.solid,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_isUploadingAttachment)
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    GlobalVariables.primaryBlue,
+                  ),
+                ),
+              )
+            else
+              Icon(
+                Icons.cloud_upload_outlined,
+                color: GlobalVariables.primaryBlue,
+                size: 24,
+              ),
+            const SizedBox(width: 12),
+            Text(
+              _isUploadingAttachment
+                  ? tr('uploading_file')
+                  : tr('upload_attachment'),
+              style: TextStyle(
+                color: GlobalVariables.primaryBlue,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyAttachmentsState(bool canEdit) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.attach_file_rounded,
+              size: 48,
+              color: isDarkMode
+                  ? GlobalVariables.darkTextTertiary
+                  : GlobalVariables.textTertiary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              tr('no_attachments'),
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: isDarkMode
+                    ? GlobalVariables.darkTextSecondary
+                    : GlobalVariables.textSecondary,
+              ),
+            ),
+            if (canEdit) ...[
+              const SizedBox(height: 4),
+              Text(
+                tr('upload_files_here'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextTertiary
+                      : GlobalVariables.textTertiary,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttachmentsList(bool canEdit) {
+    final imageAttachments = _task!.imageAttachments;
+    final documentAttachments = _task!.documentAttachments;
+    final videoAttachments = _task!.videoAttachments;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Images Grid
+        if (imageAttachments.isNotEmpty) ...[
+          _buildAttachmentTypeHeader(
+            tr('images'),
+            Icons.image_rounded,
+            imageAttachments.length,
+          ),
+          const SizedBox(height: 8),
+          _buildImageGrid(imageAttachments, canEdit),
+          const SizedBox(height: 16),
+        ],
+
+        // Documents List
+        if (documentAttachments.isNotEmpty) ...[
+          _buildAttachmentTypeHeader(
+            tr('documents'),
+            Icons.description_rounded,
+            documentAttachments.length,
+          ),
+          const SizedBox(height: 8),
+          ...documentAttachments.map((att) => _buildDocumentCard(att, canEdit)),
+          const SizedBox(height: 16),
+        ],
+
+        // Videos List
+        if (videoAttachments.isNotEmpty) ...[
+          _buildAttachmentTypeHeader(
+            tr('videos'),
+            Icons.videocam_rounded,
+            videoAttachments.length,
+          ),
+          const SizedBox(height: 8),
+          ...videoAttachments.map((att) => _buildVideoCard(att, canEdit)),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildAttachmentTypeHeader(String title, IconData icon, int count) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 23,
+          color: isDarkMode
+              ? GlobalVariables.darkTextSecondary
+              : GlobalVariables.textSecondary,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$title ($count)',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: isDarkMode
+                ? GlobalVariables.darkTextSecondary
+                : GlobalVariables.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageGrid(List<TaskAttachment> images, bool canEdit) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1,
+      ),
+      itemCount: images.length,
+      itemBuilder: (context, index) {
+        final attachment = images[index];
+        return _buildImageThumbnail(attachment, canEdit);
+      },
+    );
+  }
+
+  Widget _buildImageThumbnail(TaskAttachment attachment, bool canEdit) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: () => _showImagePreview(attachment),
+      onLongPress: canEdit ? () => _showAttachmentOptions(attachment) : null,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: isDarkMode
+              ? GlobalVariables.darkBackgroundSecondary
+              : GlobalVariables.backgroundSecondary,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CachedNetworkImage(
+                imageUrl: attachment.url,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: GlobalVariables.primaryBlue,
+                  ),
+                ),
+                errorWidget: (context, url, error) => Center(
+                  child: Icon(
+                    Icons.broken_image_rounded,
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextTertiary
+                        : GlobalVariables.textTertiary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentCard(TaskAttachment attachment, bool canEdit) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isDarkMode
+            ? GlobalVariables.darkSurfaceCard
+            : GlobalVariables.surfaceCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDarkMode
+              ? GlobalVariables.darkBorderPrimary
+              : GlobalVariables.borderPrimary,
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Image.asset(
+          _getFileIconPath(attachment.fileExtension),
+          width: 42,
+          height: 42,
+        ),
+        title: Text(
+          attachment.fileName,
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: isDarkMode
+                ? GlobalVariables.darkTextPrimary
+                : GlobalVariables.textPrimary,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          attachment.formattedFileSize,
+          style: TextStyle(
+            fontSize: 12,
+            color: isDarkMode
+                ? GlobalVariables.darkTextTertiary
+                : GlobalVariables.textTertiary,
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(
+                Icons.download_rounded,
+                color: GlobalVariables.primaryBlue,
+              ),
+              onPressed: () => _openOrDownloadFile(attachment),
+              tooltip: tr('download'),
+            ),
+            if (canEdit)
+              IconButton(
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  color: GlobalVariables.errorRed,
+                ),
+                onPressed: () => _confirmDeleteAttachment(attachment),
+                tooltip: tr('delete'),
+              ),
+          ],
+        ),
+        onTap: () => _openOrDownloadFile(attachment),
+      ),
+    );
+  }
+
+  Widget _buildVideoCard(TaskAttachment attachment, bool canEdit) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isDarkMode
+            ? GlobalVariables.darkSurfaceCard
+            : GlobalVariables.surfaceCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDarkMode
+              ? GlobalVariables.darkBorderPrimary
+              : GlobalVariables.borderPrimary,
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Image.asset('assets/icons/video.png', width: 42, height: 42),
+        title: Text(
+          attachment.fileName,
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: isDarkMode
+                ? GlobalVariables.darkTextPrimary
+                : GlobalVariables.textPrimary,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          attachment.formattedFileSize,
+          style: TextStyle(
+            fontSize: 12,
+            color: isDarkMode
+                ? GlobalVariables.darkTextTertiary
+                : GlobalVariables.textTertiary,
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(
+                Icons.play_arrow_rounded,
+                color: GlobalVariables.primaryBlue,
+              ),
+              onPressed: () => _openOrDownloadFile(attachment),
+              tooltip: tr('play'),
+            ),
+            if (canEdit)
+              IconButton(
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  color: GlobalVariables.errorRed,
+                ),
+                onPressed: () => _confirmDeleteAttachment(attachment),
+                tooltip: tr('delete'),
+              ),
+          ],
+        ),
+        onTap: () => _openOrDownloadFile(attachment),
+      ),
+    );
+  }
+
+  String _getFileIconPath(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'pdf':
+        return 'assets/icons/pdf.png';
+      case 'doc':
+      case 'docx':
+        return 'assets/icons/word.png';
+      case 'xls':
+      case 'xlsx':
+        return 'assets/icons/excel.png';
+      case 'ppt':
+      case 'pptx':
+        return 'assets/icons/pptx.png';
+      case 'txt':
+        return 'assets/icons/txt.png';
+      default:
+        return 'assets/icons/folder.png';
+    }
+  }
+
+  Future<void> _pickAndUploadFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      final fileName = file.name;
+      final fileExtension = file.extension ?? '';
+      final fileSize = file.size;
+
+      // Show loading
+      setState(() {
+        _isUploadingAttachment = true;
+      });
+
+      // Upload file - truyền cả bytes và path
+      await TasksService.addAttachment(
+        context: context,
+        taskId: _task!.id,
+        fileBytes: file.bytes,
+        filePath: file.path,
+        fileName: fileName,
+        fileExtension: fileExtension,
+        fileSize: fileSize,
+        onSuccess: () {
+          if (mounted) {
+            setState(() {
+              _isUploadingAttachment = false;
+            });
+          }
+          _loadTaskDetails(); // Reload task to show new attachment
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isUploadingAttachment = false;
+        });
+        showSnackBar(context, tr('error_uploading_file'));
+      }
+    }
+  }
+
+  void _showImagePreview(TaskAttachment attachment) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(0),
+        child: SafeArea(
+          top: false,
+          left: false,
+          right: false,
+          child: Stack(
+            children: [
+              // Image
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: InteractiveViewer(
+                    child: CachedNetworkImage(
+                      imageUrl: attachment.url,
+                      fit: BoxFit.contain,
+                      placeholder: (context, url) =>
+                          const Center(child: CircularProgressIndicator()),
+                      errorWidget: (context, url, error) => const Center(
+                        child: Icon(Icons.error, color: Colors.red, size: 48),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Close button
+              Positioned(
+                top: -3,
+                right: 6,
+                child: IconButton(
+                  style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              // Download button
+              Positioned(
+                bottom: 16,
+                left: 16,
+                child: IconButton(
+                  style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                  icon: const Icon(Icons.download, color: Colors.white),
+                  onPressed: () => _openOrDownloadFile(attachment),
+                ),
+              ),
+              // File name
+              Positioned(
+                top: -3,
+                left: 60,
+                right: 60,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      attachment.fileName,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAttachmentOptions(TaskAttachment attachment) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDarkMode
+              ? GlobalVariables.darkSurfaceCard
+              : GlobalVariables.surfaceCard,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDarkMode
+                    ? GlobalVariables.darkBorderPrimary
+                    : GlobalVariables.borderPrimary,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // File name
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                attachment.fileName,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextPrimary
+                      : GlobalVariables.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Options
+            ListTile(
+              leading: Icon(
+                Icons.download_rounded,
+                color: GlobalVariables.primaryBlue,
+              ),
+              title: Text(tr('download')),
+              onTap: () {
+                Navigator.of(context).pop();
+                _openOrDownloadFile(attachment);
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.delete_outline_rounded,
+                color: GlobalVariables.errorRed,
+              ),
+              title: Text(
+                tr('delete'),
+                style: TextStyle(color: GlobalVariables.errorRed),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                _confirmDeleteAttachment(attachment);
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openOrDownloadFile(TaskAttachment attachment) async {
+    // Trên Web, mở URL trong tab mới để download
+    if (kIsWeb) {
+      await _openInBrowser(attachment);
+      return;
+    }
+
+    // Trên Mobile, download file về máy
+    await _downloadFile(attachment);
+  }
+
+  Future<void> _openInBrowser(TaskAttachment attachment) async {
+    try {
+      final uri = Uri.parse(attachment.url);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Error opening in browser: $e');
+      if (mounted) {
+        showSnackBar(context, tr('cannot_open_file'));
+      }
+    }
+  }
+
+  Future<void> _downloadFile(TaskAttachment attachment) async {
+    try {
+      // Kiểm tra và yêu cầu quyền storage (Android)
+      if (Platform.isAndroid) {
+        final status = await Permission.storage.request();
+        if (!status.isGranted) {
+          // Thử yêu cầu quyền manageExternalStorage cho Android 11+
+          final manageStatus = await Permission.manageExternalStorage.request();
+          if (!manageStatus.isGranted) {
+            if (mounted) {
+              showSnackBar(context, tr('storage_permission_required'));
+            }
+            return;
+          }
+        }
+      }
+
+      // Hiển thị dialog downloading
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) =>
+            _DownloadProgressDialog(fileName: attachment.fileName),
+      );
+
+      // Lấy thư mục Downloads
+      Directory? downloadDir;
+      if (Platform.isAndroid) {
+        downloadDir = Directory('/storage/emulated/0/Download');
+        if (!await downloadDir.exists()) {
+          downloadDir = await getExternalStorageDirectory();
+        }
+      } else if (Platform.isIOS) {
+        downloadDir = await getApplicationDocumentsDirectory();
+      } else {
+        downloadDir = await getDownloadsDirectory();
+      }
+
+      if (downloadDir == null) {
+        Navigator.of(context).pop(); // Đóng dialog
+        if (mounted) {
+          showSnackBar(context, tr('cannot_access_storage'));
+        }
+        return;
+      }
+
+      // Tạo đường dẫn file
+      final filePath = '${downloadDir.path}/${attachment.fileName}';
+
+      // Download file
+      final dio = Dio();
+      await dio.download(
+        attachment.url,
+        filePath,
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            final progress = (received / total * 100).toStringAsFixed(0);
+            debugPrint('Download progress: $progress%');
+          }
+        },
+      );
+
+      // Đóng dialog downloading
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Hiển thị thông báo thành công với option mở file
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              tr(
+                'file_downloaded',
+                namedArgs: {'fileName': attachment.fileName},
+              ),
+            ),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: tr('open'),
+              onPressed: () async {
+                try {
+                  await OpenFile.open(filePath);
+                } catch (e) {
+                  debugPrint('Error opening file: $e');
+                }
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error downloading file: $e');
+      // Đóng dialog nếu còn mở
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      if (mounted) {
+        showSnackBar(context, tr('error_downloading_file'));
+      }
+    }
+  }
+
+  void _confirmDeleteAttachment(TaskAttachment attachment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(tr('confirm_delete')),
+        content: Text(
+          tr(
+            'confirm_delete_attachment',
+            namedArgs: {'fileName': attachment.fileName},
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(tr('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _deleteAttachment(attachment);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GlobalVariables.errorRed,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(tr('delete')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteAttachment(TaskAttachment attachment) {
+    TasksService.deleteAttachment(
+      context: context,
+      taskId: _task!.id,
+      attachmentId: attachment.id,
+      onSuccess: () {
+        _loadTaskDetails();
+      },
+    );
+  }
+
   void _deleteDependency(Dependency dep) {
     showDialog(
       context: context,
@@ -1791,6 +2496,58 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             child: Text(tr('delete')),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Dialog hiển thị progress khi download file
+class _DownloadProgressDialog extends StatelessWidget {
+  final String fileName;
+
+  const _DownloadProgressDialog({required this.fileName});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Dialog(
+      backgroundColor: isDarkMode
+          ? GlobalVariables.darkSurfaceCard
+          : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 20),
+            Text(
+              tr('downloading'),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isDarkMode
+                    ? GlobalVariables.darkTextPrimary
+                    : GlobalVariables.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              fileName,
+              style: TextStyle(
+                fontSize: 14,
+                color: isDarkMode
+                    ? GlobalVariables.darkTextSecondary
+                    : GlobalVariables.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
