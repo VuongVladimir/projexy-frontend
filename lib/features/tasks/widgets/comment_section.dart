@@ -957,16 +957,7 @@ class _CommentCardState extends State<_CommentCard> {
                 ),
                 const SizedBox(height: 4),
                 // Content
-                Text(
-                  comment.content,
-                  style: TextStyle(
-                    fontSize: isReply ? 14 : 15,
-                    color: widget.isDarkMode
-                        ? GlobalVariables.darkTextPrimary
-                        : GlobalVariables.textPrimary,
-                    height: 1.4,
-                  ),
-                ),
+                _buildCommentText(content: comment.content, isReply: isReply),
                 const SizedBox(height: 10),
                 _buildActionsRow(
                   comment: comment,
@@ -983,6 +974,56 @@ class _CommentCardState extends State<_CommentCard> {
         ),
       ],
     );
+  }
+
+  Widget _buildCommentText({required String content, required bool isReply}) {
+    final baseStyle = TextStyle(
+      fontSize: isReply ? 14 : 15,
+      color: widget.isDarkMode
+          ? GlobalVariables.darkTextPrimary
+          : GlobalVariables.textPrimary,
+      height: 1.4,
+    );
+
+    return RichText(
+      text: TextSpan(
+        style: baseStyle,
+        children: _buildMentionSpans(content, baseStyle),
+      ),
+    );
+  }
+
+  List<TextSpan> _buildMentionSpans(String text, TextStyle baseStyle) {
+    final regex = RegExp(
+      r'@[\p{L}\p{M}0-9_]+(?:\s+[\p{Lu}][\p{L}\p{M}0-9_]*)*',
+      unicode: true,
+    );
+    final spans = <TextSpan>[];
+    var lastIndex = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastIndex) {
+        spans.add(TextSpan(text: text.substring(lastIndex, match.start)));
+      }
+
+      spans.add(
+        TextSpan(
+          text: match.group(0),
+          style: baseStyle.copyWith(
+            color: GlobalVariables.primaryBlue,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < text.length) {
+      spans.add(TextSpan(text: text.substring(lastIndex)));
+    }
+
+    return spans;
   }
 
   Widget _buildActionsRow({
