@@ -520,6 +520,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         icon = Icons.celebration_rounded;
         color = GlobalVariables.successGreen;
         break;
+      case 'comment_mention':
+        icon = Icons.alternate_email_rounded;
+        color = GlobalVariables.secondaryCoral;
+        break;
+      case 'comment_reply':
+        icon = Icons.reply_rounded;
+        color = GlobalVariables.primaryBlue;
+        break;
       default:
         icon = Icons.notifications_rounded;
         color = GlobalVariables.primaryBlue;
@@ -601,6 +609,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         return 'Dự án hoàn thành';
       case 'member_joined':
         return 'Thành viên mới';
+      case 'comment_mention':
+        return 'Được nhắc đến';
+      case 'comment_reply':
+        return 'Có phản hồi';
       case 'system':
         return 'Hệ thống';
       default:
@@ -654,7 +666,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         _handleProjectInvitationTap(notification);
         break;
       case 'task_assigned':
-        // TODO: Navigate to task detail
+      case 'comment_mention':
+      case 'comment_reply':
+        _navigateToTask(notification);
         break;
       case 'project_deadline_warning':
         // TODO: Navigate to project detail
@@ -663,6 +677,21 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       default:
         break;
     }
+  }
+
+  void _navigateToTask(AppNotification notification) {
+    final taskId = notification.data.taskId;
+    
+    if (taskId == null || taskId.isEmpty) {
+      showSnackBar(context, 'Không tìm thấy thông tin task!');
+      return;
+    }
+
+    Navigator.pushNamed(
+      context,
+      '/task-detail',
+      arguments: {'taskId': taskId},
+    );
   }
 
   void _handleProjectInvitationTap(AppNotification notification) {

@@ -152,6 +152,10 @@ class AppNotification {
         return 'Dự án hoàn thành';
       case 'member_joined':
         return 'Thành viên mới';
+      case 'comment_mention':
+        return 'Được nhắc đến';
+      case 'comment_reply':
+        return 'Có phản hồi';
       case 'system':
         return 'Hệ thống';
       default:
@@ -172,6 +176,8 @@ class NotificationData {
   final String? projectTitle;
   final String? taskId;
   final String? taskTitle;
+  final String? commentId;
+  final String? commentContent;
   final String? invitationId;
   final String? fromUserId;
   final String? fromUserName;
@@ -187,6 +193,8 @@ class NotificationData {
     this.projectTitle,
     this.taskId,
     this.taskTitle,
+    this.commentId,
+    this.commentContent,
     this.invitationId,
     this.fromUserId,
     this.fromUserName,
@@ -202,6 +210,8 @@ class NotificationData {
       'projectTitle': projectTitle,
       'taskId': taskId,
       'taskTitle': taskTitle,
+      'commentId': commentId,
+      'commentContent': commentContent,
       'invitationId': invitationId,
       'fromUserId': fromUserId,
       'fromUserName': fromUserName,
@@ -223,6 +233,8 @@ class NotificationData {
           ? map['taskId']
           : (map['taskId'] is Map ? map['taskId']['_id']?.toString() : null),
       taskTitle: map['taskTitle']?.toString(),
+      commentId: map['commentId']?.toString(),
+      commentContent: map['commentContent']?.toString(),
       invitationId: map['invitationId']?.toString(),
       fromUserId: map['fromUserId'] is String
           ? map['fromUserId']

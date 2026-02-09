@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:frontend/models/comment.dart';
 
 /// Model cho tệp đính kèm của Task
 class TaskAttachment {
@@ -97,6 +98,7 @@ class Task {
   final DateTime updatedAt;
   final List<Task>? subtasks;
   final List<TaskAttachment> attachments;
+  final List<TaskComment> comments;
 
   Task({
     required this.id,
@@ -121,6 +123,7 @@ class Task {
     required this.updatedAt,
     this.subtasks,
     this.attachments = const [],
+    this.comments = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -147,6 +150,7 @@ class Task {
       'updatedAt': updatedAt.toIso8601String(),
       'subtasks': subtasks?.map((x) => x.toMap()).toList(),
       'attachments': attachments.map((x) => x.toMap()).toList(),
+      'comments': comments.map((x) => x.toMap()).toList(),
     };
   }
 
@@ -214,6 +218,10 @@ class Task {
           ? List<TaskAttachment>.from(
               (map['attachments'] as List).map((x) => TaskAttachment.fromMap(x)))
           : [],
+      comments: map['comments'] != null
+          ? List<TaskComment>.from(
+              (map['comments'] as List).map((x) => TaskComment.fromMap(x)))
+          : [],
     );
   }
 
@@ -244,6 +252,7 @@ class Task {
     DateTime? updatedAt,
     List<Task>? subtasks,
     List<TaskAttachment>? attachments,
+    List<TaskComment>? comments,
   }) {
     return Task(
       id: id ?? this.id,
@@ -268,6 +277,7 @@ class Task {
       updatedAt: updatedAt ?? this.updatedAt,
       subtasks: subtasks ?? this.subtasks,
       attachments: attachments ?? this.attachments,
+      comments: comments ?? this.comments,
     );
   }
 
@@ -418,6 +428,17 @@ class Task {
       attachments.where((a) => a.isDocument).toList();
   List<TaskAttachment> get videoAttachments => 
       attachments.where((a) => a.isVideo).toList();
+
+  // Comment helpers
+  bool get hasComments => comments.isNotEmpty;
+  int get commentCount => comments.length;
+  int get totalCommentCount {
+    int total = comments.length;
+    for (final comment in comments) {
+      total += comment.replyCount;
+    }
+    return total;
+  }
 
   // So sánh để sắp xếp
   int compareTo(Task other) {

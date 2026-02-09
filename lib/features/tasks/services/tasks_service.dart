@@ -6,6 +6,7 @@ import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/constants/http_handling.dart';
 import 'package:frontend/common/constants/utils.dart';
 import 'package:frontend/models/task.dart';
+import 'package:frontend/models/comment.dart';
 
 class TasksService {
   // Không cần _getAccessToken nữa vì ApiClient tự xử lý
@@ -472,6 +473,274 @@ class TasksService {
           onSuccess: () {
             showSnackBar(context, 'Đã xóa tệp đính kèm!');
             onSuccess();
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
+  // ==================== COMMENT METHODS ====================
+
+  /// Lấy danh sách comments của task
+  static Future<void> getComments({
+    required BuildContext context,
+    required String taskId,
+    String sort = 'newest',
+    required Function(List<TaskComment>) onSuccess,
+  }) async {
+    try {
+      final response = await ApiClient.get(
+        url: '$uri/api/task/$taskId/comments',
+        queryParams: {'sort': sort},
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            final responseBody = response.body;
+            if (responseBody.isEmpty) {
+              onSuccess([]);
+              return;
+            }
+
+            final List<dynamic> commentData = json.decode(responseBody);
+            final comments = commentData
+                .map((data) => TaskComment.fromMap(data as Map<String, dynamic>))
+                .toList();
+            onSuccess(comments);
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
+  /// Thêm comment mới
+  static Future<void> addComment({
+    required BuildContext context,
+    required String taskId,
+    required String content,
+    String? parentCommentId,
+    required Function(TaskComment) onSuccess,
+  }) async {
+    try {
+      final body = {
+        'content': content,
+        if (parentCommentId != null) 'parentCommentId': parentCommentId,
+      };
+
+      final response = await ApiClient.post(
+        url: '$uri/api/task/$taskId/comments',
+        body: json.encode(body),
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            final responseBody = response.body;
+            if (responseBody.isEmpty) {
+              throw Exception('Empty response body');
+            }
+
+            final commentData = json.decode(responseBody);
+            final comment = TaskComment.fromMap(commentData as Map<String, dynamic>);
+            onSuccess(comment);
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
+  /// Cập nhật comment
+  static Future<void> updateComment({
+    required BuildContext context,
+    required String taskId,
+    required String commentId,
+    required String content,
+    required Function(TaskComment) onSuccess,
+  }) async {
+    try {
+      final body = {'content': content};
+
+      final response = await ApiClient.put(
+        url: '$uri/api/task/$taskId/comments/$commentId',
+        body: json.encode(body),
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            final responseBody = response.body;
+            if (responseBody.isEmpty) {
+              throw Exception('Empty response body');
+            }
+
+            final commentData = json.decode(responseBody);
+            final comment = TaskComment.fromMap(commentData as Map<String, dynamic>);
+            onSuccess(comment);
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
+  /// Xóa comment
+  static Future<void> deleteComment({
+    required BuildContext context,
+    required String taskId,
+    required String commentId,
+    required VoidCallback onSuccess,
+  }) async {
+    try {
+      final response = await ApiClient.delete(
+        url: '$uri/api/task/$taskId/comments/$commentId',
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            onSuccess();
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
+  /// Toggle reaction trên comment
+  static Future<void> toggleReaction({
+    required BuildContext context,
+    required String taskId,
+    required String commentId,
+    required String emoji,
+    required Function(TaskComment) onSuccess,
+  }) async {
+    try {
+      final body = {'emoji': emoji};
+
+      final response = await ApiClient.post(
+        url: '$uri/api/task/$taskId/comments/$commentId/reactions',
+        body: json.encode(body),
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            final responseBody = response.body;
+            if (responseBody.isEmpty) {
+              throw Exception('Empty response body');
+            }
+
+            final commentData = json.decode(responseBody);
+            final comment = TaskComment.fromMap(commentData as Map<String, dynamic>);
+            onSuccess(comment);
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
+  /// Lấy chi tiết reactions của comment (grouped theo emoji)
+  static Future<void> getReactionDetails({
+    required BuildContext context,
+    required String taskId,
+    required String commentId,
+    required Function(ReactionsByEmoji) onSuccess,
+  }) async {
+    try {
+      final response = await ApiClient.get(
+        url: '$uri/api/task/$taskId/comments/$commentId/reactions',
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            final responseBody = response.body;
+            if (responseBody.isEmpty) {
+              onSuccess(ReactionsByEmoji(total: 0, byEmoji: {}));
+              return;
+            }
+
+            final data = json.decode(responseBody);
+            final reactions = ReactionsByEmoji.fromMap(data as Map<String, dynamic>);
+            onSuccess(reactions);
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
+  /// Tìm kiếm members của project để gợi ý mention
+  static Future<void> searchMembersForMention({
+    required BuildContext context,
+    required String projectId,
+    required String query,
+    required Function(List<Map<String, dynamic>>) onSuccess,
+  }) async {
+    try {
+      final response = await ApiClient.get(
+        url: '$uri/api/project/$projectId/members/search',
+        queryParams: {'q': query},
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            final responseBody = response.body;
+            if (responseBody.isEmpty) {
+              onSuccess([]);
+              return;
+            }
+
+            final List<dynamic> usersData = json.decode(responseBody);
+            final users = usersData.map((u) => {
+              '_id': u['_id']?.toString() ?? '',
+              'name': u['name']?.toString() ?? '',
+              'email': u['email']?.toString() ?? '',
+              'avatar': u['avatar']?.toString() ?? '',
+              'avatarColor': u['avatarColor']?.toString() ?? '',
+            }).toList();
+            onSuccess(users);
           },
         );
       }

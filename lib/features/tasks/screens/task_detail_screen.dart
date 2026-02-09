@@ -3,7 +3,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
@@ -22,6 +21,7 @@ import 'package:frontend/features/tasks/services/dependency_service.dart';
 import 'package:frontend/features/tasks/widgets/assign_task_dialog.dart';
 import 'package:frontend/features/tasks/widgets/add_dependency_dialog.dart';
 import 'package:frontend/features/tasks/widgets/shift_task_dialog.dart';
+import 'package:frontend/features/tasks/widgets/comment_section.dart';
 import 'package:frontend/common/constants/utils.dart';
 import 'package:frontend/models/project.dart';
 import 'package:frontend/models/task.dart';
@@ -377,228 +377,248 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           await _loadTaskDetails();
         },
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          //padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _task!.title,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode
-                            ? GlobalVariables.darkTextPrimary
-                            : GlobalVariables.textPrimary,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: GlobalVariables.getStatusColor(
-                        _task!.status,
-                      ).withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      _task!.statusDisplayName,
-                      style: TextStyle(
-                        color: GlobalVariables.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Date Range và Priority
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_today_outlined,
-                    size: 26,
-                    color: isDarkMode
-                        ? GlobalVariables.darkTextSecondary
-                        : GlobalVariables.textSecondary,
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${tr('schedule')}:',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontSize: 16,
-                          color: isDarkMode
-                              ? GlobalVariables.darkTextSecondary
-                              : GlobalVariables.textSecondary,
-                        ),
-                      ),
-                      Text(
-                        _task!.hasValidDates
-                            ? '${DateFormat('dd/MM/yyyy').format(_task!.startDate!)} - ${DateFormat('dd/MM/yyyy').format(_task!.endDate!)}'
-                            : tr('no_schedule'),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontSize: 15,
-                          color: isDarkMode
-                              ? GlobalVariables.darkTextSecondary
-                              : GlobalVariables.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // General Section
-              CollapsibleSection(
-                header: tr('general'),
-                subheader: tr('description_project_priority'),
-                initiallyExpanded: true,
+              Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Description
-                    Text(
-                      tr('description'),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: isDarkMode
-                            ? GlobalVariables.darkTextSecondary
-                            : GlobalVariables.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _task!.description == null || _task!.description!.isEmpty
-                          ? tr('no_description')
-                          : _task!.description!,
-                      style: TextStyle(
-                        fontSize: 17,
-                        color: isDarkMode
-                            ? GlobalVariables.darkTextPrimary
-                            : GlobalVariables.textPrimary,
-                        height: 1.5,
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '${tr('priority')}:  ',
-                            style: TextStyle(
-                              color: isDarkMode
-                                  ? GlobalVariables.darkTextSecondary
-                                  : GlobalVariables.textSecondary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                          TextSpan(
-                            text: _task!.priorityDisplayName,
-                            style: TextStyle(
-                              color: GlobalVariables.getPriorityColor(
-                                _task!.priority,
-                              ),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 17,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Project Info
-                    if (_project != null) ...[
-                      const SizedBox(height: 18),
-                      _buildInfoItem(
-                        tr('belongs_to_project'),
-                        _project!.title,
-                        Icons.folder_rounded,
-                        GlobalVariables.warningAmber,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-              // Details Section
-              CollapsibleSection(
-                header: tr('details'),
-                subheader: tr('assignee_subtasks_progress'),
-                initiallyExpanded: true,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_task!.assignedTo.isNotEmpty) ...[
-                      _buildAssigneesSection(),
-                      const SizedBox(height: 12),
-                    ],
-
-                    // Progress
-                    Text(
-                      tr('progress'),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: isDarkMode
-                            ? GlobalVariables.darkTextPrimary
-                            : GlobalVariables.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          '${_task!.progress}% ${tr('done')}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: isDarkMode
-                                ? GlobalVariables.darkTextSecondary
-                                : GlobalVariables.textSecondary,
+                        Expanded(
+                          child: Text(
+                            _task!.title,
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: isDarkMode
+                                  ? GlobalVariables.darkTextPrimary
+                                  : GlobalVariables.textPrimary,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: GlobalVariables.getStatusColor(
+                              _task!.status,
+                            ).withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            _task!.statusDisplayName,
+                            style: TextStyle(
+                              color: GlobalVariables.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: _task!.progressPercentage,
-                        backgroundColor: isDarkMode
-                            ? GlobalVariables.darkBorderPrimary
-                            : GlobalVariables.borderPrimary,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          GlobalVariables.primaryBlue,
+                    const SizedBox(height: 12),
+
+                    // Date Range và Priority
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 26,
+                          color: isDarkMode
+                              ? GlobalVariables.darkTextSecondary
+                              : GlobalVariables.textSecondary,
                         ),
-                        minHeight: 8,
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${tr('schedule')}:',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontSize: 16,
+                                color: isDarkMode
+                                    ? GlobalVariables.darkTextSecondary
+                                    : GlobalVariables.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              _task!.hasValidDates
+                                  ? '${DateFormat('dd/MM/yyyy').format(_task!.startDate!)} - ${DateFormat('dd/MM/yyyy').format(_task!.endDate!)}'
+                                  : tr('no_schedule'),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontSize: 15,
+                                color: isDarkMode
+                                    ? GlobalVariables.darkTextSecondary
+                                    : GlobalVariables.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // General Section
+                    CollapsibleSection(
+                      header: tr('general'),
+                      subheader: tr('description_project_priority'),
+                      initiallyExpanded: true,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Description
+                          Text(
+                            tr('description'),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: isDarkMode
+                                  ? GlobalVariables.darkTextSecondary
+                                  : GlobalVariables.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _task!.description == null ||
+                                    _task!.description!.isEmpty
+                                ? tr('no_description')
+                                : _task!.description!,
+                            style: TextStyle(
+                              fontSize: 17,
+                              color: isDarkMode
+                                  ? GlobalVariables.darkTextPrimary
+                                  : GlobalVariables.textPrimary,
+                              height: 1.5,
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '${tr('priority')}:  ',
+                                  style: TextStyle(
+                                    color: isDarkMode
+                                        ? GlobalVariables.darkTextSecondary
+                                        : GlobalVariables.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: _task!.priorityDisplayName,
+                                  style: TextStyle(
+                                    color: GlobalVariables.getPriorityColor(
+                                      _task!.priority,
+                                    ),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 17,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Project Info
+                          if (_project != null) ...[
+                            const SizedBox(height: 18),
+                            _buildInfoItem(
+                              tr('belongs_to_project'),
+                              _project!.title,
+                              Icons.folder_rounded,
+                              GlobalVariables.warningAmber,
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 32),
 
-                    _buildSubtasksSection(),
+                    const SizedBox(height: 24),
+                    // Details Section
+                    CollapsibleSection(
+                      header: tr('details'),
+                      subheader: tr('assignee_subtasks_progress'),
+                      initiallyExpanded: true,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_task!.assignedTo.isNotEmpty) ...[
+                            _buildAssigneesSection(),
+                            const SizedBox(height: 12),
+                          ],
+
+                          // Progress
+                          Text(
+                            tr('progress'),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: isDarkMode
+                                  ? GlobalVariables.darkTextPrimary
+                                  : GlobalVariables.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${_task!.progress}% ${tr('done')}',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: isDarkMode
+                                      ? GlobalVariables.darkTextSecondary
+                                      : GlobalVariables.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: _task!.progressPercentage,
+                              backgroundColor: isDarkMode
+                                  ? GlobalVariables.darkBorderPrimary
+                                  : GlobalVariables.borderPrimary,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                GlobalVariables.primaryBlue,
+                              ),
+                              minHeight: 8,
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+
+                          _buildSubtasksSection(),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // More Fields Section
+                    _buildMoreFieldsSection(),
+
+                    const SizedBox(height: 24),
+                    // Attachments Section
+                    _buildAttachmentsSection(),
+
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              // More Fields Section
-              _buildMoreFieldsSection(),
-
-              const SizedBox(height: 24),
-              // Attachments Section
-              _buildAttachmentsSection(),
+              const Divider(color: Colors.grey),
+              const SizedBox(height: 3),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: CommentSection(
+                  taskId: _task!.id,
+                  projectId: _task!.projectId,
+                ),
+              ),
             ],
           ),
         ),
