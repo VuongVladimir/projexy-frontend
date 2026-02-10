@@ -191,18 +191,18 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                 const SizedBox(height: 35),
               ] else ...[
                 // Summary task: hiển thị dates read-only
-                Text(
-                  tr('schedule_dates'),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isDarkMode
-                        ? GlobalVariables.darkTextPrimary
-                        : GlobalVariables.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildReadOnlyDates(isDarkMode, theme),
-                const SizedBox(height: 35),
+                // Text(
+                //   tr('schedule_dates'),
+                //   style: theme.textTheme.titleMedium?.copyWith(
+                //     fontWeight: FontWeight.w600,
+                //     color: isDarkMode
+                //         ? GlobalVariables.darkTextPrimary
+                //         : GlobalVariables.textPrimary,
+                //   ),
+                // ),
+                // const SizedBox(height: 12),
+                // _buildReadOnlyDates(isDarkMode, theme),
+                const SizedBox(height: 24),
               ],
 
               CustomButton(

@@ -25,8 +25,6 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
   final _tagsController = TextEditingController();
 
   String _priority = 'Medium';
-  DateTime? _startDate;
-  DateTime? _endDate;
   List<String> _tags = [];
   bool _isUpdating = false;
 
@@ -40,8 +38,6 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
     _titleController.text = widget.project.title;
     _descriptionController.text = widget.project.description ?? '';
     _priority = widget.project.priority;
-    _startDate = widget.project.startDate;
-    _endDate = widget.project.endDate;
     _tags = List.from(widget.project.tags);
     _tagsController.text = _tags.join(', ');
   }
@@ -63,9 +59,7 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
       backgroundColor: isDarkMode
           ? GlobalVariables.darkBackgroundPrimary
           : GlobalVariables.backgroundPrimary,
-      appBar: CustomAppBar(
-        title: tr('edit_project'),
-      ),
+      appBar: CustomAppBar(title: tr('edit_project')),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -148,40 +142,6 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Due Date
-              Text(
-                tr('due_date'),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isDarkMode
-                      ? GlobalVariables.darkTextPrimary
-                      : GlobalVariables.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ProjectFormWidgets.buildModernDateField(
-                      label: tr('start_date'),
-                      date: _startDate,
-                      onTap: () => _selectStartDate(),
-                      context: context,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ProjectFormWidgets.buildModernDateField(
-                      label: tr('end_date'),
-                      date: _endDate,
-                      onTap: () => _selectEndDate(),
-                      context: context,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
               // Tags
               Text(
                 tr('tags'),
@@ -229,7 +189,6 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
     );
   }
 
-
   void _removeTag(String tag) {
     setState(() {
       _tags.remove(tag);
@@ -237,65 +196,8 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
     });
   }
 
-  Future<void> _selectStartDate() async {
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: _startDate ?? DateTime.now(),
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: _endDate ?? DateTime.now().add(const Duration(days: 365 * 2)),
-    );
-
-    if (pickedDate != null) {
-      setState(() {
-        _startDate = pickedDate;
-        // Nếu ngày bắt đầu sau ngày kết thúc, reset ngày kết thúc
-        if (_endDate != null && pickedDate.isAfter(_endDate!)) {
-          _endDate = null;
-        }
-      });
-    }
-  }
-
-  Future<void> _selectEndDate() async {
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate:
-          _endDate ??
-          _startDate?.add(const Duration(days: 7)) ??
-          DateTime.now().add(const Duration(days: 7)),
-      firstDate: _startDate ?? DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-    );
-
-    if (pickedDate != null) {
-      setState(() {
-        _endDate = pickedDate;
-      });
-    }
-  }
-
   void _updateProject() {
     if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    if (_startDate == null || _endDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(tr('validation_select_start_end_dates')),
-          backgroundColor: GlobalVariables.errorRed,
-        ),
-      );
-      return;
-    }
-
-    if (_startDate!.isAfter(_endDate!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(tr('validation_start_before_end')),
-          backgroundColor: GlobalVariables.errorRed,
-        ),
-      );
       return;
     }
 
@@ -308,8 +210,6 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
       projectId: widget.project.id,
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
-      startDate: _startDate,
-      endDate: _endDate,
       priority: _priority,
       tags: _tags,
       onSuccess: () {
