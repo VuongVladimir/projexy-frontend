@@ -8,11 +8,7 @@ class TaskListView extends StatelessWidget {
   final List<Task> tasks;
   final VoidCallback onRefresh;
 
-  const TaskListView({
-    super.key,
-    required this.tasks,
-    required this.onRefresh,
-  });
+  const TaskListView({super.key, required this.tasks, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -40,11 +36,10 @@ class TaskListView extends StatelessWidget {
   }
 
   void _updateTaskStatus(BuildContext context, Task task, bool isCompleted) {
-    final newStatus = isCompleted ? 'completed' : 'todo';
-    TasksService.updateTask(
+    TasksService.markCompleteTask(
       context: context,
       taskId: task.id,
-      status: newStatus,
+      isCompleted: isCompleted,
       onSuccess: onRefresh,
     );
   }

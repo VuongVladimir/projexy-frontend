@@ -50,6 +50,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _isLoading = true;
   bool _isLoadingSubtasks = false;
   bool _isUploadingAttachment = false;
+  final GlobalKey<CommentSectionState> _commentSectionKey =
+      GlobalKey<CommentSectionState>();
 
   @override
   void initState() {
@@ -615,6 +617,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: CommentSection(
+                  key: _commentSectionKey,
                   taskId: _task!.id,
                   projectId: _task!.projectId,
                 ),
@@ -984,13 +987,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   void _updateTaskStatus(String status) {
-    TasksService.updateTask(
+    final isCompleted = status == 'completed';
+    TasksService.markCompleteTask(
       context: context,
       taskId: _task!.id,
-      status: status,
+      isCompleted: isCompleted,
       onSuccess: () {
-        _loadTaskDetails(); // Reload task để cập nhật UI
-        _loadSubtasks(); // Reload subtasks nếu có
+        _loadTaskDetails();
+        _loadSubtasks();
+        _commentSectionKey.currentState?.refreshActivity();
       },
     );
   }
@@ -1007,14 +1012,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   void _updateSubtaskStatus(Task subtask, bool isCompleted) {
-    final newStatus = isCompleted ? 'completed' : 'todo';
-    TasksService.updateTask(
+    TasksService.markCompleteTask(
       context: context,
       taskId: subtask.id,
-      status: newStatus,
+      isCompleted: isCompleted,
       onSuccess: () {
         _loadSubtasks();
         _loadTaskDetails();
+        _commentSectionKey.currentState?.refreshActivity();
       },
     );
   }

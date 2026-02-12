@@ -20,8 +20,9 @@ class TaskKanbanView extends StatelessWidget {
   Widget build(BuildContext context) {
     // Group tasks by status
     final todoTasks = tasks.where((t) => t.status == 'todo').toList();
-    final inProgressTasks =
-        tasks.where((t) => t.status == 'in-progress').toList();
+    final inProgressTasks = tasks
+        .where((t) => t.status == 'in-progress')
+        .toList();
     final reviewTasks = tasks.where((t) => t.status == 'review').toList();
     final completedTasks = tasks.where((t) => t.status == 'completed').toList();
 
@@ -95,12 +96,24 @@ class TaskKanbanView extends StatelessWidget {
         nextStatus = 'in-progress';
     }
 
-    TasksService.updateTask(
-      context: context,
-      taskId: task.id,
-      status: nextStatus,
-      onSuccess: onRefresh,
-    );
+    final wasCompleted = task.status == 'completed';
+    final willBeCompleted = nextStatus == 'completed';
+
+    if (wasCompleted || willBeCompleted) {
+      TasksService.markCompleteTask(
+        context: context,
+        taskId: task.id,
+        isCompleted: willBeCompleted,
+        onSuccess: onRefresh,
+      );
+    } else {
+      TasksService.updateTask(
+        context: context,
+        taskId: task.id,
+        status: nextStatus,
+        onSuccess: onRefresh,
+      );
+    }
   }
 }
 
@@ -148,10 +161,7 @@ class _KanbanColumn extends StatelessWidget {
               Container(
                 width: 8,
                 height: 8,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
               Text(
@@ -184,11 +194,13 @@ class _KanbanColumn extends StatelessWidget {
           const SizedBox(height: 12),
 
           // Task cards
-          ...tasks.map((task) => _KanbanCard(
-                task: task,
-                onTap: () => onTaskTap(task),
-                onStatusChanged: () => onStatusChanged(task),
-              )),
+          ...tasks.map(
+            (task) => _KanbanCard(
+              task: task,
+              onTap: () => onTaskTap(task),
+              onStatusChanged: () => onStatusChanged(task),
+            ),
+          ),
 
           // Empty state
           if (tasks.isEmpty)
@@ -244,8 +256,9 @@ class _KanbanCard extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: (isDarkMode ? Colors.black : Colors.grey)
-                  .withValues(alpha: 0.08),
+              color: (isDarkMode ? Colors.black : Colors.grey).withValues(
+                alpha: 0.08,
+              ),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -290,14 +303,19 @@ class _KanbanCard extends StatelessWidget {
               children: [
                 // Priority
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
-                    color: GlobalVariables.getPriorityColor(task.priority)
-                        .withValues(alpha: 0.1),
+                    color: GlobalVariables.getPriorityColor(
+                      task.priority,
+                    ).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                      color: GlobalVariables.getPriorityColor(task.priority)
-                          .withValues(alpha: 0.3),
+                      color: GlobalVariables.getPriorityColor(
+                        task.priority,
+                      ).withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
@@ -322,8 +340,8 @@ class _KanbanCard extends StatelessWidget {
                         color: task.isOverdue
                             ? GlobalVariables.errorRed
                             : (isDarkMode
-                                ? GlobalVariables.darkTextTertiary
-                                : GlobalVariables.textTertiary),
+                                  ? GlobalVariables.darkTextTertiary
+                                  : GlobalVariables.textTertiary),
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -332,11 +350,12 @@ class _KanbanCard extends StatelessWidget {
                           color: task.isOverdue
                               ? GlobalVariables.errorRed
                               : (isDarkMode
-                                  ? GlobalVariables.darkTextTertiary
-                                  : GlobalVariables.textTertiary),
+                                    ? GlobalVariables.darkTextTertiary
+                                    : GlobalVariables.textTertiary),
                           fontSize: 11,
-                          fontWeight:
-                              task.isOverdue ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: task.isOverdue
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                       ),
                     ],
@@ -386,4 +405,3 @@ class _KanbanCard extends StatelessWidget {
     );
   }
 }
-

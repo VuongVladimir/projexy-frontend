@@ -9,6 +9,7 @@ import 'package:frontend/features/projects/services/projects_service.dart';
 import 'package:frontend/features/projects/widgets/member_invitation_form.dart';
 import 'package:frontend/features/projects/widgets/permissions_dialog.dart';
 import 'package:frontend/features/projects/widgets/shift_project_dialog.dart';
+import 'package:frontend/features/projects/widgets/project_activity_section.dart';
 import 'package:frontend/features/tasks/services/tasks_service.dart';
 import 'package:frontend/features/tasks/screens/task_detail_screen.dart';
 import 'package:frontend/features/tasks/screens/create_task_screen.dart';
@@ -37,6 +38,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   bool _isLoadingTasks = false;
   bool _isOwner = false;
   ProjectMember? _currentUserMember;
+  final GlobalKey<ProjectActivitySectionState> _activitySectionKey =
+      GlobalKey<ProjectActivitySectionState>();
 
   @override
   void initState() {
@@ -334,220 +337,242 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         await _loadTasks();
       },
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        //padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
-            // Project Title và Status
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _project!.title,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  // Project Title và Status
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _project!.title,
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode
+                                ? GlobalVariables.darkTextPrimary
+                                : GlobalVariables.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: GlobalVariables.getStatusColor(
+                            _project!.status,
+                          ).withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          _project!.statusDisplayName,
+                          style: TextStyle(
+                            color: GlobalVariables.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Due Date và Priority
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 24,
+                        color: isDarkMode
+                            ? GlobalVariables.darkTextSecondary
+                            : GlobalVariables.textSecondary,
+                      ),
+                      const SizedBox(width: 14),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${tr('schedule')}:',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontSize: 16,
+                              color: isDarkMode
+                                  ? GlobalVariables.darkTextSecondary
+                                  : GlobalVariables.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            _project!.hasValidDates
+                                ? '${DateFormat('dd/MM/yyyy').format(_project!.startDate!)} - ${DateFormat('dd/MM/yyyy').format(_project!.endDate!)}'
+                                : tr('no_schedule'),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: isDarkMode
+                                  ? GlobalVariables.darkTextSecondary
+                                  : GlobalVariables.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Spacer(),
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '${tr('priority')}: ',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: isDarkMode
+                                    ? GlobalVariables.darkTextSecondary
+                                    : GlobalVariables.textSecondary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                            TextSpan(
+                              text: _project!.priorityDisplayName,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: GlobalVariables.getPriorityColor(
+                                  _project!.priority,
+                                ),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Description
+                  Text(
+                    tr('description'),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
                       color: isDarkMode
                           ? GlobalVariables.darkTextPrimary
                           : GlobalVariables.textPrimary,
                     ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: GlobalVariables.getStatusColor(
-                      _project!.status,
-                    ).withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    _project!.statusDisplayName,
-                    style: TextStyle(
-                      color: GlobalVariables.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(height: 8),
+                  Text(
+                    _project!.description ?? tr('no_description'),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: isDarkMode
+                          ? GlobalVariables.darkTextSecondary
+                          : GlobalVariables.textSecondary,
+                      height: 1.5,
+                      fontSize: 16,
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                  const SizedBox(height: 24),
 
-            // Due Date và Priority
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today_outlined,
-                  size: 24,
-                  color: isDarkMode
-                      ? GlobalVariables.darkTextSecondary
-                      : GlobalVariables.textSecondary,
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${tr('schedule')}:',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontSize: 16,
-                        color: isDarkMode
-                            ? GlobalVariables.darkTextSecondary
-                            : GlobalVariables.textSecondary,
-                      ),
+                  // Progress
+                  Text(
+                    tr('progress'),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isDarkMode
+                          ? GlobalVariables.darkTextPrimary
+                          : GlobalVariables.textPrimary,
                     ),
-                    Text(
-                      _project!.hasValidDates
-                          ? '${DateFormat('dd/MM/yyyy').format(_project!.startDate!)} - ${DateFormat('dd/MM/yyyy').format(_project!.endDate!)}'
-                          : tr('no_schedule'),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: isDarkMode
-                            ? GlobalVariables.darkTextSecondary
-                            : GlobalVariables.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                Spacer(),
-                Text.rich(
-                  TextSpan(
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      TextSpan(
-                        text: '${tr('priority')}: ',
+                      Text(
+                        '${_project!.progress}% ${tr('done')}',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: isDarkMode
                               ? GlobalVariables.darkTextSecondary
                               : GlobalVariables.textSecondary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                      TextSpan(
-                        text: _project!.priorityDisplayName,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: GlobalVariables.getPriorityColor(
-                            _project!.priority,
-                          ),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Description
-            Text(
-              tr('description'),
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: isDarkMode
-                    ? GlobalVariables.darkTextPrimary
-                    : GlobalVariables.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _project!.description ?? tr('no_description'),
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: isDarkMode
-                    ? GlobalVariables.darkTextSecondary
-                    : GlobalVariables.textSecondary,
-                height: 1.5,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Progress
-            Text(
-              tr('progress'),
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: isDarkMode
-                    ? GlobalVariables.darkTextPrimary
-                    : GlobalVariables.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${_project!.progress}% ${tr('done')}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: isDarkMode
-                        ? GlobalVariables.darkTextSecondary
-                        : GlobalVariables.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: _project!.progressPercentage,
-                backgroundColor: isDarkMode
-                    ? GlobalVariables.darkBorderPrimary
-                    : GlobalVariables.borderPrimary,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  GlobalVariables.primaryBlue,
-                ),
-                minHeight: 8,
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // All Tasks Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  tr('all_tasks'),
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isDarkMode
-                        ? GlobalVariables.darkTextPrimary
-                        : GlobalVariables.textPrimary,
-                  ),
-                ),
-                if (_tasks.isNotEmpty && canCreateTask)
-                  Container(
-                    width: 25,
-                    height: 25,
-                    decoration: BoxDecoration(
-                      color: GlobalVariables.primaryBlue,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: () => _showCreateTaskDialog(),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(Icons.add, color: Colors.white),
-                      iconSize: 20,
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: _project!.progressPercentage,
+                      backgroundColor: isDarkMode
+                          ? GlobalVariables.darkBorderPrimary
+                          : GlobalVariables.borderPrimary,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        GlobalVariables.primaryBlue,
+                      ),
+                      minHeight: 8,
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                  const SizedBox(height: 32),
 
-            // Tasks List hoặc Empty State
-            if (_isLoadingTasks)
-              const Center(child: CircularProgressIndicator())
-            else if (_tasks.isEmpty)
-              _buildEmptyTasksState(isOwner, currentUserMember)
-            else
-              Column(
-                children: _tasks.map((task) => _buildTaskCard(task)).toList(),
+                  // All Tasks Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        tr('all_tasks'),
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode
+                              ? GlobalVariables.darkTextPrimary
+                              : GlobalVariables.textPrimary,
+                        ),
+                      ),
+                      if (_tasks.isNotEmpty && canCreateTask)
+                        Container(
+                          width: 25,
+                          height: 25,
+                          decoration: BoxDecoration(
+                            color: GlobalVariables.primaryBlue,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed: () => _showCreateTaskDialog(),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const Icon(Icons.add, color: Colors.white),
+                            iconSize: 20,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Tasks List hoặc Empty State
+                  if (_isLoadingTasks)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_tasks.isEmpty)
+                    _buildEmptyTasksState(isOwner, currentUserMember)
+                  else
+                    Column(
+                      children: _tasks
+                          .map((task) => _buildTaskCard(task))
+                          .toList(),
+                    ),
+
+                  const SizedBox(height: 12),
+                ],
               ),
+            ),
+            const Divider(color: Colors.grey),
+            const SizedBox(height: 3),
+            // Activity Log Section
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: ProjectActivitySection(
+                key: _activitySectionKey,
+                projectId: widget.projectId,
+              ),
+            ),
           ],
         ),
       ),
@@ -647,14 +672,13 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   }
 
   void _updateTaskStatus(Task task, bool isCompleted) {
-    final newStatus = isCompleted ? 'completed' : 'todo';
-    TasksService.updateTask(
+    TasksService.markCompleteTask(
       context: context,
       taskId: task.id,
-      status: newStatus,
-      onSuccess: () {
-        // Reload data sau khi update status
-        _refreshAfterTaskChange();
+      isCompleted: isCompleted,
+      onSuccess: () async {
+        await _refreshAfterTaskChange();
+        _activitySectionKey.currentState?.refreshActivity();
       },
     );
   }

@@ -321,11 +321,10 @@ class _TaskCalendarViewState extends State<TaskCalendarView> {
   }
 
   void _updateTaskStatus(Task task, bool isCompleted) {
-    final newStatus = isCompleted ? 'completed' : 'todo';
-    TasksService.updateTask(
+    TasksService.markCompleteTask(
       context: context,
       taskId: task.id,
-      status: newStatus,
+      isCompleted: isCompleted,
       onSuccess: widget.onRefresh,
     );
   }

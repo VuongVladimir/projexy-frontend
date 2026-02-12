@@ -2,7 +2,10 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/features/tasks/services/tasks_service.dart';
+import 'package:frontend/features/tasks/services/activity_log_service.dart';
+import 'package:frontend/features/tasks/widgets/activity_log_item.dart';
 import 'package:frontend/models/comment.dart';
+import 'package:frontend/models/activity_log.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -18,10 +21,10 @@ class CommentSection extends StatefulWidget {
   });
 
   @override
-  State<CommentSection> createState() => _CommentSectionState();
+  State<CommentSection> createState() => CommentSectionState();
 }
 
-class _CommentSectionState extends State<CommentSection> {
+class CommentSectionState extends State<CommentSection> {
   List<TaskComment> _comments = [];
   bool _isLoading = true;
   String _sortOrder = 'newest';
@@ -41,11 +44,23 @@ class _CommentSectionState extends State<CommentSection> {
   List<Map<String, dynamic>> _mentionSuggestions = [];
   bool _showMentionSuggestions = false;
 
+  // State cho Activity tab
+  List<ActivityLog> _activityLogs = [];
+  bool _isLoadingActivity = true;
+  bool _hasMoreActivity = false;
+  int _activityPage = 1;
+  bool _isLoadingMoreActivity = false;
+
   @override
   void initState() {
     super.initState();
     _loadComments();
     _commentController.addListener(_onCommentTextChanged);
+  }
+
+  void refreshActivity() {
+    if (!mounted) return;
+    _loadActivity();
   }
 
   @override
@@ -145,6 +160,63 @@ class _CommentSectionState extends State<CommentSection> {
 
     if (mounted && _isLoading) {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadActivity() async {
+    setState(() {
+      _isLoadingActivity = true;
+      _activityPage = 1;
+      _activityLogs = [];
+    });
+
+    await ActivityLogService.getTaskActivity(
+      context: context,
+      taskId: widget.taskId,
+      page: 1,
+      limit: 5,
+      onSuccess: (logs, hasMore) {
+        if (mounted) {
+          setState(() {
+            _activityLogs = logs;
+            _hasMoreActivity = hasMore;
+            _isLoadingActivity = false;
+          });
+        }
+      },
+    );
+
+    if (mounted && _isLoadingActivity) {
+      setState(() => _isLoadingActivity = false);
+    }
+  }
+
+  Future<void> _loadMoreActivity() async {
+    if (_isLoadingMoreActivity || !_hasMoreActivity) return;
+
+    setState(() => _isLoadingMoreActivity = true);
+
+    final nextPage = _activityPage + 1;
+
+    await ActivityLogService.getTaskActivity(
+      context: context,
+      taskId: widget.taskId,
+      page: nextPage,
+      limit: 5,
+      onSuccess: (logs, hasMore) {
+        if (mounted) {
+          setState(() {
+            _activityLogs.addAll(logs);
+            _hasMoreActivity = hasMore;
+            _activityPage = nextPage;
+            _isLoadingMoreActivity = false;
+          });
+        }
+      },
+    );
+
+    if (mounted && _isLoadingMoreActivity) {
+      setState(() => _isLoadingMoreActivity = false);
     }
   }
 
@@ -285,30 +357,35 @@ class _CommentSectionState extends State<CommentSection> {
         _buildHeader(isDarkMode, theme),
         const SizedBox(height: 16),
 
-        // Comments list
-        if (_isLoading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(),
-            ),
-          )
-        else if (_comments.isEmpty)
-          _buildEmptyState(isDarkMode, theme)
-        else
-          _buildCommentsList(isDarkMode, theme),
+        if (_selectedTab == 'comments') ...[
+          // Comments list
+          if (_isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_comments.isEmpty)
+            _buildEmptyState(isDarkMode, theme)
+          else
+            _buildCommentsList(isDarkMode, theme),
 
-        const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-        // Reply/Edit indicator
-        if (_replyingTo != null || _editingComment != null)
-          _buildReplyEditIndicator(isDarkMode),
+          // Reply/Edit indicator
+          if (_replyingTo != null || _editingComment != null)
+            _buildReplyEditIndicator(isDarkMode),
 
-        // Mention suggestions
-        if (_showMentionSuggestions) _buildMentionSuggestions(isDarkMode),
+          // Mention suggestions
+          if (_showMentionSuggestions) _buildMentionSuggestions(isDarkMode),
 
-        // Comment input
-        _buildCommentInput(isDarkMode, theme),
+          // Comment input
+          _buildCommentInput(isDarkMode, theme),
+        ] else ...[
+          // Activity tab
+          _buildActivityList(isDarkMode, theme),
+        ],
       ],
     );
   }
@@ -326,7 +403,9 @@ class _CommentSectionState extends State<CommentSection> {
             setState(() {
               _selectedTab = value;
             });
-            // TODO: Load activity when selected
+            if (value == 'activity' && _activityLogs.isEmpty) {
+              _loadActivity();
+            }
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -358,59 +437,60 @@ class _CommentSectionState extends State<CommentSection> {
             PopupMenuItem(value: 'activity', child: Text(tr('activity'))),
           ],
         ),
-        // Sort dropdown
-        PopupMenuButton<String>(
-          initialValue: _sortOrder,
-          position: PopupMenuPosition.under,
-          onSelected: (value) {
-            setState(() {
-              _sortOrder = value;
-            });
-            _loadComments();
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: isDarkMode
-                  ? GlobalVariables.darkBackgroundSecondary
-                  : GlobalVariables.backgroundSecondary,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
+        // Sort dropdown (chỉ hiển thị khi tab comments)
+        if (_selectedTab == 'comments')
+          PopupMenuButton<String>(
+            initialValue: _sortOrder,
+            position: PopupMenuPosition.under,
+            onSelected: (value) {
+              setState(() {
+                _sortOrder = value;
+              });
+              _loadComments();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
                 color: isDarkMode
-                    ? GlobalVariables.darkBorderPrimary
-                    : GlobalVariables.borderPrimary,
+                    ? GlobalVariables.darkBackgroundSecondary
+                    : GlobalVariables.backgroundSecondary,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDarkMode
+                      ? GlobalVariables.darkBorderPrimary
+                      : GlobalVariables.borderPrimary,
+                ),
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _sortOrder == 'newest'
-                      ? tr('newest_first')
-                      : tr('oldest_first'),
-                  style: TextStyle(
-                    fontSize: 13,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _sortOrder == 'newest'
+                        ? tr('newest_first')
+                        : tr('oldest_first'),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDarkMode
+                          ? GlobalVariables.darkTextSecondary
+                          : GlobalVariables.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.arrow_drop_down,
+                    size: 18,
                     color: isDarkMode
                         ? GlobalVariables.darkTextSecondary
                         : GlobalVariables.textSecondary,
                   ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.arrow_drop_down,
-                  size: 18,
-                  color: isDarkMode
-                      ? GlobalVariables.darkTextSecondary
-                      : GlobalVariables.textSecondary,
-                ),
-              ],
+                ],
+              ),
             ),
+            itemBuilder: (context) => [
+              PopupMenuItem(value: 'newest', child: Text(tr('newest_first'))),
+              PopupMenuItem(value: 'oldest', child: Text(tr('oldest_first'))),
+            ],
           ),
-          itemBuilder: (context) => [
-            PopupMenuItem(value: 'newest', child: Text(tr('newest_first'))),
-            PopupMenuItem(value: 'oldest', child: Text(tr('oldest_first'))),
-          ],
-        ),
       ],
     );
   }
@@ -421,6 +501,77 @@ class _CommentSectionState extends State<CommentSection> {
       total += comment.replyCount;
     }
     return total;
+  }
+
+  Widget _buildActivityList(bool isDarkMode, ThemeData theme) {
+    if (_isLoadingActivity) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_activityLogs.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          child: Column(
+            children: [
+              Icon(
+                Icons.history_rounded,
+                size: 48,
+                color: isDarkMode
+                    ? GlobalVariables.darkTextTertiary
+                    : GlobalVariables.textTertiary,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                tr('activity_no_logs'),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextSecondary
+                      : GlobalVariables.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        ..._activityLogs.map(
+          (log) => ActivityLogItem(log: log, isDarkMode: isDarkMode),
+        ),
+        // "View more" button
+        if (_hasMoreActivity)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: _isLoadingMoreActivity
+                ? const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : TextButton(
+                    onPressed: _loadMoreActivity,
+                    child: Text(
+                      tr('activity_view_more'),
+                      style: TextStyle(
+                        color: GlobalVariables.primaryBlue,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+          ),
+      ],
+    );
   }
 
   Widget _buildEmptyState(bool isDarkMode, ThemeData theme) {
@@ -861,19 +1012,19 @@ class _CommentCardState extends State<_CommentCard> {
                       ),
                     ),
 
-                    if (comment.isEdited) ...[
-                      const SizedBox(width: 4),
-                      Text(
-                        tr('edited'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic,
-                          color: widget.isDarkMode
-                              ? GlobalVariables.darkTextTertiary
-                              : GlobalVariables.textTertiary,
-                        ),
-                      ),
-                    ],
+                    // if (comment.isEdited) ...[
+                    //   const SizedBox(width: 4),
+                    //   Text(
+                    //     tr('edited'),
+                    //     style: TextStyle(
+                    //       fontSize: 11,
+                    //       fontStyle: FontStyle.italic,
+                    //       color: widget.isDarkMode
+                    //           ? GlobalVariables.darkTextTertiary
+                    //           : GlobalVariables.textTertiary,
+                    //     ),
+                    //   ),
+                    // ],
                     const Spacer(),
                     Text(
                       _formatTimeAgo(comment.createdAt),
