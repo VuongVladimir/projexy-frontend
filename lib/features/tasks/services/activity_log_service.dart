@@ -13,6 +13,7 @@ class ActivityLogService {
     required String taskId,
     int page = 1,
     int limit = 5,
+    String sort = 'newest',
     required Function(List<ActivityLog> logs, bool hasMore) onSuccess,
   }) async {
     try {
@@ -21,6 +22,7 @@ class ActivityLogService {
         queryParams: {
           'page': page.toString(),
           'limit': limit.toString(),
+          'sort': sort,
         },
       );
 
@@ -67,6 +69,7 @@ class ActivityLogService {
     required String projectId,
     int page = 1,
     int limit = 5,
+    String sort = 'newest',
     required Function(List<ActivityLog> logs, bool hasMore) onSuccess,
   }) async {
     try {
@@ -75,6 +78,7 @@ class ActivityLogService {
         queryParams: {
           'page': page.toString(),
           'limit': limit.toString(),
+          'sort': sort,
         },
       );
 

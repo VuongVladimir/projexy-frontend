@@ -175,6 +175,7 @@ class CommentSectionState extends State<CommentSection> {
       taskId: widget.taskId,
       page: 1,
       limit: 5,
+      sort: _sortOrder,
       onSuccess: (logs, hasMore) {
         if (mounted) {
           setState(() {
@@ -203,6 +204,7 @@ class CommentSectionState extends State<CommentSection> {
       taskId: widget.taskId,
       page: nextPage,
       limit: 5,
+      sort: _sortOrder,
       onSuccess: (logs, hasMore) {
         if (mounted) {
           setState(() {
@@ -349,6 +351,7 @@ class CommentSectionState extends State<CommentSection> {
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
+    final sectionHeight = MediaQuery.of(context).size.height * 0.55;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,33 +361,40 @@ class CommentSectionState extends State<CommentSection> {
         const SizedBox(height: 16),
 
         if (_selectedTab == 'comments') ...[
-          // Comments list
-          if (_isLoading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(),
-              ),
-            )
-          else if (_comments.isEmpty)
-            _buildEmptyState(isDarkMode, theme)
-          else
-            _buildCommentsList(isDarkMode, theme),
-
-          const SizedBox(height: 16),
-
-          // Reply/Edit indicator
-          if (_replyingTo != null || _editingComment != null)
-            _buildReplyEditIndicator(isDarkMode),
-
-          // Mention suggestions
-          if (_showMentionSuggestions) _buildMentionSuggestions(isDarkMode),
-
-          // Comment input
-          _buildCommentInput(isDarkMode, theme),
+          SizedBox(
+            height: sectionHeight,
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: _isLoading
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(32),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        : _comments.isEmpty
+                        ? _buildEmptyState(isDarkMode, theme)
+                        : _buildCommentsList(isDarkMode, theme),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (_replyingTo != null || _editingComment != null)
+                  _buildReplyEditIndicator(isDarkMode),
+                if (_showMentionSuggestions)
+                  _buildMentionSuggestions(isDarkMode),
+                _buildCommentInput(isDarkMode, theme),
+              ],
+            ),
+          ),
         ] else ...[
-          // Activity tab
-          _buildActivityList(isDarkMode, theme),
+          SizedBox(
+            height: sectionHeight,
+            child: SingleChildScrollView(
+              child: _buildActivityList(isDarkMode, theme),
+            ),
+          ),
         ],
       ],
     );
@@ -403,8 +413,10 @@ class CommentSectionState extends State<CommentSection> {
             setState(() {
               _selectedTab = value;
             });
-            if (value == 'activity' && _activityLogs.isEmpty) {
+            if (value == 'activity') {
               _loadActivity();
+            } else {
+              _loadComments();
             }
           },
           child: Padding(
@@ -437,60 +449,62 @@ class CommentSectionState extends State<CommentSection> {
             PopupMenuItem(value: 'activity', child: Text(tr('activity'))),
           ],
         ),
-        // Sort dropdown (chỉ hiển thị khi tab comments)
-        if (_selectedTab == 'comments')
-          PopupMenuButton<String>(
-            initialValue: _sortOrder,
-            position: PopupMenuPosition.under,
-            onSelected: (value) {
-              setState(() {
-                _sortOrder = value;
-              });
+        PopupMenuButton<String>(
+          initialValue: _sortOrder,
+          position: PopupMenuPosition.under,
+          onSelected: (value) {
+            setState(() {
+              _sortOrder = value;
+            });
+            if (_selectedTab == 'comments') {
               _loadComments();
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
+            } else {
+              _loadActivity();
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDarkMode
+                  ? GlobalVariables.darkBackgroundSecondary
+                  : GlobalVariables.backgroundSecondary,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
                 color: isDarkMode
-                    ? GlobalVariables.darkBackgroundSecondary
-                    : GlobalVariables.backgroundSecondary,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isDarkMode
-                      ? GlobalVariables.darkBorderPrimary
-                      : GlobalVariables.borderPrimary,
-                ),
+                    ? GlobalVariables.darkBorderPrimary
+                    : GlobalVariables.borderPrimary,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _sortOrder == 'newest'
-                        ? tr('newest_first')
-                        : tr('oldest_first'),
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDarkMode
-                          ? GlobalVariables.darkTextSecondary
-                          : GlobalVariables.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.arrow_drop_down,
-                    size: 18,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _sortOrder == 'newest'
+                      ? tr('newest_first')
+                      : tr('oldest_first'),
+                  style: TextStyle(
+                    fontSize: 13,
                     color: isDarkMode
                         ? GlobalVariables.darkTextSecondary
                         : GlobalVariables.textSecondary,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_drop_down,
+                  size: 18,
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextSecondary
+                      : GlobalVariables.textSecondary,
+                ),
+              ],
             ),
-            itemBuilder: (context) => [
-              PopupMenuItem(value: 'newest', child: Text(tr('newest_first'))),
-              PopupMenuItem(value: 'oldest', child: Text(tr('oldest_first'))),
-            ],
           ),
+          itemBuilder: (context) => [
+            PopupMenuItem(value: 'newest', child: Text(tr('newest_first'))),
+            PopupMenuItem(value: 'oldest', child: Text(tr('oldest_first'))),
+          ],
+        ),
       ],
     );
   }
