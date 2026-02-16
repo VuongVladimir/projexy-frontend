@@ -239,19 +239,34 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ),
                 );
 
-                // Kiểm tra từng quyền
-                final canAssign =
-                    isOwner ||
-                    (currentUserMember?.permissions.assignTask ?? false);
+                // Kiểm tra xem user hiện tại có phải là người tạo task không
+                final isTaskCreator = _task!.createdBy == currentUser.id;
+                // Kiểm tra xem user hiện tại có phải là assignee không
+                final isAssignee = _task!.assignedTo.any(
+                  (user) => (user['_id'] ?? user['id']) == currentUser.id,
+                );
+
+                // Kiểm tra từng quyền theo hệ thống mới
+                // editTask: Owner, task creator, editTaskPermission
                 final canEdit =
                     isOwner ||
-                    (currentUserMember?.permissions.editTask ?? false);
-                final canDelete =
-                    isOwner ||
-                    (currentUserMember?.permissions.deleteTask ?? false);
+                    isTaskCreator ||
+                    (currentUserMember?.permissions.editTaskPermission ?? false);
+                // markCompleteTask: Owner, task creator, assignee, markCompleteTaskPermission
                 final canMarkComplete =
                     isOwner ||
-                    (currentUserMember?.permissions.markCompleteTask ?? false);
+                    isTaskCreator ||
+                    isAssignee ||
+                    (currentUserMember?.permissions.markCompleteTaskPermission ?? false);
+                // assignTask: Owner, task creator, assignTaskPermission
+                final canAssign =
+                    isOwner ||
+                    isTaskCreator ||
+                    (currentUserMember?.permissions.assignTaskPermission ?? false);
+                // deleteTask: Owner, deleteTaskPermission
+                final canDelete =
+                    isOwner ||
+                    (currentUserMember?.permissions.deleteTaskPermission ?? false);
 
                 List<PopupMenuEntry<String>> menuItems = [];
 
@@ -645,7 +660,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
     );
     final canCreateTask =
-        isOwner || (currentUserMember?.permissions.createTask ?? false);
+        isOwner || (currentUserMember?.permissions.createTaskPermission ?? false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -912,7 +927,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
     );
     final canCreateTask =
-        isOwner || (currentUserMember?.permissions.createTask ?? false);
+        isOwner || (currentUserMember?.permissions.createTaskPermission ?? false);
 
     return Center(
       child: Padding(
@@ -1260,6 +1275,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Widget _buildMoreFieldsSection() {
     // Check edit permission
+    // addDependency/deleteDependency/shiftTask: Owner, editTaskPermission
     final currentUser = Provider.of<UserProvider>(context, listen: false).user;
     final isOwner = _project?.createdBy['id'] == currentUser.id;
     final currentUserMember = _project?.members.firstWhere(
@@ -1272,7 +1288,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
     );
     final canEdit =
-        isOwner || (currentUserMember?.permissions.editTask ?? false);
+        isOwner || (currentUserMember?.permissions.editTaskPermission ?? false);
 
     return CollapsibleSection(
       header: tr('more_fields'),
@@ -1686,9 +1702,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   // ==================== ATTACHMENTS SECTION ====================
 
   Widget _buildAttachmentsSection() {
-    // Check edit permission
+    // Check attachment permissions
+    // addAttachment: Owner, task creator, assignee, addAttachmentPermission
+    // deleteAttachment: Owner, uploader, deleteAttachmentPermission
     final currentUser = Provider.of<UserProvider>(context, listen: false).user;
     final isOwner = _project?.createdBy['id'] == currentUser.id;
+    final isTaskCreator = _task!.createdBy == currentUser.id;
+    final isAssignee = _task!.assignedTo.any(
+      (user) => (user['_id'] ?? user['id']) == currentUser.id,
+    );
     final currentUserMember = _project?.members.firstWhere(
       (member) => member.userId == currentUser.id,
       orElse: () => ProjectMember(
@@ -1698,8 +1720,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         joinedAt: DateTime.now(),
       ),
     );
-    final canEdit =
-        isOwner || (currentUserMember?.permissions.editTask ?? false);
+    final canAddAttachment =
+        isOwner ||
+        isTaskCreator ||
+        isAssignee ||
+        (currentUserMember?.permissions.addAttachmentPermission ?? false);
+    final canDeleteAttachment =
+        isOwner ||
+        (currentUserMember?.permissions.deleteAttachmentPermission ?? false);
 
     return CollapsibleSection(
       header: tr('attachments'),
@@ -1708,13 +1736,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Upload button
-          if (canEdit) ...[_buildUploadButton(), const SizedBox(height: 16)],
+          if (canAddAttachment) ...[_buildUploadButton(), const SizedBox(height: 16)],
 
           // Attachments list
           if (_task!.attachments.isEmpty)
-            _buildEmptyAttachmentsState(canEdit)
+            _buildEmptyAttachmentsState(canAddAttachment)
           else
-            _buildAttachmentsList(canEdit),
+            _buildAttachmentsList(canDeleteAttachment),
         ],
       ),
     );
@@ -1912,12 +1940,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildImageThumbnail(TaskAttachment attachment, bool canEdit) {
+  Widget _buildImageThumbnail(TaskAttachment attachment, bool canDeleteGeneral) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    // deleteAttachment: Owner, uploader, deleteAttachmentPermission
+    final currentUser = Provider.of<UserProvider>(context, listen: false).user;
+    final isUploader = attachment.uploadedBy?['_id'] == currentUser.id;
+    final canDelete = canDeleteGeneral || isUploader;
 
     return GestureDetector(
       onTap: () => _showImagePreview(attachment),
-      onLongPress: canEdit ? () => _showAttachmentOptions(attachment) : null,
+      onLongPress: canDelete ? () => _showAttachmentOptions(attachment) : null,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
@@ -1955,8 +1987,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildDocumentCard(TaskAttachment attachment, bool canEdit) {
+  Widget _buildDocumentCard(TaskAttachment attachment, bool canDeleteGeneral) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    // deleteAttachment: Owner, uploader, deleteAttachmentPermission
+    final currentUser = Provider.of<UserProvider>(context, listen: false).user;
+    final isUploader = attachment.uploadedBy?['_id'] == currentUser.id;
+    final canDelete = canDeleteGeneral || isUploader;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -2009,7 +2045,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               onPressed: () => _openOrDownloadFile(attachment),
               tooltip: tr('download'),
             ),
-            if (canEdit)
+            if (canDelete)
               IconButton(
                 icon: Icon(
                   Icons.delete_outline_rounded,
@@ -2025,8 +2061,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildVideoCard(TaskAttachment attachment, bool canEdit) {
+  Widget _buildVideoCard(TaskAttachment attachment, bool canDeleteGeneral) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    // deleteAttachment: Owner, uploader, deleteAttachmentPermission
+    final currentUser = Provider.of<UserProvider>(context, listen: false).user;
+    final isUploader = attachment.uploadedBy?['_id'] == currentUser.id;
+    final canDelete = canDeleteGeneral || isUploader;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -2075,7 +2115,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               onPressed: () => _openOrDownloadFile(attachment),
               tooltip: tr('play'),
             ),
-            if (canEdit)
+            if (canDelete)
               IconButton(
                 icon: Icon(
                   Icons.delete_outline_rounded,

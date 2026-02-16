@@ -354,7 +354,7 @@ class ProjectsService {
     }
   }
 
-  // Cập nhật permissions thủ công cho member (chuyển sang Custom Role)
+  // Cập nhật permissions thủ công cho member
   static Future<void> updateMemberPermissions({
     required BuildContext context,
     required String projectId,

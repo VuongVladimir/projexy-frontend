@@ -48,7 +48,9 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
         'avatar': widget.project.createdBy['avatar'] ?? '',
         'avatarColor': widget.project.createdBy['avatarColor'] ?? '#2196F3',
       },
+      // Lọc bỏ Viewer - không được assign task cho Viewer
       ...widget.project.members
+          .where((member) => member.role != 'Viewer')
           .map(
             (member) => {
               '_id': member.userId,

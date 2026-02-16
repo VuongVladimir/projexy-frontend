@@ -195,7 +195,6 @@ class Project {
   bool get isCompleted => status == 'Completed';
   bool get isInProgress => status == 'In-progress';
   bool get isPlanning => status == 'Planning';
-  //bool get isCancelled => status == 'cancelled';
 
   // Kiểm tra thời hạn
   bool get isOverdue => endDate != null && DateTime.now().isAfter(endDate!) && !isCompleted;
@@ -219,7 +218,7 @@ class ProjectMember {
   final String? userEmail;
   final String? avatar;
   final String? avatarColor;
-  final String role; // Owner, Manager, Member, Viewer, Custom Role
+  final String role; // Owner, Manager, Member, Viewer
   final ProjectPermissions permissions;
   final DateTime joinedAt;
 
@@ -309,109 +308,142 @@ class ProjectMember {
         return tr('member');
       case 'Viewer':
         return tr('viewer');
-      case 'Custom Role':
-        return tr('custom_role');
       default:
         return role;
     }
   }
+
+  bool get isViewer => role == 'Viewer';
+  bool get isManager => role == 'Manager';
+  bool get isMember => role == 'Member';
 }
 
 class ProjectPermissions {
-  final bool createTask;
-  final bool editTask;
-  final bool assignTask;
-  final bool deleteTask;
-  final bool editProject;
-  final bool addMember;
-  final bool removeMember;
-  final bool editRole;
-  final bool markCompleteTask;
+  final bool editProjectPermission;
+  final bool addMemberPermission;
+  final bool removeMemberPermission;
+  final bool manageAccessPermission;
+  final bool createTaskPermission;
+  final bool editTaskPermission;
+  final bool deleteTaskPermission;
+  final bool assignTaskPermission;
+  final bool markCompleteTaskPermission;
+  final bool addAttachmentPermission;
+  final bool deleteAttachmentPermission;
+  final bool addCommentPermission;
+  final bool deleteCommentPermission;
 
   ProjectPermissions({
-    this.createTask = false,
-    this.editTask = false,
-    this.assignTask = false,
-    this.deleteTask = false,
-    this.editProject = false,
-    this.addMember = false,
-    this.removeMember = false,
-    this.editRole = false,
-    this.markCompleteTask = false,
+    this.editProjectPermission = false,
+    this.addMemberPermission = false,
+    this.removeMemberPermission = false,
+    this.manageAccessPermission = false,
+    this.createTaskPermission = false,
+    this.editTaskPermission = false,
+    this.deleteTaskPermission = false,
+    this.assignTaskPermission = false,
+    this.markCompleteTaskPermission = false,
+    this.addAttachmentPermission = false,
+    this.deleteAttachmentPermission = false,
+    this.addCommentPermission = false,
+    this.deleteCommentPermission = false,
   });
 
   Map<String, dynamic> toMap() {
     return {
-      'createTask': createTask,
-      'editTask': editTask,
-      'assignTask': assignTask,
-      'deleteTask': deleteTask,
-      'editProject': editProject,
-      'addMember': addMember,
-      'removeMember': removeMember,
-      'editRole': editRole,
-      'markCompleteTask': markCompleteTask,
+      'editProjectPermission': editProjectPermission,
+      'addMemberPermission': addMemberPermission,
+      'removeMemberPermission': removeMemberPermission,
+      'manageAccessPermission': manageAccessPermission,
+      'createTaskPermission': createTaskPermission,
+      'editTaskPermission': editTaskPermission,
+      'deleteTaskPermission': deleteTaskPermission,
+      'assignTaskPermission': assignTaskPermission,
+      'markCompleteTaskPermission': markCompleteTaskPermission,
+      'addAttachmentPermission': addAttachmentPermission,
+      'deleteAttachmentPermission': deleteAttachmentPermission,
+      'addCommentPermission': addCommentPermission,
+      'deleteCommentPermission': deleteCommentPermission,
     };
   }
 
   factory ProjectPermissions.fromMap(Map<String, dynamic>? map) {
     if (map == null) {
-      return ProjectPermissions(); // Return default permissions if map is null
+      return ProjectPermissions();
     }
     
     return ProjectPermissions(
-      createTask: map['createTask'] == true,
-      editTask: map['editTask'] == true,
-      assignTask: map['assignTask'] == true,
-      deleteTask: map['deleteTask'] == true,
-      editProject: map['editProject'] == true,
-      addMember: map['addMember'] == true,
-      removeMember: map['removeMember'] == true,
-      editRole: map['editRole'] == true,
-      markCompleteTask: map['markCompleteTask'] == true,
+      editProjectPermission: map['editProjectPermission'] == true,
+      addMemberPermission: map['addMemberPermission'] == true,
+      removeMemberPermission: map['removeMemberPermission'] == true,
+      manageAccessPermission: map['manageAccessPermission'] == true,
+      createTaskPermission: map['createTaskPermission'] == true,
+      editTaskPermission: map['editTaskPermission'] == true,
+      deleteTaskPermission: map['deleteTaskPermission'] == true,
+      assignTaskPermission: map['assignTaskPermission'] == true,
+      markCompleteTaskPermission: map['markCompleteTaskPermission'] == true,
+      addAttachmentPermission: map['addAttachmentPermission'] == true,
+      deleteAttachmentPermission: map['deleteAttachmentPermission'] == true,
+      addCommentPermission: map['addCommentPermission'] == true,
+      deleteCommentPermission: map['deleteCommentPermission'] == true,
     );
   }
 
   ProjectPermissions copyWith({
-    bool? createTask,
-    bool? editTask,
-    bool? assignTask,
-    bool? deleteTask,
-    bool? editProject,
-    bool? addMember,
-    bool? removeMember,
-    bool? editRole,
-    bool? markCompleteTask,
+    bool? editProjectPermission,
+    bool? addMemberPermission,
+    bool? removeMemberPermission,
+    bool? manageAccessPermission,
+    bool? createTaskPermission,
+    bool? editTaskPermission,
+    bool? deleteTaskPermission,
+    bool? assignTaskPermission,
+    bool? markCompleteTaskPermission,
+    bool? addAttachmentPermission,
+    bool? deleteAttachmentPermission,
+    bool? addCommentPermission,
+    bool? deleteCommentPermission,
   }) {
     return ProjectPermissions(
-      createTask: createTask ?? this.createTask,
-      editTask: editTask ?? this.editTask,
-      assignTask: assignTask ?? this.assignTask,
-      deleteTask: deleteTask ?? this.deleteTask,
-      editProject: editProject ?? this.editProject,
-      addMember: addMember ?? this.addMember,
-      removeMember: removeMember ?? this.removeMember,
-      editRole: editRole ?? this.editRole,
-      markCompleteTask: markCompleteTask ?? this.markCompleteTask,
+      editProjectPermission: editProjectPermission ?? this.editProjectPermission,
+      addMemberPermission: addMemberPermission ?? this.addMemberPermission,
+      removeMemberPermission: removeMemberPermission ?? this.removeMemberPermission,
+      manageAccessPermission: manageAccessPermission ?? this.manageAccessPermission,
+      createTaskPermission: createTaskPermission ?? this.createTaskPermission,
+      editTaskPermission: editTaskPermission ?? this.editTaskPermission,
+      deleteTaskPermission: deleteTaskPermission ?? this.deleteTaskPermission,
+      assignTaskPermission: assignTaskPermission ?? this.assignTaskPermission,
+      markCompleteTaskPermission: markCompleteTaskPermission ?? this.markCompleteTaskPermission,
+      addAttachmentPermission: addAttachmentPermission ?? this.addAttachmentPermission,
+      deleteAttachmentPermission: deleteAttachmentPermission ?? this.deleteAttachmentPermission,
+      addCommentPermission: addCommentPermission ?? this.addCommentPermission,
+      deleteCommentPermission: deleteCommentPermission ?? this.deleteCommentPermission,
     );
   }
 
   // Utility getters
   bool get hasAnyPermission => 
-      createTask || editTask || assignTask || deleteTask || 
-      editProject || addMember || removeMember || editRole || markCompleteTask;
+      editProjectPermission || addMemberPermission || removeMemberPermission || 
+      manageAccessPermission || createTaskPermission || editTaskPermission || 
+      deleteTaskPermission || assignTaskPermission || markCompleteTaskPermission ||
+      addAttachmentPermission || deleteAttachmentPermission || 
+      addCommentPermission || deleteCommentPermission;
   
   List<String> get permissionsList {
     List<String> permissions = [];
-    if (createTask) permissions.add(tr('create_task'));
-    if (editTask) permissions.add(tr('edit_task'));
-    if (assignTask) permissions.add(tr('assign_task'));
-    if (deleteTask) permissions.add(tr('delete_task'));
-    if (editProject) permissions.add(tr('edit_project'));
-    if (addMember) permissions.add(tr('add_member'));
-    if (removeMember) permissions.add(tr('remove_member'));
-    if (editRole) permissions.add(tr('edit_role'));
-    if (markCompleteTask) permissions.add(tr('mark_complete_task'));
+    if (editProjectPermission) permissions.add(tr('edit_project'));
+    if (addMemberPermission) permissions.add(tr('add_member'));
+    if (removeMemberPermission) permissions.add(tr('remove_member'));
+    if (manageAccessPermission) permissions.add(tr('manage_access'));
+    if (createTaskPermission) permissions.add(tr('create_task'));
+    if (editTaskPermission) permissions.add(tr('edit_task'));
+    if (deleteTaskPermission) permissions.add(tr('delete_task'));
+    if (assignTaskPermission) permissions.add(tr('assign_task'));
+    if (markCompleteTaskPermission) permissions.add(tr('mark_complete_task'));
+    if (addAttachmentPermission) permissions.add(tr('add_attachment'));
+    if (deleteAttachmentPermission) permissions.add(tr('delete_attachment'));
+    if (addCommentPermission) permissions.add(tr('add_comment'));
+    if (deleteCommentPermission) permissions.add(tr('delete_comment'));
     return permissions;
   }
 }
