@@ -183,6 +183,7 @@ class AccountScreen extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Symbols.person,
+                    badgeBackgroundColor: GlobalVariables.yellowBadge,
                     title: tr('view_profile'),
                     subtitle: tr('view_detailed_info'),
                     onTap: () {
@@ -197,6 +198,7 @@ class AccountScreen extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Symbols.edit,
+                    badgeBackgroundColor: GlobalVariables.purpleBadge,
                     title: tr('edit_profile'),
                     subtitle: tr('update_personal_info'),
                     onTap: () {
@@ -207,6 +209,7 @@ class AccountScreen extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Icons.notifications_outlined,
+                    badgeBackgroundColor: GlobalVariables.pinkBadge,
                     svgIcon: SvgPicture.asset(
                       'assets/icons/bell-icon.svg',
                       colorFilter: ColorFilter.mode(
@@ -229,6 +232,7 @@ class AccountScreen extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Symbols.settings,
+                    badgeBackgroundColor: GlobalVariables.blueBadge,
                     title: tr('settings'),
                     subtitle: tr('app_configuration'),
                     onTap: () {
@@ -278,6 +282,7 @@ class AccountScreen extends StatelessWidget {
     BuildContext context, {
     required IconData icon,
     SvgPicture? svgIcon,
+    required Color badgeBackgroundColor,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
@@ -286,7 +291,7 @@ class AccountScreen extends StatelessWidget {
       leading: Container(
         padding: EdgeInsets.all(5),
         decoration: BoxDecoration(
-          color: GlobalVariables.backgroundBlueLight,
+          color: badgeBackgroundColor,
           borderRadius: BorderRadius.circular(8.5),
         ),
         child:

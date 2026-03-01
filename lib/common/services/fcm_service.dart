@@ -198,8 +198,9 @@ class FCMService {
     if (!context.mounted) return;
 
     switch (type) {
-      case 'project_deadline_warning':
       case 'project_invitation':
+      case 'project_overdue':
+      case 'project_completed':
         final projectId = data['projectId'] as String?;
         if (projectId != null) {
           Navigator.pushNamed(
@@ -209,8 +210,10 @@ class FCMService {
           );
         }
         break;
-      case 'task_deadline_warning':
       case 'task_assigned':
+      case 'task_due_today':
+      case 'task_overdue':
+      case 'task_completed':
         final taskId = data['taskId'] as String?;
         if (taskId != null) {
           Navigator.pushNamed(
@@ -221,7 +224,6 @@ class FCMService {
         }
         break;
       default:
-        // Navigate to notifications screen
         Navigator.pushNamed(context, '/notifications');
     }
   }

@@ -107,8 +107,8 @@ class _NotificationsManagementState extends State<NotificationsManagement> {
                         _buildSwitchTile(
                           context,
                           icon: Symbols.alarm,
-                          title: 'Dự án sắp hết hạn',
-                          subtitle: 'Thông báo qua push & email',
+                          title: tr('notif_pref_deadline'),
+                          subtitle: tr('notif_pref_deadline_desc'),
                           value: _notificationSettings
                               .preferences
                               .projectDeadlineWarnings,
@@ -120,8 +120,8 @@ class _NotificationsManagementState extends State<NotificationsManagement> {
                         _buildSwitchTile(
                           context,
                           icon: Symbols.schedule,
-                          title: 'Task sắp hết hạn',
-                          subtitle: 'Thông báo qua push & email',
+                          title: tr('notif_pref_task_deadline'),
+                          subtitle: tr('notif_pref_task_deadline_desc'),
                           value: _notificationSettings
                               .preferences
                               .taskDeadlineWarnings,
@@ -133,8 +133,8 @@ class _NotificationsManagementState extends State<NotificationsManagement> {
                         _buildSwitchTile(
                           context,
                           icon: Symbols.task_alt,
-                          title: 'Task được giao',
-                          subtitle: 'Chỉ hiển thị trong app',
+                          title: tr('notif_pref_task_assigned'),
+                          subtitle: tr('notif_pref_task_assigned_desc'),
                           value:
                               _notificationSettings.preferences.taskAssignments,
                           onChanged: (value) {
@@ -145,8 +145,8 @@ class _NotificationsManagementState extends State<NotificationsManagement> {
                         _buildSwitchTile(
                           context,
                           icon: Symbols.group_add,
-                          title: 'Lời mời dự án',
-                          subtitle: 'Chỉ hiển thị trong app',
+                          title: tr('notif_pref_invitation'),
+                          subtitle: tr('notif_pref_invitation_desc'),
                           value: _notificationSettings
                               .preferences
                               .projectInvitations,

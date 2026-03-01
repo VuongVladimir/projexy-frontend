@@ -185,6 +185,92 @@ class NotificationService {
     }
   }
 
+  // Gửi lời mời vào project (đã gộp vào notification API)
+  static Future<void> sendProjectInvitation({
+    required BuildContext context,
+    required String email,
+    required String projectId,
+    String? message,
+    required VoidCallback onSuccess,
+  }) async {
+    try {
+      final response = await ApiClient.post(
+        url: '$uri/api/notifications/project-invitations/send',
+        body: json.encode({
+          'email': email,
+          'projectId': projectId,
+          'message': message ?? '',
+        }),
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: onSuccess,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
+  static Future<void> acceptProjectInvitation({
+    required BuildContext context,
+    required String notificationId,
+    required VoidCallback onSuccess,
+  }) async {
+    try {
+      final response = await ApiClient.post(
+        url: '$uri/api/notifications/$notificationId/project-invitation/accept',
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            showSnackBar(context, 'Chấp nhận lời mời thành công!');
+            onSuccess();
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
+  static Future<void> declineProjectInvitation({
+    required BuildContext context,
+    required String notificationId,
+    required VoidCallback onSuccess,
+  }) async {
+    try {
+      final response = await ApiClient.post(
+        url: '$uri/api/notifications/$notificationId/project-invitation/decline',
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            showSnackBar(context, 'Đã từ chối lời mời!');
+            onSuccess();
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
+
   // Lấy notification settings
   static Future<void> getNotificationSettings({
     required BuildContext context,

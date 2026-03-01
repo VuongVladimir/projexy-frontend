@@ -4,7 +4,7 @@ import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/task_card.dart';
 import 'package:frontend/features/account/screens/profile_screen.dart';
 import 'package:frontend/features/chat/screens/chat_room_screen.dart';
-import 'package:frontend/features/notifications/services/invitation_service.dart';
+import 'package:frontend/features/notifications/services/notification_service.dart';
 import 'package:frontend/features/projects/services/projects_service.dart';
 import 'package:frontend/features/projects/widgets/member_invitation_form.dart';
 import 'package:frontend/features/projects/widgets/permissions_dialog.dart';
@@ -286,7 +286,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                   width: 2.5, // mảnh nhưng vẫn nổi bật
                   color: GlobalVariables.primaryBlue,
                 ),
-                insets: EdgeInsets.symmetric(horizontal: 12),
+                //insets: EdgeInsets.symmetric(horizontal: 12),
               ),
               dividerColor: Colors.transparent,
               labelColor: GlobalVariables.primaryBlue,
@@ -1165,7 +1165,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
 
                   int successCount = 0;
                   for (String email in emails) {
-                    await InvitationService.sendInvitation(
+                    await NotificationService.sendProjectInvitation(
                       context: context,
                       email: email,
                       projectId: _project!.id,

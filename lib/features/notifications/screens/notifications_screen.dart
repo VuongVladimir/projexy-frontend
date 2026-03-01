@@ -1,11 +1,11 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
-import 'package:frontend/common/constants/utils.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/features/notifications/services/notification_service.dart';
-import 'package:frontend/features/notifications/widgets/invitation_dialog.dart';
 import 'package:frontend/models/notification.dart';
 import 'package:intl/intl.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 class NotificationsScreen extends StatefulWidget {
   static const String routeName = '/notifications';
@@ -25,8 +25,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   int _total = 0;
 
   late TabController _tabController;
-  String _currentFilter = 'all'; // 'all', 'unread', 'read'
-  String? _selectedType; // null = all types
+  String _currentFilter = 'all';
+  String? _selectedType;
 
   @override
   void initState() {
@@ -45,42 +45,32 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   void _handleTabChange() {
     if (_tabController.indexIsChanging) {
       setState(() {
-        switch (_tabController.index) {
-          case 0:
-            _currentFilter = 'all';
-            break;
-          case 1:
-            _currentFilter = 'unread';
-            break;
-          case 2:
-            _currentFilter = 'read';
-            break;
-        }
+        _currentFilter = switch (_tabController.index) {
+          1 => 'unread',
+          2 => 'read',
+          _ => 'all',
+        };
         _applyFilters();
       });
     }
   }
 
   void _applyFilters() {
-    setState(() {
-      _filteredNotifications = _notifications.where((notification) {
-        // Filter by read/unread
-        bool matchesReadFilter = true;
-        if (_currentFilter == 'unread') {
-          matchesReadFilter = !notification.isRead;
-        } else if (_currentFilter == 'read') {
-          matchesReadFilter = notification.isRead;
-        }
+    _filteredNotifications = _notifications.where((notification) {
+      var matchesReadFilter = true;
+      if (_currentFilter == 'unread') {
+        matchesReadFilter = !notification.isRead;
+      } else if (_currentFilter == 'read') {
+        matchesReadFilter = notification.isRead;
+      }
 
-        // Filter by type
-        bool matchesTypeFilter = true;
-        if (_selectedType != null && _selectedType!.isNotEmpty) {
-          matchesTypeFilter = notification.type == _selectedType;
-        }
+      var matchesTypeFilter = true;
+      if (_selectedType != null && _selectedType!.isNotEmpty) {
+        matchesTypeFilter = notification.type == _selectedType;
+      }
 
-        return matchesReadFilter && matchesTypeFilter;
-      }).toList();
-    });
+      return matchesReadFilter && matchesTypeFilter;
+    }).toList();
   }
 
   Future<void> _loadNotifications() async {
@@ -95,7 +85,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           _notifications = notifications;
           _total = total;
           _unreadCount = unreadCount;
-          // hasMore is not used in UI currently
           _applyFilters();
           _isLoading = false;
         });
@@ -112,24 +101,23 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final screenBg = isDarkMode
+        ? GlobalVariables.darkBackgroundPrimary
+        : Colors.white;
 
     return Scaffold(
-      backgroundColor: isDarkMode
-          ? GlobalVariables.darkBackgroundPrimary
-          : GlobalVariables.backgroundPrimary,
+      backgroundColor: screenBg,
       appBar: CustomAppBar(
-        title: 'Thông báo',
+        title: tr('notifications'),
         actions: [
-          // Mark all as read button
           if (_unreadCount > 0)
             IconButton(
               icon: const Icon(Icons.done_all_rounded),
-              tooltip: 'Đánh dấu tất cả đã đọc',
+              tooltip: tr('notification_mark_all_read'),
               onPressed: _markAllAsRead,
             ),
-          // More options
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded),
+            icon: const Icon(Icons.more_horiz_rounded),
             onSelected: (value) {
               if (value == 'clear_read') {
                 _clearReadNotifications();
@@ -138,23 +126,23 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'filter',
                 child: Row(
                   children: [
-                    Icon(Icons.filter_list_rounded),
-                    SizedBox(width: 8),
-                    Text('Lọc theo loại'),
+                    const Icon(Icons.filter_list_rounded),
+                    const SizedBox(width: 8),
+                    Text(tr('notification_filter_by_type')),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'clear_read',
                 child: Row(
                   children: [
-                    Icon(Icons.delete_sweep_rounded),
-                    SizedBox(width: 8),
-                    Text('Xóa thông báo đã đọc'),
+                    const Icon(Icons.delete_sweep_rounded),
+                    const SizedBox(width: 8),
+                    Text(tr('notification_clear_read')),
                   ],
                 ),
               ),
@@ -164,81 +152,22 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       ),
       body: Column(
         children: [
-          // Tabs
-          Container(
-            decoration: BoxDecoration(color: Colors.transparent),
-            child: TabBar(
-              controller: _tabController,
-              indicator: UnderlineTabIndicator(
-                borderSide: BorderSide(
-                  width: 2.5, // mảnh nhưng vẫn nổi bật
-                  color: GlobalVariables.primaryBlue,
-                ),
-                insets: EdgeInsets.symmetric(horizontal: 12),
-              ),
-              dividerColor: Colors.transparent,
-              labelColor: GlobalVariables.primaryBlue,
-              unselectedLabelColor: isDarkMode
-                  ? GlobalVariables.darkTextSecondary
-                  : GlobalVariables.textSecondary,
-              labelStyle: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
-              ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              tabs: [
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Tất cả'),
-                      if (_total > 0) ...[
-                        const SizedBox(width: 8),
-                        _buildBadge(_total, false),
-                      ],
-                    ],
-                  ),
-                ),
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Chưa đọc'),
-                      if (_unreadCount > 0) ...[
-                        const SizedBox(width: 8),
-                        _buildBadge(_unreadCount, true),
-                      ],
-                    ],
-                  ),
-                ),
-                const Tab(text: 'Đã đọc'),
-              ],
-            ),
-          ),
-
-          // Active filter chip
-          if (_selectedType != null) _buildActiveFilter(),
-
-          // Notifications list
+          _buildTabs(isDarkMode),
+          if (_selectedType != null) _buildActiveFilter(isDarkMode),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadNotifications,
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _filteredNotifications.isEmpty
-                  ? _buildEmptyState()
+                  ? _buildEmptyState(isDarkMode)
                   : ListView.builder(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.only(top: 12, bottom: 21),
                       itemCount: _filteredNotifications.length,
-                      itemBuilder: (context, index) {
-                        return _buildNotificationCard(
-                          _filteredNotifications[index],
-                        );
-                      },
+                      itemBuilder: (context, index) => _buildNotificationRow(
+                        _filteredNotifications[index],
+                        isDarkMode,
+                      ),
                     ),
             ),
           ),
@@ -247,34 +176,42 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  Widget _buildBadge(int count, bool isUnread) {
+  Widget _buildTabs(bool isDarkMode) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: isUnread
-            ? GlobalVariables.errorRed
-            : GlobalVariables.backgroundBlueLight,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        count > 99 ? '99+' : count.toString(),
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+      color: isDarkMode ? GlobalVariables.darkSurfaceCard : Colors.white,
+      child: TabBar(
+        controller: _tabController,
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(
+            width: 2.5,
+            color: GlobalVariables.primaryBlue,
+          ),
         ),
+        dividerColor: Colors.transparent,
+        labelColor: GlobalVariables.primaryBlue,
+        unselectedLabelColor: isDarkMode
+            ? GlobalVariables.darkTextSecondary
+            : GlobalVariables.textSecondary,
+        labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        tabs: [
+          Tab(text: '${tr('notification_tab_all')} (${_total > 99 ? '99+' : _total})'),
+          Tab(text: '${tr('notification_tab_unread')} (${_unreadCount > 99 ? '99+' : _unreadCount})'),
+          Tab(text: tr('notification_tab_read')),
+        ],
       ),
     );
   }
 
-  Widget _buildActiveFilter() {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
+  Widget _buildActiveFilter(bool isDarkMode) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: isDarkMode
-          ? GlobalVariables.darkSurfaceCard
-          : GlobalVariables.surfaceCard,
+      color: isDarkMode ? GlobalVariables.darkSurfaceCard : Colors.white,
       child: Wrap(
         spacing: 8,
         children: [
@@ -294,18 +231,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  Widget _buildEmptyState() {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
-
-    String message = 'Không có thông báo nào';
-    IconData icon = Icons.notifications_none_rounded;
-
+  Widget _buildEmptyState(bool isDarkMode) {
+    var message = tr('notification_empty');
+    var icon = Icons.notifications_none_rounded;
     if (_currentFilter == 'unread') {
-      message = 'Bạn không có thông báo chưa đọc';
+      message = tr('notification_empty_unread');
       icon = Icons.mark_email_read_rounded;
     } else if (_currentFilter == 'read') {
-      message = 'Bạn chưa đọc thông báo nào';
+      message = tr('notification_empty_read');
       icon = Icons.drafts_outlined;
     }
 
@@ -323,357 +256,246 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   : GlobalVariables.textTertiary,
             ),
             const SizedBox(height: 16),
-            Text(
-              message,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                color: isDarkMode
-                    ? GlobalVariables.darkTextSecondary
-                    : GlobalVariables.textSecondary,
-              ),
-            ),
+            Text(message),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNotificationCard(AppNotification notification) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
+  Widget _buildNotificationRow(AppNotification notification, bool isDarkMode) {
+    final rowColor = notification.isRead
+        ? (isDarkMode ? GlobalVariables.darkSurfaceCard : Colors.white)
+        : const Color(0xFFEAF3FF);
 
     return Dismissible(
       key: Key(notification.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: GlobalVariables.errorRed,
-          borderRadius: BorderRadius.circular(16),
-        ),
+        color: GlobalVariables.errorRed,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         child: const Icon(Icons.delete_rounded, color: Colors.white),
       ),
-      onDismissed: (direction) {
-        _deleteNotification(notification);
-      },
-      child: GestureDetector(
+      onDismissed: (_) => _deleteNotification(notification),
+      child: InkWell(
         onTap: () => _handleNotificationTap(notification),
         child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: notification.isRead
-                ? (isDarkMode
-                      ? GlobalVariables.darkSurfaceCard
-                      : GlobalVariables.surfaceCard)
-                : (isDarkMode
-                      ? GlobalVariables.primaryBlue.withOpacity(0.15)
-                      : GlobalVariables.primaryBlue.withOpacity(0.05)),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: notification.isRead
-                  ? (isDarkMode
-                        ? GlobalVariables.darkBorderPrimary
-                        : GlobalVariables.borderPrimary)
-                  : GlobalVariables.primaryBlue.withOpacity(0.3),
-              width: notification.isRead ? 1 : 2,
-            ),
-            boxShadow: [
-              if (!notification.isRead)
-                BoxShadow(
-                  color: GlobalVariables.primaryBlue.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
+          color: rowColor,
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildLeading(notification),
+              const SizedBox(width: 12),
+              Expanded(child: _buildBody(notification, isDarkMode)),
+              _buildTrailingMenu(notification),
             ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    _buildNotificationIcon(notification.type),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  notification.title,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: notification.isRead
-                                        ? FontWeight.w500
-                                        : FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              if (!notification.isRead)
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: GlobalVariables.primaryBlue,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _formatTime(notification.createdAt),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: isDarkMode
-                                  ? GlobalVariables.darkTextTertiary
-                                  : GlobalVariables.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Message
-                Text(
-                  notification.message,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: isDarkMode
-                        ? GlobalVariables.darkTextSecondary
-                        : GlobalVariables.textSecondary,
-                  ),
-                ),
-
-                // Additional info based on type
-                if (notification.data.projectTitle != null ||
-                    notification.data.taskTitle != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isDarkMode
-                          ? GlobalVariables.darkBackgroundPrimary
-                          : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (notification.data.projectTitle != null)
-                          _buildInfoRow(
-                            Icons.folder_rounded,
-                            'Dự án: ${notification.data.projectTitle}',
-                          ),
-                        if (notification.data.taskTitle != null)
-                          _buildInfoRow(
-                            Icons.task_alt_rounded,
-                            'Task: ${notification.data.taskTitle}',
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                // Type badge
-                const SizedBox(height: 12),
-                _buildTypeBadge(notification.type),
-              ],
-            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNotificationIcon(String type) {
-    IconData icon;
-    Color color;
+  Widget _buildLeading(AppNotification notification) {
+    final fromUser = notification.data.fromUser;
+    final label = _buildAvatarLabel(notification);
+    final bgColor = _buildAvatarColor(notification);
 
-    switch (type) {
-      case 'project_invitation':
-        icon = Icons.mail_rounded;
-        color = GlobalVariables.primaryBlue;
-        break;
-      case 'task_assigned':
-        icon = Icons.assignment_ind_rounded;
-        color = GlobalVariables.successGreen;
-        break;
-      case 'task_deadline_warning':
-        icon = Icons.warning_amber_rounded;
-        color = GlobalVariables.warningAmber;
-        break;
-      case 'project_deadline_warning':
-        icon = Icons.event_busy_rounded;
-        color = GlobalVariables.errorRed;
-        break;
-      case 'task_completed':
-        icon = Icons.check_circle_rounded;
-        color = GlobalVariables.successGreen;
-        break;
-      case 'project_completed':
-        icon = Icons.celebration_rounded;
-        color = GlobalVariables.successGreen;
-        break;
-      case 'comment_mention':
-        icon = Icons.alternate_email_rounded;
-        color = GlobalVariables.secondaryCoral;
-        break;
-      case 'comment_reply':
-        icon = Icons.reply_rounded;
-        color = GlobalVariables.primaryBlue;
-        break;
-      default:
-        icon = Icons.notifications_rounded;
-        color = GlobalVariables.primaryBlue;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(icon, color: color, size: 24),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        CircleAvatar(
+          radius: 28,
+          backgroundColor: bgColor,
+          backgroundImage:
+              (fromUser?.avatar != null && fromUser!.avatar!.isNotEmpty)
+              ? NetworkImage(fromUser.avatar!)
+              : null,
+          child: (fromUser?.avatar == null || fromUser!.avatar!.isEmpty)
+              ? Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                  ),
+                )
+              : null,
+        ),
+        Positioned(
+          right: -3,
+          bottom: -6,
+          child: Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: _getBadgeColor(notification.type),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _getBadgeIcon(notification.type),
+              fill: 1,
+              weight: 600,
+              grade: 300,
+              size: 16,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildBody(AppNotification notification, bool isDarkMode) {
+    final subTextColor = isDarkMode
+        ? GlobalVariables.darkTextTertiary
+        : GlobalVariables.textTertiary;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: isDarkMode
-                ? GlobalVariables.darkTextTertiary
-                : GlobalVariables.textTertiary,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 13,
-                color: isDarkMode
-                    ? GlobalVariables.darkTextSecondary
-                    : GlobalVariables.textSecondary,
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RichText(
+          text: TextSpan(
+            style: TextStyle(
+              color: isDarkMode
+                  ? GlobalVariables.darkTextPrimary
+                  : GlobalVariables.textPrimary,
+              fontSize: 16,
             ),
+            children: _buildMessageSpans(notification),
           ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _formatTime(notification.createdAt),
+          style: TextStyle(color: subTextColor, fontSize: 12),
+        ),
+        if (_isPendingInvitation(notification)) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _acceptInvitation(notification),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GlobalVariables.primaryBlue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    tr('accept'),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _declineInvitation(notification),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE4E6EB),
+                    foregroundColor: Colors.black87,
+                    side: BorderSide.none,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    tr('decline'),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildTrailingMenu(AppNotification notification) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: PopupMenuButton<String>(
+        icon: Icon(Icons.more_horiz_rounded, color: Colors.black),
+        padding: EdgeInsets.zero,
+        iconSize: 23,
+        splashRadius: 16,
+        offset: const Offset(-16, 32),
+        constraints: const BoxConstraints(),
+        onSelected: (value) {
+          if (value == 'delete') {
+            _deleteNotification(notification);
+          } else if (value == 'mark_read') {
+            _markNotificationAsRead(notification);
+          }
+        },
+        itemBuilder: (context) => [
+          if (!notification.isRead)
+            PopupMenuItem(
+              value: 'mark_read',
+              child: Text(tr('notification_mark_read')),
+            ),
+          PopupMenuItem(value: 'delete', child: Text(tr('delete'))),
         ],
       ),
     );
   }
 
-  Widget _buildTypeBadge(String type) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: GlobalVariables.primaryBlue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: GlobalVariables.primaryBlue.withOpacity(0.3)),
-      ),
-      child: Text(
-        _getTypeDisplayName(type),
-        style: TextStyle(
-          color: GlobalVariables.primaryBlue,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
+  Future<void> _acceptInvitation(AppNotification notification) async {
+    await NotificationService.acceptProjectInvitation(
+      context: context,
+      notificationId: notification.id,
+      onSuccess: _loadNotifications,
     );
   }
 
-  String _getTypeDisplayName(String type) {
-    switch (type) {
-      case 'project_invitation':
-        return 'Lời mời dự án';
-      case 'task_assigned':
-        return 'Task được giao';
-      case 'task_deadline_warning':
-        return 'Task sắp hết hạn';
-      case 'project_deadline_warning':
-        return 'Dự án sắp hết hạn';
-      case 'task_completed':
-        return 'Task hoàn thành';
-      case 'project_completed':
-        return 'Dự án hoàn thành';
-      case 'member_joined':
-        return 'Thành viên mới';
-      case 'comment_mention':
-        return 'Được nhắc đến';
-      case 'comment_reply':
-        return 'Có phản hồi';
-      case 'system':
-        return 'Hệ thống';
-      default:
-        return 'Thông báo';
-    }
-  }
-
-  String _formatTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inMinutes < 1) {
-      return 'Vừa xong';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes} phút trước';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours} giờ trước';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} ngày trước';
-    } else {
-      return DateFormat('dd/MM/yyyy HH:mm').format(dateTime);
-    }
+  Future<void> _declineInvitation(AppNotification notification) async {
+    await NotificationService.declineProjectInvitation(
+      context: context,
+      notificationId: notification.id,
+      onSuccess: _loadNotifications,
+    );
   }
 
   void _handleNotificationTap(AppNotification notification) {
-    // Mark as read if unread
-    if (!notification.isRead) {
-      NotificationService.markAsRead(
-        context: context,
-        notificationId: notification.id,
-        onSuccess: (unreadCount) {
-          setState(() {
-            _unreadCount = unreadCount;
-            final index = _notifications.indexWhere(
-              (n) => n.id == notification.id,
-            );
-            if (index != -1) {
-              _notifications[index] = _notifications[index].copyWith(
-                isRead: true,
-              );
-            }
-            _applyFilters();
-          });
-        },
-      );
-    }
+    _markNotificationAsRead(notification);
 
-    // Navigate based on notification type
     switch (notification.type) {
-      case 'project_invitation':
-        _handleProjectInvitationTap(notification);
-        break;
       case 'task_assigned':
+      case 'task_completed':
       case 'comment_mention':
-      case 'comment_reply':
         _navigateToTask(notification);
         break;
-      case 'project_deadline_warning':
-        // TODO: Navigate to project detail
+      case 'project_invitation':
+      case 'invitation_declined':
+      case 'project_completed':
+      case 'project_overdue':
+      case 'member_joined':
+      case 'member_removed':
+      case 'member_left':
+        _navigateToProject(notification);
         break;
-      // Add more cases as needed
+      case 'task_due_today':
+      case 'task_overdue':
+        // Digest notifications có nhiều items, navigate đến task đầu tiên nếu có
+        final extra = notification.data.extra;
+        if (extra != null && extra['items'] is List && (extra['items'] as List).isNotEmpty) {
+          final firstItem = (extra['items'] as List).first;
+          final taskId = firstItem['taskId']?.toString();
+          if (taskId != null && taskId.isNotEmpty) {
+            Navigator.pushNamed(context, '/task-detail', arguments: {'taskId': taskId});
+            return;
+          }
+        }
+        break;
       default:
         break;
     }
@@ -681,41 +503,39 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   void _navigateToTask(AppNotification notification) {
     final taskId = notification.data.taskId;
-    
-    if (taskId == null || taskId.isEmpty) {
-      showSnackBar(context, 'Không tìm thấy thông tin task!');
-      return;
-    }
+    if (taskId == null || taskId.isEmpty) return;
+    Navigator.pushNamed(context, '/task-detail', arguments: {'taskId': taskId});
+  }
 
+  void _navigateToProject(AppNotification notification) {
+    final projectId = notification.data.projectId;
+    if (projectId == null || projectId.isEmpty) return;
     Navigator.pushNamed(
       context,
-      '/task-detail',
-      arguments: {'taskId': taskId},
+      '/project-detail',
+      arguments: {'projectId': projectId},
     );
   }
 
-  void _handleProjectInvitationTap(AppNotification notification) {
-    final invitationId = notification.data.invitationId;
-    
-    if (invitationId == null || invitationId.isEmpty) {
-      showSnackBar(context, 'Không tìm thấy thông tin lời mời!');
-      return;
-    }
-
-    // Hiển thị dialog accept/decline invitation
-    _showInvitationDialog(invitationId);
-  }
-
-  void _showInvitationDialog(String invitationId) {
-    showDialog(
+  void _markNotificationAsRead(AppNotification notification) {
+    if (notification.isRead) return;
+    NotificationService.markAsRead(
       context: context,
-      builder: (context) => InvitationDialog(
-        invitationId: invitationId,
-        onActionCompleted: () {
-          // Reload notifications after action
-          _loadNotifications();
-        },
-      ),
+      notificationId: notification.id,
+      onSuccess: (unreadCount) {
+        setState(() {
+          _unreadCount = unreadCount;
+          final index = _notifications.indexWhere(
+            (n) => n.id == notification.id,
+          );
+          if (index != -1) {
+            _notifications[index] = _notifications[index].copyWith(
+              isRead: true,
+            );
+            _applyFilters();
+          }
+        });
+      },
     );
   }
 
@@ -760,50 +580,304 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  void _showFilterDialog() {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  bool _isPendingInvitation(AppNotification notification) {
+    return notification.type == 'project_invitation' &&
+        notification.data.invitationStatus == 'pending';
+  }
 
+  List<TextSpan> _buildMessageSpans(AppNotification notification) {
+    const boldStyle = TextStyle(fontWeight: FontWeight.w700);
+    final actorName = notification.data.fromUser?.name
+        ?? notification.data.fromUserName
+        ?? '';
+    final projectTitle = notification.data.projectTitle;
+    final taskTitle = notification.data.taskTitle;
+
+    return switch (notification.type) {
+      'project_invitation' => [
+        TextSpan(text: actorName, style: boldStyle),
+        TextSpan(text: tr('notification_invited_you')),
+        TextSpan(text: projectTitle ?? tr('notification_a_project'), style: boldStyle),
+      ],
+      'invitation_declined' => [
+        TextSpan(text: actorName, style: boldStyle),
+        TextSpan(text: tr('notification_declined_invitation')),
+        TextSpan(text: projectTitle ?? tr('notification_a_project'), style: boldStyle),
+      ],
+      'task_assigned' => [
+        TextSpan(text: actorName, style: boldStyle),
+        TextSpan(text: tr('notification_assigned_task')),
+        TextSpan(text: taskTitle ?? tr('notification_a_task'), style: boldStyle),
+      ],
+      'task_completed' => [
+        TextSpan(text: actorName, style: boldStyle),
+        TextSpan(text: tr('notification_marked_task')),
+        TextSpan(text: taskTitle ?? tr('notification_a_task'), style: boldStyle),
+        TextSpan(text: tr('notification_as_completed')),
+      ],
+      'project_completed' => [
+        TextSpan(text: actorName, style: boldStyle),
+        TextSpan(text: tr('notification_marked_project')),
+        TextSpan(text: projectTitle ?? tr('notification_a_project'), style: boldStyle),
+        TextSpan(text: tr('notification_as_completed')),
+      ],
+      'member_joined' => [
+        TextSpan(text: actorName, style: boldStyle),
+        TextSpan(text: tr('notification_member_joined')),
+        TextSpan(text: projectTitle ?? tr('notification_a_project'), style: boldStyle),
+      ],
+      'member_removed' => _buildMemberRemovedSpans(notification, boldStyle),
+      'member_left' => [
+        TextSpan(text: actorName, style: boldStyle),
+        TextSpan(text: tr('notification_member_left')),
+        TextSpan(text: projectTitle ?? tr('notification_a_project'), style: boldStyle),
+      ],
+      'comment_mention' => [
+        TextSpan(text: actorName, style: boldStyle),
+        TextSpan(text: tr('notification_mentioned_you')),
+        TextSpan(text: taskTitle ?? tr('notification_a_task'), style: boldStyle),
+      ],
+      'task_due_today' || 'task_overdue' || 'project_overdue' =>
+        _buildDigestSpans(notification, boldStyle),
+      _ => [TextSpan(text: notification.message)],
+    };
+  }
+
+  List<TextSpan> _buildMemberRemovedSpans(
+    AppNotification notification,
+    TextStyle boldStyle,
+  ) {
+    final actorName = notification.data.fromUser?.name
+        ?? notification.data.fromUserName
+        ?? '';
+    final projectTitle = notification.data.projectTitle;
+    final removedUserName =
+        notification.data.extra?['removedUserName'] as String?;
+
+    if (removedUserName != null) {
+      return [
+        TextSpan(text: actorName, style: boldStyle),
+        TextSpan(text: tr('notification_has_removed')),
+        TextSpan(text: removedUserName, style: boldStyle),
+        TextSpan(text: tr('notification_from_project')),
+        TextSpan(
+          text: projectTitle ?? tr('notification_a_project'),
+          style: boldStyle,
+        ),
+      ];
+    } else {
+      return [
+        TextSpan(text: tr('notification_you_removed_from_project')),
+        TextSpan(
+          text: projectTitle ?? tr('notification_a_project'),
+          style: boldStyle,
+        ),
+        TextSpan(text: tr('notification_removed_by')),
+        TextSpan(text: actorName, style: boldStyle),
+      ];
+    }
+  }
+
+  List<TextSpan> _buildDigestSpans(
+    AppNotification notification,
+    TextStyle boldStyle,
+  ) {
+    final extra = notification.data.extra;
+    final rawItems = extra?['items'] as List? ?? [];
+    final count = (extra?['count'] as num?)?.toInt() ?? rawItems.length;
+
+    if (rawItems.isEmpty) {
+      return [TextSpan(text: notification.message)];
+    }
+
+    final spans = <TextSpan>[];
+
+    switch (notification.type) {
+      case 'task_due_today':
+        final taskWord = count == 1
+            ? tr('notification_task_word')
+            : tr('notification_tasks_word');
+        spans.add(TextSpan(
+            text: '${tr('notification_you_have')}$count $taskWord '));
+        spans.add(TextSpan(
+            text: tr('notification_due_today_label'), style: boldStyle));
+        spans.add(const TextSpan(text: ': '));
+        for (var i = 0; i < rawItems.length; i++) {
+          if (i > 0) spans.add(const TextSpan(text: ', '));
+          final name = rawItems[i] is Map
+              ? (rawItems[i] as Map)['taskTitle']?.toString() ?? ''
+              : '';
+          spans.add(TextSpan(text: name, style: boldStyle));
+        }
+        break;
+      case 'task_overdue':
+        final taskWord = count == 1
+            ? tr('notification_task_word')
+            : tr('notification_tasks_word');
+        spans.add(
+            TextSpan(text: '${tr('notification_you_have')}$count '));
+        spans.add(TextSpan(
+            text: tr('notification_overdue_label'), style: boldStyle));
+        spans.add(TextSpan(text: ' $taskWord: '));
+        for (var i = 0; i < rawItems.length; i++) {
+          if (i > 0) spans.add(const TextSpan(text: ', '));
+          final name = rawItems[i] is Map
+              ? (rawItems[i] as Map)['taskTitle']?.toString() ?? ''
+              : '';
+          spans.add(TextSpan(text: name, style: boldStyle));
+        }
+        break;
+      case 'project_overdue':
+        final projectWord = count == 1
+            ? tr('notification_project_word')
+            : tr('notification_projects_word');
+        spans.add(
+            TextSpan(text: '${tr('notification_you_have')}$count '));
+        spans.add(TextSpan(
+            text: tr('notification_overdue_label'), style: boldStyle));
+        spans.add(TextSpan(text: ' $projectWord: '));
+        for (var i = 0; i < rawItems.length; i++) {
+          if (i > 0) spans.add(const TextSpan(text: ', '));
+          final name = rawItems[i] is Map
+              ? (rawItems[i] as Map)['projectTitle']?.toString() ?? ''
+              : '';
+          spans.add(TextSpan(text: name, style: boldStyle));
+        }
+        break;
+    }
+
+    return spans;
+  }
+
+  String _buildAvatarLabel(AppNotification notification) {
+    final source =
+        notification.data.fromUser?.name ??
+        notification.data.projectTitle ??
+        notification.data.taskTitle ??
+        notification.title;
+    if (source.isEmpty) return 'N';
+    return source[0].toUpperCase();
+  }
+
+  Color _buildAvatarColor(AppNotification notification) {
+    final userColor = notification.data.fromUser?.avatarColor;
+    if (userColor != null && userColor.isNotEmpty) return userColor.toColor();
+
+    final projectCreatorColor =
+        notification.data.project?.createdBy?.avatarColor;
+    if (projectCreatorColor != null && projectCreatorColor.isNotEmpty) {
+      return projectCreatorColor.toColor();
+    }
+
+    final taskCreatorColor = notification.data.task?.createdBy?.avatarColor;
+    if (taskCreatorColor != null && taskCreatorColor.isNotEmpty) {
+      return taskCreatorColor.toColor();
+    }
+
+    return GlobalVariables.primaryBlue;
+  }
+
+  IconData _getBadgeIcon(String type) {
+    return switch (type) {
+      'project_invitation' => Symbols.group_add_rounded,
+      'invitation_declined' => Symbols.person_remove_rounded,
+      'task_assigned' => Symbols.assignment_rounded,
+      'task_due_today' => Symbols.watch_later_rounded,
+      'task_overdue' => Symbols.event_busy_rounded,
+      'project_overdue' => Symbols.event_busy_rounded,
+      'task_completed' => Symbols.check_circle_rounded,
+      'project_completed' => Symbols.celebration_rounded,
+      'member_joined' => Symbols.person_add_rounded,
+      'member_removed' => Symbols.group_remove_rounded,
+      'member_left' => Symbols.person_remove_rounded,
+      'comment_mention' => Symbols.chat_bubble_rounded,
+      _ => Symbols.notifications_rounded,
+    };
+  }
+
+  Color _getBadgeColor(String type) {
+    return switch (type) {
+      'task_assigned' => GlobalVariables.pinkBadge,
+      'task_completed' ||
+      'project_completed' ||
+      'comment_mention' => GlobalVariables.greenBadge,
+      'task_due_today' => GlobalVariables.orangeBadge,
+      'task_overdue' ||
+      'project_overdue' => GlobalVariables.redPinkBadge,
+      'member_removed' ||
+      'member_left' ||
+      'invitation_declined' => GlobalVariables.purpleBadge,
+      _ => GlobalVariables.blueBadge,
+    };
+  }
+
+  String _getTypeDisplayName(String type) {
+    return switch (type) {
+      'project_invitation' => tr('notification_type_invitation'),
+      'invitation_declined' => tr('notification_type_declined'),
+      'task_assigned' => tr('notification_type_assigned'),
+      'task_due_today' => tr('notification_type_due_today'),
+      'task_overdue' => tr('notification_type_overdue'),
+      'project_overdue' => tr('notification_type_project_overdue'),
+      'task_completed' => tr('notification_type_task_completed'),
+      'project_completed' => tr('notification_type_project_completed'),
+      'member_joined' => tr('notification_type_member_joined'),
+      'member_removed' => tr('notification_type_member_removed'),
+      'member_left' => tr('notification_type_member_left'),
+      'comment_mention' => tr('notification_type_mention'),
+      _ => tr('notification_type_general'),
+    };
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    if (difference.inMinutes < 1) return tr('time_just_now');
+    if (difference.inHours < 1) {
+      return tr('time_minutes', namedArgs: {'count': '${difference.inMinutes}'});
+    }
+    if (difference.inHours < 24) {
+      return tr('time_hours', namedArgs: {'count': '${difference.inHours}'});
+    }
+    if (difference.inDays < 7) {
+      return tr('time_days', namedArgs: {'count': '${difference.inDays}'});
+    }
+    return DateFormat('dd/MM/yyyy HH:mm').format(dateTime);
+  }
+
+  void _showFilterDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Lọc theo loại thông báo'),
+        title: Text(tr('notification_filter_title')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildFilterOption('Tất cả', null, isDarkMode),
-              _buildFilterOption(
-                'Lời mời dự án',
-                'project_invitation',
-                isDarkMode,
-              ),
-              _buildFilterOption('Task được giao', 'task_assigned', isDarkMode),
-              _buildFilterOption(
-                'Task sắp hết hạn',
-                'task_deadline_warning',
-                isDarkMode,
-              ),
-              _buildFilterOption(
-                'Dự án sắp hết hạn',
-                'project_deadline_warning',
-                isDarkMode,
-              ),
+              _buildFilterOption(tr('notification_filter_all'), null),
+              _buildFilterOption(tr('notification_type_invitation'), 'project_invitation'),
+              _buildFilterOption(tr('notification_type_assigned'), 'task_assigned'),
+              _buildFilterOption(tr('notification_type_due_today'), 'task_due_today'),
+              _buildFilterOption(tr('notification_type_overdue'), 'task_overdue'),
+              _buildFilterOption(tr('notification_type_project_overdue'), 'project_overdue'),
+              _buildFilterOption(tr('notification_type_task_completed'), 'task_completed'),
+              _buildFilterOption(tr('notification_type_project_completed'), 'project_completed'),
+              _buildFilterOption(tr('notification_type_member_joined'), 'member_joined'),
+              _buildFilterOption(tr('notification_type_mention'), 'comment_mention'),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
+            child: Text(tr('notification_filter_close')),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterOption(String label, String? type, bool isDarkMode) {
-    final isSelected = _selectedType == type;
-
+  Widget _buildFilterOption(String label, String? type) {
     return ListTile(
       title: Text(label),
       leading: Radio<String?>(
@@ -817,8 +891,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           Navigator.pop(context);
         },
       ),
-      selected: isSelected,
-      selectedTileColor: GlobalVariables.primaryBlue.withOpacity(0.1),
     );
   }
 }

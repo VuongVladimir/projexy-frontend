@@ -3,8 +3,8 @@ import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/custom_button.dart';
 import 'package:frontend/common/widgets/custom_textfield.dart';
+import 'package:frontend/features/notifications/services/notification_service.dart';
 import 'package:frontend/features/projects/services/projects_service.dart';
-import 'package:frontend/features/notifications/services/invitation_service.dart';
 import 'package:frontend/features/projects/widgets/member_invitation_form.dart';
 import 'package:frontend/features/projects/widgets/project_form_widgets.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -332,7 +332,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     int successCount = 0;
 
     for (String email in _invitedEmails) {
-      await InvitationService.sendInvitation(
+      await NotificationService.sendProjectInvitation(
         context: context,
         email: email,
         projectId: projectId,

@@ -5,7 +5,7 @@ import 'package:frontend/features/home/screens/home_screen.dart';
 import 'package:frontend/features/tasks/screens/tasks_screen.dart';
 
 //String uri = "https://projexy-backend.me";
-String uri = "http://192.168.1.9:3000";
+String uri = "http://192.168.1.14:3000";
 const webScreenSize = 600;
 List<Widget> bottomBarItems = [
   const HomeScreen(),
@@ -41,13 +41,25 @@ class GlobalVariables {
   static const Color primaryBlueLight = Color(0xFF4B58F0);
   static const Color primaryBlueDark = Color(0xFF2B38D3);
 
-  static const Color backgroundBlueLight = Color(0xFF007FFF);
+  
 
 
   static const Color secondaryCoral = Color(0xFFEF736B); // #EF736B
   static const Color secondaryAlternate = Color(0xFFD5502B);
 
+  // Badge Colors
+  static const Color backgroundBlueLight = Color(0xFF007FFF);
   static const Color blueAvatar = Color(0xFF4285F4);
+  static const Color blueFresh = Color(0xFF0D6EFD);
+  static const Color yellowBadge = Color(0xFFFBB849);
+  static const Color greenBadge = Color(0xFF25D366);
+  static const Color orangeBadge = Color(0xFFFF7643);
+  static const Color pinkBadge = Color(0xFFFF7295);
+  static const Color redPinkBadge = Color(0xFFD81B60);
+  static const Color purpleBadge = Color(0xFF7E64EE);
+  static const Color grayBadge = Color(0xFF9FA8B8);
+  static const Color blueBadge = Color(0xFF2196F3);
+
   // Background Colors (Light Theme)
   static const Color backgroundPrimary = Color(
     0xFFFFFFFF,

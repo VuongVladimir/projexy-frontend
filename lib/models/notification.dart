@@ -140,24 +140,28 @@ class AppNotification {
     switch (type) {
       case 'project_invitation':
         return 'Lời mời dự án';
+      case 'invitation_declined':
+        return 'Lời mời bị từ chối';
       case 'task_assigned':
         return 'Task được giao';
-      case 'task_deadline_warning':
-        return 'Task sắp hết hạn';
-      case 'project_deadline_warning':
-        return 'Dự án sắp hết hạn';
+      case 'task_due_today':
+        return 'Task đến hạn';
+      case 'task_overdue':
+        return 'Task quá hạn';
+      case 'project_overdue':
+        return 'Dự án quá hạn';
       case 'task_completed':
         return 'Task hoàn thành';
       case 'project_completed':
         return 'Dự án hoàn thành';
       case 'member_joined':
         return 'Thành viên mới';
+      case 'member_removed':
+        return 'Thành viên bị loại';
+      case 'member_left':
+        return 'Thành viên rời dự án';
       case 'comment_mention':
         return 'Được nhắc đến';
-      case 'comment_reply':
-        return 'Có phản hồi';
-      case 'system':
-        return 'Hệ thống';
       default:
         return 'Thông báo';
     }
@@ -179,6 +183,12 @@ class NotificationData {
   final String? commentId;
   final String? commentContent;
   final String? invitationId;
+  final String? invitationToken;
+  final String? invitationEmail;
+  final String? invitationStatus;
+  final String? invitationMessage;
+  final DateTime? invitationExpiresAt;
+  final DateTime? invitationAcceptedAt;
   final String? fromUserId;
   final String? fromUserName;
   final Map<String, dynamic>? extra;
@@ -196,6 +206,12 @@ class NotificationData {
     this.commentId,
     this.commentContent,
     this.invitationId,
+    this.invitationToken,
+    this.invitationEmail,
+    this.invitationStatus,
+    this.invitationMessage,
+    this.invitationExpiresAt,
+    this.invitationAcceptedAt,
     this.fromUserId,
     this.fromUserName,
     this.extra,
@@ -213,6 +229,12 @@ class NotificationData {
       'commentId': commentId,
       'commentContent': commentContent,
       'invitationId': invitationId,
+      'invitationToken': invitationToken,
+      'invitationEmail': invitationEmail,
+      'invitationStatus': invitationStatus,
+      'invitationMessage': invitationMessage,
+      'invitationExpiresAt': invitationExpiresAt?.toIso8601String(),
+      'invitationAcceptedAt': invitationAcceptedAt?.toIso8601String(),
       'fromUserId': fromUserId,
       'fromUserName': fromUserName,
       'extra': extra,
@@ -236,6 +258,16 @@ class NotificationData {
       commentId: map['commentId']?.toString(),
       commentContent: map['commentContent']?.toString(),
       invitationId: map['invitationId']?.toString(),
+      invitationToken: map['invitationToken']?.toString(),
+      invitationEmail: map['invitationEmail']?.toString(),
+      invitationStatus: map['invitationStatus']?.toString(),
+      invitationMessage: map['invitationMessage']?.toString(),
+      invitationExpiresAt: map['invitationExpiresAt'] != null
+          ? DateTime.tryParse(map['invitationExpiresAt'].toString())
+          : null,
+      invitationAcceptedAt: map['invitationAcceptedAt'] != null
+          ? DateTime.tryParse(map['invitationAcceptedAt'].toString())
+          : null,
       fromUserId: map['fromUserId'] is String
           ? map['fromUserId']
           : (map['fromUserId'] is Map ? map['fromUserId']['_id']?.toString() : null),
@@ -329,10 +361,12 @@ class NotificationUser {
 class NotificationProject {
   final String id;
   final String title;
+  final NotificationUser? createdBy;
 
   NotificationProject({
     required this.id,
     required this.title,
+    this.createdBy,
   });
 
   factory NotificationProject.fromMap(Map<String, dynamic>? map) {
@@ -343,6 +377,9 @@ class NotificationProject {
     return NotificationProject(
       id: map['_id']?.toString() ?? '',
       title: map['title']?.toString() ?? '',
+      createdBy: map['createdBy'] is Map<String, dynamic>
+          ? NotificationUser.fromMap(map['createdBy'])
+          : null,
     );
   }
 
@@ -350,6 +387,7 @@ class NotificationProject {
     return {
       '_id': id,
       'title': title,
+      'createdBy': createdBy?.toMap(),
     };
   }
 }
@@ -357,10 +395,12 @@ class NotificationProject {
 class NotificationTask {
   final String id;
   final String title;
+  final NotificationUser? createdBy;
 
   NotificationTask({
     required this.id,
     required this.title,
+    this.createdBy,
   });
 
   factory NotificationTask.fromMap(Map<String, dynamic>? map) {
@@ -371,6 +411,9 @@ class NotificationTask {
     return NotificationTask(
       id: map['_id']?.toString() ?? '',
       title: map['title']?.toString() ?? '',
+      createdBy: map['createdBy'] is Map<String, dynamic>
+          ? NotificationUser.fromMap(map['createdBy'])
+          : null,
     );
   }
 
@@ -378,6 +421,7 @@ class NotificationTask {
     return {
       '_id': id,
       'title': title,
+      'createdBy': createdBy?.toMap(),
     };
   }
 }
