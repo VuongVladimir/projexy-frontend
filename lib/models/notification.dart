@@ -69,7 +69,9 @@ class AppNotification {
       readAt: map['readAt'] != null ? DateTime.parse(map['readAt']) : null,
       priority: map['priority']?.toString() ?? 'medium',
       actionUrl: map['actionUrl']?.toString(),
-      expiresAt: map['expiresAt'] != null ? DateTime.parse(map['expiresAt']) : null,
+      expiresAt: map['expiresAt'] != null
+          ? DateTime.parse(map['expiresAt'])
+          : null,
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])
           : DateTime.now(),
@@ -249,7 +251,9 @@ class NotificationData {
     return NotificationData(
       projectId: map['projectId'] is String
           ? map['projectId']
-          : (map['projectId'] is Map ? map['projectId']['_id']?.toString() : null),
+          : (map['projectId'] is Map
+                ? map['projectId']['_id']?.toString()
+                : null),
       projectTitle: map['projectTitle']?.toString(),
       taskId: map['taskId'] is String
           ? map['taskId']
@@ -270,9 +274,13 @@ class NotificationData {
           : null,
       fromUserId: map['fromUserId'] is String
           ? map['fromUserId']
-          : (map['fromUserId'] is Map ? map['fromUserId']['_id']?.toString() : null),
+          : (map['fromUserId'] is Map
+                ? map['fromUserId']['_id']?.toString()
+                : null),
       fromUserName: map['fromUserName']?.toString(),
-      extra: map['extra'] is Map ? Map<String, dynamic>.from(map['extra']) : null,
+      extra: map['extra'] is Map
+          ? Map<String, dynamic>.from(map['extra'])
+          : null,
       fromUser: map['fromUserId'] is Map<String, dynamic>
           ? NotificationUser.fromMap(map['fromUserId'])
           : null,
@@ -298,11 +306,7 @@ class DeliveryChannels {
   });
 
   Map<String, dynamic> toMap() {
-    return {
-      'inApp': inApp,
-      'push': push,
-      'email': email,
-    };
+    return {'inApp': inApp, 'push': push, 'email': email};
   }
 
   factory DeliveryChannels.fromMap(Map<String, dynamic>? map) {
@@ -363,11 +367,7 @@ class NotificationProject {
   final String title;
   final NotificationUser? createdBy;
 
-  NotificationProject({
-    required this.id,
-    required this.title,
-    this.createdBy,
-  });
+  NotificationProject({required this.id, required this.title, this.createdBy});
 
   factory NotificationProject.fromMap(Map<String, dynamic>? map) {
     if (map == null) {
@@ -384,11 +384,7 @@ class NotificationProject {
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      '_id': id,
-      'title': title,
-      'createdBy': createdBy?.toMap(),
-    };
+    return {'_id': id, 'title': title, 'createdBy': createdBy?.toMap()};
   }
 }
 
@@ -397,11 +393,7 @@ class NotificationTask {
   final String title;
   final NotificationUser? createdBy;
 
-  NotificationTask({
-    required this.id,
-    required this.title,
-    this.createdBy,
-  });
+  NotificationTask({required this.id, required this.title, this.createdBy});
 
   factory NotificationTask.fromMap(Map<String, dynamic>? map) {
     if (map == null) {
@@ -418,11 +410,7 @@ class NotificationTask {
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      '_id': id,
-      'title': title,
-      'createdBy': createdBy?.toMap(),
-    };
+    return {'_id': id, 'title': title, 'createdBy': createdBy?.toMap()};
   }
 }
 
@@ -476,24 +464,48 @@ class NotificationSettings {
 }
 
 class NotificationPreferences {
-  final bool projectDeadlineWarnings;
-  final bool taskDeadlineWarnings;
-  final bool taskAssignments;
   final bool projectInvitations;
+  final bool invitationDeclined;
+  final bool taskAssignments;
+  final bool taskDueToday;
+  final bool taskOverdue;
+  final bool projectOverdue;
+  final bool taskCompleted;
+  final bool projectCompleted;
+  final bool memberJoined;
+  final bool memberRemoved;
+  final bool memberLeft;
+  final bool commentMention;
 
   NotificationPreferences({
-    this.projectDeadlineWarnings = true,
-    this.taskDeadlineWarnings = true,
-    this.taskAssignments = true,
     this.projectInvitations = true,
+    this.invitationDeclined = true,
+    this.taskAssignments = true,
+    this.taskDueToday = true,
+    this.taskOverdue = true,
+    this.projectOverdue = true,
+    this.taskCompleted = true,
+    this.projectCompleted = true,
+    this.memberJoined = true,
+    this.memberRemoved = true,
+    this.memberLeft = true,
+    this.commentMention = true,
   });
 
   Map<String, dynamic> toMap() {
     return {
-      'projectDeadlineWarnings': projectDeadlineWarnings,
-      'taskDeadlineWarnings': taskDeadlineWarnings,
-      'taskAssignments': taskAssignments,
       'projectInvitations': projectInvitations,
+      'invitationDeclined': invitationDeclined,
+      'taskAssignments': taskAssignments,
+      'taskDueToday': taskDueToday,
+      'taskOverdue': taskOverdue,
+      'projectOverdue': projectOverdue,
+      'taskCompleted': taskCompleted,
+      'projectCompleted': projectCompleted,
+      'memberJoined': memberJoined,
+      'memberRemoved': memberRemoved,
+      'memberLeft': memberLeft,
+      'commentMention': commentMention,
     };
   }
 
@@ -503,26 +515,49 @@ class NotificationPreferences {
     }
 
     return NotificationPreferences(
-      projectDeadlineWarnings: map['projectDeadlineWarnings'] ?? true,
-      taskDeadlineWarnings: map['taskDeadlineWarnings'] ?? true,
-      taskAssignments: map['taskAssignments'] ?? true,
       projectInvitations: map['projectInvitations'] ?? true,
+      invitationDeclined: map['invitationDeclined'] ?? true,
+      taskAssignments: map['taskAssignments'] ?? true,
+      taskDueToday: map['taskDueToday'] ?? map['taskDeadlineWarnings'] ?? true,
+      taskOverdue: map['taskOverdue'] ?? map['taskDeadlineWarnings'] ?? true,
+      projectOverdue:
+          map['projectOverdue'] ?? map['projectDeadlineWarnings'] ?? true,
+      taskCompleted: map['taskCompleted'] ?? true,
+      projectCompleted: map['projectCompleted'] ?? true,
+      memberJoined: map['memberJoined'] ?? true,
+      memberRemoved: map['memberRemoved'] ?? true,
+      memberLeft: map['memberLeft'] ?? true,
+      commentMention: map['commentMention'] ?? true,
     );
   }
 
   NotificationPreferences copyWith({
-    bool? projectDeadlineWarnings,
-    bool? taskDeadlineWarnings,
-    bool? taskAssignments,
     bool? projectInvitations,
+    bool? invitationDeclined,
+    bool? taskAssignments,
+    bool? taskDueToday,
+    bool? taskOverdue,
+    bool? projectOverdue,
+    bool? taskCompleted,
+    bool? projectCompleted,
+    bool? memberJoined,
+    bool? memberRemoved,
+    bool? memberLeft,
+    bool? commentMention,
   }) {
     return NotificationPreferences(
-      projectDeadlineWarnings:
-          projectDeadlineWarnings ?? this.projectDeadlineWarnings,
-      taskDeadlineWarnings: taskDeadlineWarnings ?? this.taskDeadlineWarnings,
-      taskAssignments: taskAssignments ?? this.taskAssignments,
       projectInvitations: projectInvitations ?? this.projectInvitations,
+      invitationDeclined: invitationDeclined ?? this.invitationDeclined,
+      taskAssignments: taskAssignments ?? this.taskAssignments,
+      taskDueToday: taskDueToday ?? this.taskDueToday,
+      taskOverdue: taskOverdue ?? this.taskOverdue,
+      projectOverdue: projectOverdue ?? this.projectOverdue,
+      taskCompleted: taskCompleted ?? this.taskCompleted,
+      projectCompleted: projectCompleted ?? this.projectCompleted,
+      memberJoined: memberJoined ?? this.memberJoined,
+      memberRemoved: memberRemoved ?? this.memberRemoved,
+      memberLeft: memberLeft ?? this.memberLeft,
+      commentMention: commentMention ?? this.commentMention,
     );
   }
 }
-

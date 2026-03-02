@@ -780,7 +780,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   IconData _getBadgeIcon(String type) {
     return switch (type) {
       'project_invitation' => Symbols.group_add_rounded,
-      'invitation_declined' => Symbols.person_remove_rounded,
+      'invitation_declined' => Symbols.cancel_rounded,
       'task_assigned' => Symbols.assignment_rounded,
       'task_due_today' => Symbols.watch_later_rounded,
       'task_overdue' => Symbols.event_busy_rounded,
