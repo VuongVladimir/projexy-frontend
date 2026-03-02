@@ -183,7 +183,7 @@ class AccountScreen extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Symbols.person,
-                    badgeBackgroundColor: GlobalVariables.yellowBadge,
+                    badgeBackgroundColor: GlobalVariables.blueBadge,
                     title: tr('view_profile'),
                     subtitle: tr('view_detailed_info'),
                     onTap: () {
@@ -198,7 +198,7 @@ class AccountScreen extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Symbols.edit,
-                    badgeBackgroundColor: GlobalVariables.purpleBadge,
+                    badgeBackgroundColor: GlobalVariables.yellowBadge,
                     title: tr('edit_profile'),
                     subtitle: tr('update_personal_info'),
                     onTap: () {
@@ -209,7 +209,7 @@ class AccountScreen extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Icons.notifications_outlined,
-                    badgeBackgroundColor: GlobalVariables.pinkBadge,
+                    badgeBackgroundColor: GlobalVariables.orangeBadge,
                     svgIcon: SvgPicture.asset(
                       'assets/icons/bell-icon.svg',
                       colorFilter: ColorFilter.mode(
@@ -232,7 +232,7 @@ class AccountScreen extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Symbols.settings,
-                    badgeBackgroundColor: GlobalVariables.blueBadge,
+                    badgeBackgroundColor: GlobalVariables.grayBadge,
                     title: tr('settings'),
                     subtitle: tr('app_configuration'),
                     onTap: () {
@@ -292,11 +292,11 @@ class AccountScreen extends StatelessWidget {
         padding: EdgeInsets.all(5),
         decoration: BoxDecoration(
           color: badgeBackgroundColor,
-          borderRadius: BorderRadius.circular(8.5),
+          borderRadius: BorderRadius.circular(10),
         ),
         child:
             svgIcon ??
-            Icon(icon, color: GlobalVariables.white, size: 28, fill: 1),
+            Icon(icon, color: GlobalVariables.white, size: 28, fill: 1, weight: 600, grade: 300),
       ),
       title: Text(
         title,
