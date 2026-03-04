@@ -23,7 +23,6 @@ class TaskKanbanView extends StatelessWidget {
     final inProgressTasks = tasks
         .where((t) => t.status == 'in-progress')
         .toList();
-    final reviewTasks = tasks.where((t) => t.status == 'review').toList();
     final completedTasks = tasks.where((t) => t.status == 'completed').toList();
 
     return SingleChildScrollView(
@@ -44,14 +43,6 @@ class TaskKanbanView extends StatelessWidget {
             title: easy.tr('in_progress'),
             color: GlobalVariables.statusInProgress,
             tasks: inProgressTasks,
-            onTaskTap: (task) => _navigateToTaskDetail(context, task.id),
-            onStatusChanged: (task) => _updateTaskStatus(context, task),
-          ),
-          const SizedBox(width: 12),
-          _KanbanColumn(
-            title: easy.tr('review'),
-            color: GlobalVariables.statusReview,
-            tasks: reviewTasks,
             onTaskTap: (task) => _navigateToTaskDetail(context, task.id),
             onStatusChanged: (task) => _updateTaskStatus(context, task),
           ),
@@ -84,9 +75,6 @@ class TaskKanbanView extends StatelessWidget {
         nextStatus = 'in-progress';
         break;
       case 'in-progress':
-        nextStatus = 'review';
-        break;
-      case 'review':
         nextStatus = 'completed';
         break;
       case 'completed':

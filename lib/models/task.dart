@@ -63,8 +63,10 @@ class TaskAttachment {
   /// Lấy kích thước file dạng đọc được (KB, MB, GB)
   String get formattedFileSize {
     if (fileSize < 1024) return '$fileSize B';
-    if (fileSize < 1024 * 1024) return '${(fileSize / 1024).toStringAsFixed(1)} KB';
-    if (fileSize < 1024 * 1024 * 1024) return '${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB';
+    if (fileSize < 1024 * 1024)
+      return '${(fileSize / 1024).toStringAsFixed(1)} KB';
+    if (fileSize < 1024 * 1024 * 1024)
+      return '${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB';
     return '${(fileSize / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
@@ -158,14 +160,20 @@ class Task {
     if (map == null) {
       throw ArgumentError('Task.fromMap: map cannot be null');
     }
-    
+
     // Parse assignedTo array
     List<Map<String, dynamic>> assignedToList = [];
     if (map['assignedTo'] != null) {
       if (map['assignedTo'] is List) {
         assignedToList = (map['assignedTo'] as List).map((item) {
           if (item is String) {
-            return {'_id': item, 'name': '', 'email': '', 'avatar': '', 'avatarColor': ''};
+            return {
+              '_id': item,
+              'name': '',
+              'email': '',
+              'avatar': '',
+              'avatarColor': '',
+            };
           } else if (item is Map) {
             return {
               '_id': item['_id']?.toString() ?? '',
@@ -175,52 +183,72 @@ class Task {
               'avatarColor': item['avatarColor']?.toString() ?? '',
             };
           }
-          return {'_id': '', 'name': '', 'email': '', 'avatar': '', 'avatarColor': ''};
+          return {
+            '_id': '',
+            'name': '',
+            'email': '',
+            'avatar': '',
+            'avatarColor': '',
+          };
         }).toList();
       }
     }
-    
+
     return Task(
       id: map['_id']?.toString() ?? '',
       title: map['title']?.toString() ?? '',
       description: map['description']?.toString(),
       status: map['status']?.toString() ?? 'todo',
       priority: map['priority']?.toString() ?? 'medium',
-      projectId: map['projectId'] is String 
-          ? map['projectId'] 
-          : (map['projectId'] is Map ? map['projectId']['_id']?.toString() ?? '' : ''),
+      projectId: map['projectId'] is String
+          ? map['projectId']
+          : (map['projectId'] is Map
+                ? map['projectId']['_id']?.toString() ?? ''
+                : ''),
       assignedTo: assignedToList,
-      createdBy: map['createdBy'] is String 
-          ? map['createdBy'] 
-          : (map['createdBy'] is Map ? map['createdBy']['_id']?.toString() ?? '' : ''),
-      startDate: map['startDate'] != null ? DateTime.parse(map['startDate']) : null,
+      createdBy: map['createdBy'] is String
+          ? map['createdBy']
+          : (map['createdBy'] is Map
+                ? map['createdBy']['_id']?.toString() ?? ''
+                : ''),
+      startDate: map['startDate'] != null
+          ? DateTime.parse(map['startDate'])
+          : null,
       endDate: map['endDate'] != null ? DateTime.parse(map['endDate']) : null,
       schedulingMode: map['schedulingMode']?.toString() ?? 'AUTO',
       weight: map['weight']?.toInt() ?? 1,
-      parentTaskId: map['parentTaskId'] is String 
-          ? map['parentTaskId'] 
-          : (map['parentTaskId'] is Map ? map['parentTaskId']['_id']?.toString() : null),
+      parentTaskId: map['parentTaskId'] is String
+          ? map['parentTaskId']
+          : (map['parentTaskId'] is Map
+                ? map['parentTaskId']['_id']?.toString()
+                : null),
       path: map['path']?.toString() ?? '',
       level: map['level']?.toInt() ?? 0,
       order: map['order']?.toInt() ?? 0,
       progress: map['progress']?.toInt() ?? 0,
       subTaskCount: map['subTaskCount']?.toInt() ?? 0,
-      createdAt: map['createdAt'] != null 
-          ? DateTime.parse(map['createdAt']) 
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'])
           : DateTime.now(),
-      updatedAt: map['updatedAt'] != null 
-          ? DateTime.parse(map['updatedAt']) 
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.parse(map['updatedAt'])
           : DateTime.now(),
-      subtasks: map['subtasks'] != null 
-          ? List<Task>.from((map['subtasks'] as List).map((x) => Task.fromMap(x)))
+      subtasks: map['subtasks'] != null
+          ? List<Task>.from(
+              (map['subtasks'] as List).map((x) => Task.fromMap(x)),
+            )
           : null,
       attachments: map['attachments'] != null
           ? List<TaskAttachment>.from(
-              (map['attachments'] as List).map((x) => TaskAttachment.fromMap(x)))
+              (map['attachments'] as List).map(
+                (x) => TaskAttachment.fromMap(x),
+              ),
+            )
           : [],
       comments: map['comments'] != null
           ? List<TaskComment>.from(
-              (map['comments'] as List).map((x) => TaskComment.fromMap(x)))
+              (map['comments'] as List).map((x) => TaskComment.fromMap(x)),
+            )
           : [],
     );
   }
@@ -289,7 +317,7 @@ class Task {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-  
+
     return other is Task && other.id == id;
   }
 
@@ -305,8 +333,6 @@ class Task {
         return tr('todo');
       case 'in-progress':
         return tr('in_progress');
-      case 'review':
-        return tr('review');
       case 'completed':
         return tr('completed');
       default:
@@ -344,29 +370,28 @@ class Task {
   bool get isCompleted => status == 'completed';
   bool get isInProgress => status == 'in-progress';
   bool get isTodo => status == 'todo';
-  bool get isInReview => status == 'review';
 
   // Kiểm tra thời hạn
   bool get isOverdue {
     if (endDate == null || isCompleted) return false;
     return DateTime.now().isAfter(endDate!);
   }
-  
+
   int get daysRemaining {
     if (endDate == null || isCompleted) return 0;
     final now = DateTime.now();
     final difference = endDate!.difference(now).inDays;
     return difference < 0 ? 0 : difference;
   }
-  
+
   // Scheduling helpers
   bool get hasValidDates => startDate != null && endDate != null;
-  
+
   int get durationDays {
     if (!hasValidDates) return 0;
     return endDate!.difference(startDate!).inDays;
   }
-  
+
   bool get isAutoScheduled => schedulingMode == 'AUTO';
   bool get isManualScheduled => schedulingMode == 'MANUAL';
 
@@ -374,7 +399,7 @@ class Task {
   bool get isRootTask => parentTaskId == null;
   bool get isSubtask => parentTaskId != null;
   bool get hasSubtasks => subtasks != null && subtasks!.isNotEmpty;
-  
+
   // Progress percentage
   double get progressPercentage => progress / 100.0;
 
@@ -391,7 +416,7 @@ class Task {
   // Lấy tất cả subtasks (flat list)
   List<Task> get allSubtasks {
     if (!hasSubtasks) return [];
-    
+
     List<Task> allSubs = [];
     for (Task subtask in subtasks!) {
       allSubs.add(subtask);
@@ -422,11 +447,11 @@ class Task {
   // Attachment helpers
   bool get hasAttachments => attachments.isNotEmpty;
   int get attachmentCount => attachments.length;
-  List<TaskAttachment> get imageAttachments => 
+  List<TaskAttachment> get imageAttachments =>
       attachments.where((a) => a.isImage).toList();
-  List<TaskAttachment> get documentAttachments => 
+  List<TaskAttachment> get documentAttachments =>
       attachments.where((a) => a.isDocument).toList();
-  List<TaskAttachment> get videoAttachments => 
+  List<TaskAttachment> get videoAttachments =>
       attachments.where((a) => a.isVideo).toList();
 
   // Comment helpers

@@ -5,7 +5,7 @@ import 'package:frontend/features/home/screens/home_screen.dart';
 import 'package:frontend/features/tasks/screens/tasks_screen.dart';
 
 //String uri = "https://projexy-backend.me";
-String uri = "http://192.168.1.12:3000";
+String uri = "http://192.168.1.11:3000";
 const webScreenSize = 600;
 List<Widget> bottomBarItems = [
   const HomeScreen(),
@@ -40,9 +40,6 @@ class GlobalVariables {
   static const Color primaryBlue = Color(0xFF274BFF); // #3443FD
   static const Color primaryBlueLight = Color(0xFF4B58F0);
   static const Color primaryBlueDark = Color(0xFF2B38D3);
-
-  
-
 
   static const Color secondaryCoral = Color(0xFFEF736B); // #EF736B
   static const Color secondaryAlternate = Color(0xFFD5502B);
@@ -230,7 +227,6 @@ class GlobalVariables {
   // Project/Task Status
   static const Color statusPlanning = Color(0xFF6F42C1);
   static const Color statusInProgress = Color(0xFF007BFF);
-  static const Color statusReview = Color(0xFFFD7E14);
   static const Color statusCompleted = Color(0xFF28A745);
   static const Color statusCancelled = Color(0xFFE11D48); // Hủy bỏ (Error Rose)
   static const Color statusOverdue = Color(
@@ -337,9 +333,6 @@ class GlobalVariables {
       case 'in-progress':
       case 'đang thực hiện':
         return statusInProgress;
-      case 'review':
-      case 'đánh giá':
-        return statusReview;
       case 'completed':
       case 'hoàn thành':
         return statusCompleted;

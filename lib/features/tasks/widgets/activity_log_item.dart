@@ -348,7 +348,10 @@ class ActivityLogItem extends StatelessWidget {
               ),
               child: Text(
                 _truncate(oldVal, 30),
-                style: TextStyle(fontSize: 12, color: GlobalVariables.secondaryCoral),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: GlobalVariables.secondaryCoral,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -449,7 +452,10 @@ class ActivityLogItem extends StatelessWidget {
               'activity_removed_users',
               namedArgs: {'users': removed.join(', ')},
             ),
-            style: TextStyle(fontSize: 12, color: GlobalVariables.secondaryCoral),
+            style: TextStyle(
+              fontSize: 12,
+              color: GlobalVariables.secondaryCoral,
+            ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -492,8 +498,6 @@ class ActivityLogItem extends StatelessWidget {
         return tr('todo');
       case 'in-progress':
         return tr('in_progress');
-      case 'review':
-        return tr('review');
       case 'completed':
         return tr('completed');
       default:
