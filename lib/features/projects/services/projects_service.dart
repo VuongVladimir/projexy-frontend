@@ -412,4 +412,40 @@ class ProjectsService {
       }
     }
   }
+
+  // Lấy dữ liệu analytics của project
+  static Future<void> getProjectAnalytics({
+    required BuildContext context,
+    required String projectId,
+    required Function(ProjectAnalytics) onSuccess,
+  }) async {
+    try {
+      final response = await ApiClient.get(
+        url: '${uri}/api/project/$projectId/analytics',
+      );
+
+      if (context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            final responseBody = response.body;
+            if (responseBody.isEmpty) {
+              throw Exception('Empty analytics response');
+            }
+
+            final data = json.decode(responseBody);
+            final analytics = ProjectAnalytics.fromMap(
+              data as Map<String, dynamic>,
+            );
+            onSuccess(analytics);
+          },
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi: ${e.toString()}');
+      }
+    }
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/task_card.dart';
@@ -13,9 +14,11 @@ import 'package:frontend/features/projects/widgets/project_activity_section.dart
 import 'package:frontend/features/tasks/services/tasks_service.dart';
 import 'package:frontend/features/tasks/screens/task_detail_screen.dart';
 import 'package:frontend/features/tasks/screens/create_task_screen.dart';
+import 'package:frontend/features/tasks/screens/list_tasks_filter.dart';
 import 'package:frontend/models/project.dart';
 import 'package:frontend/models/task.dart';
 import 'package:frontend/providers/user_provider.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 
@@ -33,9 +36,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   Project? _project;
+  ProjectAnalytics? _analytics;
   List<Task> _tasks = [];
   bool _isLoading = true;
   bool _isLoadingTasks = false;
+  bool _isLoadingAnalytics = false;
   bool _isOwner = false;
   ProjectMember? _currentUserMember;
   final GlobalKey<ProjectActivitySectionState> _activitySectionKey =
@@ -44,7 +49,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       setState(() {}); // Rebuild để cập nhật FAB visibility
     });
@@ -87,6 +92,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
 
         // Gọi load tasks ngay lập tức (không đợi setState rebuild)
         _loadTasks();
+        _loadAnalytics();
 
         // Sau đó mới setState để trigger rebuild
         setState(() {
@@ -113,6 +119,28 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         });
       },
     );
+  }
+
+  Future<void> _loadAnalytics() async {
+    if (_project == null) return;
+
+    setState(() => _isLoadingAnalytics = true);
+
+    await ProjectsService.getProjectAnalytics(
+      context: context,
+      projectId: _project!.id,
+      onSuccess: (analytics) {
+        if (!mounted) return;
+        setState(() {
+          _analytics = analytics;
+          _isLoadingAnalytics = false;
+        });
+      },
+    );
+
+    if (mounted && _isLoadingAnalytics) {
+      setState(() => _isLoadingAnalytics = false);
+    }
   }
 
   @override
@@ -304,6 +332,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
               indicatorSize: TabBarIndicatorSize.tab,
               tabs: [
                 Tab(text: tr('overview')),
+                Tab(text: tr('analytics')),
                 Tab(text: tr('members')),
               ],
             ),
@@ -315,6 +344,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
               controller: _tabController,
               children: [
                 _buildCombinedOverviewTab(_isOwner, _currentUserMember!),
+                _buildAnalyticsTab(),
                 _buildMembersTab(_isOwner, _currentUserMember!),
               ],
             ),
@@ -656,6 +686,504 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     );
   }
 
+  Widget _buildAnalyticsTab() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _loadProjectDetails();
+        await _loadAnalytics();
+      },
+      child: _isLoadingAnalytics
+          ? const Center(child: CircularProgressIndicator())
+          : _analytics == null
+          ? ListView(
+              children: [
+                SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+                Center(
+                  child: Text(
+                    tr('no_tasks'),
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: isDarkMode
+                          ? GlobalVariables.darkTextSecondary
+                          : GlobalVariables.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildMetricsCards(theme, isDarkMode),
+                  const SizedBox(height: 20),
+                  _buildStatusOverviewCard(theme, isDarkMode),
+                  const SizedBox(height: 20),
+                  _buildTeamWorkloadCard(theme, isDarkMode),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildMetricsCards(ThemeData theme, bool isDarkMode) {
+    final metrics = _analytics!.metrics;
+
+    final cards = <Map<String, dynamic>>[
+      {
+        'title': '${metrics.doneLast7Days.count} ${tr('done')}',
+        'subtitle': tr('in_last_7_days'),
+        'icon': Symbols.check_rounded,
+        'color': GlobalVariables.successGreen,
+        'taskIds': metrics.doneLast7Days.taskIds,
+      },
+      {
+        'title': '${metrics.updatedLast7Days.count} ${tr('updated')}',
+        'subtitle': tr('in_last_7_days'),
+        'icon': Symbols.edit,
+        'color': GlobalVariables.primaryBlue,
+        'taskIds': metrics.updatedLast7Days.taskIds,
+      },
+      {
+        'title': '${metrics.createdLast7Days.count} ${tr('created')}',
+        'subtitle': tr('in_last_7_days'),
+        'icon': Symbols.add_rounded,
+        'color': const Color(0xFF8E44AD),
+        'taskIds': metrics.createdLast7Days.taskIds,
+      },
+      {
+        'title': '${metrics.dueSoonNext7Days.count} ${tr('due')}',
+        'subtitle': tr('in_next_7_days'),
+        'icon': Symbols.calendar_today,
+        'color': Colors.blueGrey,
+        'taskIds': metrics.dueSoonNext7Days.taskIds,
+      },
+    ];
+
+    return GridView.builder(
+      itemCount: cards.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.22,
+      ),
+      itemBuilder: (context, index) {
+        final card = cards[index];
+        return InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _openFilteredTasks(
+            card['title'] as String,
+            List<String>.from(card['taskIds'] as List),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDarkMode
+                  ? GlobalVariables.darkSurfaceCard
+                  : GlobalVariables.surfaceCard,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDarkMode
+                    ? GlobalVariables.darkBorderPrimary
+                    : GlobalVariables.borderPrimary,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: (card['color'] as Color).withValues(
+                    alpha: 0.15,
+                  ),
+                  child: Icon(
+                    card['icon'] as IconData,
+                    size: 20,
+                    weight: 700,
+                    color: card['color'] as Color,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  card['title'] as String,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: card['color'] as Color,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  card['subtitle'] as String,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextSecondary
+                        : GlobalVariables.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatusOverviewCard(ThemeData theme, bool isDarkMode) {
+    final overview = _analytics!.statusOverview;
+    final total = overview.total;
+
+    final sections = overview.buckets
+        .where((bucket) => bucket.count > 0)
+        .map(
+          (bucket) => PieChartSectionData(
+            value: bucket.count.toDouble(),
+            color: _statusColor(bucket.status),
+            radius: 35,
+            showTitle: false,
+          ),
+        )
+        .toList();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDarkMode
+            ? GlobalVariables.darkSurfaceCard
+            : GlobalVariables.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDarkMode
+              ? GlobalVariables.darkBorderPrimary
+              : GlobalVariables.borderPrimary,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr('status_overview'),
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: isDarkMode
+                  ? GlobalVariables.darkTextPrimary
+                  : GlobalVariables.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            tr('in_last_14_days'),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w300,
+              color: isDarkMode
+                  ? GlobalVariables.darkTextSecondary
+                  : GlobalVariables.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 220,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                PieChart(
+                  PieChartData(
+                    sectionsSpace: 0,
+                    centerSpaceRadius: 70,
+                    sections: sections.isEmpty
+                        ? [
+                            PieChartSectionData(
+                              value: 1,
+                              color: GlobalVariables.borderPrimary,
+                              radius: 35,
+                              showTitle: false,
+                            ),
+                          ]
+                        : sections,
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '$total',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: isDarkMode
+                            ? GlobalVariables.darkTextPrimary
+                            : GlobalVariables.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      tr('total_work_items'),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: isDarkMode
+                            ? GlobalVariables.darkTextSecondary
+                            : GlobalVariables.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...overview.buckets.map(
+            (bucket) => InkWell(
+              onTap: () => _openFilteredTasks(
+                _statusLabel(bucket.status),
+                bucket.taskIds,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _statusColor(bucket.status),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _statusLabel(bucket.status),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: isDarkMode
+                              ? GlobalVariables.darkTextPrimary
+                              : GlobalVariables.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${bucket.count}',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: isDarkMode
+                            ? GlobalVariables.darkTextSecondary
+                            : GlobalVariables.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: isDarkMode
+                          ? GlobalVariables.darkTextSecondary
+                          : GlobalVariables.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeamWorkloadCard(ThemeData theme, bool isDarkMode) {
+    final workload = _analytics!.teamWorkload.members;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.only(top: 16, left: 16, right: 6, bottom: 16),
+      decoration: BoxDecoration(
+        color: isDarkMode
+            ? GlobalVariables.darkSurfaceCard
+            : GlobalVariables.surfaceCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDarkMode
+              ? GlobalVariables.darkBorderPrimary
+              : GlobalVariables.borderPrimary,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr('team_workload'),
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: isDarkMode
+                  ? GlobalVariables.darkTextPrimary
+                  : GlobalVariables.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            tr('team_workload_description'),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: isDarkMode
+                  ? GlobalVariables.darkTextSecondary
+                  : GlobalVariables.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...workload.map((member) {
+            final displayName = _getFirstNameToken(member.name);
+            final isUnassigned = member.userId == null;
+            final ImageProvider<Object>? avatarImage = isUnassigned
+                ? const AssetImage('assets/images/avatar.png')
+                : (member.avatar.isNotEmpty
+                      ? NetworkImage(member.avatar)
+                      : null);
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 15,
+                    backgroundColor: isUnassigned
+                        ? Colors.transparent
+                        : member.avatarColor.toColor(),
+                    backgroundImage: avatarImage,
+                    child: (!isUnassigned && member.avatar.isEmpty)
+                        ? Text(
+                            member.name.isNotEmpty
+                                ? member.name[0].toUpperCase()
+                                : 'U',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 90,
+                    child: Text(
+                      displayName,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontSize: 16,
+                        color: isDarkMode
+                            ? GlobalVariables.darkTextPrimary
+                            : GlobalVariables.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () =>
+                          _openFilteredTasks(member.name, member.taskIds),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(5),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final clampedPercentage = member.percentage
+                                .clamp(0, 100)
+                                .toInt();
+                            final widthFactor = clampedPercentage / 100;
+                            final isDarkSegmentLabel = clampedPercentage >= 20;
+                            final filledWidth =
+                                constraints.maxWidth * widthFactor;
+                            const horizontalLabelPadding = 10.0;
+                            final lightSegmentLeft =
+                                filledWidth + horizontalLabelPadding;
+                            final labelLeft = isDarkSegmentLabel
+                                ? horizontalLabelPadding
+                                : lightSegmentLeft;
+
+                            return Stack(
+                              children: [
+                                Container(
+                                  height: 30,
+                                  width: double.infinity,
+                                  color: isDarkMode
+                                      ? GlobalVariables.darkBorderPrimary
+                                      : GlobalVariables.borderPrimary,
+                                ),
+                                FractionallySizedBox(
+                                  widthFactor: widthFactor,
+                                  child: Container(
+                                    height: 30,
+                                    color: const Color(0xFF9CA3AF),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  bottom: 0,
+                                  left: labelLeft,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      '$clampedPercentage%',
+                                      style: TextStyle(
+                                        color: isDarkSegmentLabel
+                                            ? Colors.white
+                                            : (isDarkMode
+                                                  ? GlobalVariables
+                                                        .darkTextPrimary
+                                                  : GlobalVariables
+                                                        .textPrimary),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  void _openFilteredTasks(String title, List<String> taskIds) {
+    Navigator.pushNamed(
+      context,
+      ListTasksFilterScreen.routeName,
+      arguments: {
+        'projectId': _project!.id,
+        'title': title,
+        'taskIds': taskIds,
+      },
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'in-progress':
+        return GlobalVariables.blueBadge;
+      case 'completed':
+        return GlobalVariables.greenBadge;
+      case 'todo':
+      default:
+        return GlobalVariables.purpleBadge;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'in-progress':
+        return tr('in_progress');
+      case 'completed':
+        return tr('completed');
+      case 'todo':
+      default:
+        return tr('todo');
+    }
+  }
+
   Widget _buildTaskCard(Task task) {
     return TaskCard(
       task: task,
@@ -691,7 +1219,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   /// Gọi song song cả tasks và project details để tối ưu hiệu năng
   Future<void> _refreshAfterTaskChange() async {
     // Gọi song song cả hai để giảm thời gian chờ
-    await Future.wait([_loadTasks(), _loadProjectDetails()]);
+    await Future.wait([_loadTasks(), _loadProjectDetails(), _loadAnalytics()]);
   }
 
   Widget _buildEmptyTasksState(
@@ -960,9 +1488,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: _getRoleColor(
-                                    member.role,
-                                  ),
+                                  color: _getRoleColor(member.role),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
@@ -1312,6 +1838,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       if (result == true) {
         _loadTasks(); // Reload tasks after creating
         _loadProjectDetails(); // Reload project để cập nhật progress
+        _loadAnalytics();
       }
     });
   }
@@ -1442,6 +1969,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         onShifted: () {
           _loadProjectDetails();
           _loadTasks();
+          _loadAnalytics();
         },
       ),
     );
@@ -1458,5 +1986,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       default:
         return GlobalVariables.textSecondary;
     }
+  }
+
+  String _getFirstNameToken(String fullName) {
+    final trimmed = fullName.trim();
+    if (trimmed.isEmpty) return tr('user');
+    return trimmed.split(RegExp(r'\s+')).first;
   }
 }

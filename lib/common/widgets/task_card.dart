@@ -9,7 +9,7 @@ class TaskCard extends StatelessWidget {
   final Function(bool)? onStatusChanged;
   final bool showMenu;
   final bool showSubtaskCount;
-  final bool isHomeScreen;
+  final bool isCheckable;
 
   const TaskCard({
     super.key,
@@ -18,7 +18,7 @@ class TaskCard extends StatelessWidget {
     this.onStatusChanged,
     this.showMenu = true,
     this.showSubtaskCount = true,
-    this.isHomeScreen = false,
+    this.isCheckable = true,
   });
 
   @override
@@ -49,7 +49,7 @@ class TaskCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (!isHomeScreen) ...[
+                if (isCheckable) ...[
                   GestureDetector(
                     onTap: () {
                       if (onStatusChanged != null) {

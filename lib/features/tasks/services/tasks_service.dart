@@ -68,6 +68,30 @@ class TasksService {
     }
   }
 
+  static Future<void> getProjectTasksByIds({
+    required BuildContext context,
+    required String projectId,
+    required List<String> taskIds,
+    required Function(List<Task>) onSuccess,
+  }) async {
+    if (taskIds.isEmpty) {
+      onSuccess([]);
+      return;
+    }
+
+    await getProjectTasks(
+      context: context,
+      projectId: projectId,
+      parentTaskId: null,
+      includeSubtasks: true,
+      onSuccess: (tasks) {
+        final idSet = taskIds.toSet();
+        final filtered = tasks.where((task) => idSet.contains(task.id)).toList();
+        onSuccess(filtered);
+      },
+    );
+  }
+
   // Lấy chi tiết task
   static Future<void> getTaskDetails({
     required BuildContext context,

@@ -18,6 +18,7 @@ import 'package:frontend/features/projects/screens/projects_screen.dart';
 import 'package:frontend/features/tasks/screens/task_detail_screen.dart';
 import 'package:frontend/features/tasks/screens/create_task_screen.dart';
 import 'package:frontend/features/tasks/screens/edit_task_screen.dart';
+import 'package:frontend/features/tasks/screens/list_tasks_filter.dart';
 import 'package:frontend/features/notifications/screens/notifications_screen.dart';
 import 'package:frontend/features/responsive/responsive_screen_layout.dart';
 import 'package:frontend/models/task.dart';
@@ -174,6 +175,20 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
         builder: (_) => EditTaskScreen(
           task: task,
           project: project,
+        ),
+      );
+
+    case ListTasksFilterScreen.routeName:
+      final args = routeSettings.arguments as Map<String, dynamic>;
+      final projectId = args['projectId'] as String;
+      final title = args['title'] as String;
+      final taskIds = List<String>.from(args['taskIds'] as List<dynamic>);
+      return MaterialPageRoute(
+        settings: routeSettings,
+        builder: (_) => ListTasksFilterScreen(
+          projectId: projectId,
+          title: title,
+          taskIds: taskIds,
         ),
       );
 

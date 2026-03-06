@@ -52,6 +52,7 @@ dependencies:
   path_provider: ^2.1.2
   open_file: ^3.3.2
   permission_handler: ^11.3.0
+  fl_chart: ^1.1.1
 
 dev_dependencies:
   flutter_lints: ^5.0.0

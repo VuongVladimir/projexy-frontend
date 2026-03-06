@@ -373,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () => _navigateToTaskDetails(task),
             showMenu: false,
             showSubtaskCount: true,
-            isHomeScreen: true,
+            isCheckable: false,
           );
         }).toList(),
       ),

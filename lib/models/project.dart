@@ -212,6 +212,178 @@ class Project {
   bool get hasValidDates => startDate != null && endDate != null;
 }
 
+class ProjectAnalytics {
+  final AnalyticsMetrics metrics;
+  final AnalyticsStatusOverview statusOverview;
+  final AnalyticsTeamWorkload teamWorkload;
+
+  ProjectAnalytics({
+    required this.metrics,
+    required this.statusOverview,
+    required this.teamWorkload,
+  });
+
+  factory ProjectAnalytics.fromMap(Map<String, dynamic> map) {
+    return ProjectAnalytics(
+      metrics: AnalyticsMetrics.fromMap(
+        map['metrics'] as Map<String, dynamic>? ?? {},
+      ),
+      statusOverview: AnalyticsStatusOverview.fromMap(
+        map['statusOverview'] as Map<String, dynamic>? ?? {},
+      ),
+      teamWorkload: AnalyticsTeamWorkload.fromMap(
+        map['teamWorkload'] as Map<String, dynamic>? ?? {},
+      ),
+    );
+  }
+}
+
+class AnalyticsMetricBucket {
+  final int count;
+  final List<String> taskIds;
+
+  AnalyticsMetricBucket({required this.count, required this.taskIds});
+
+  factory AnalyticsMetricBucket.fromMap(Map<String, dynamic> map) {
+    return AnalyticsMetricBucket(
+      count: map['count']?.toInt() ?? 0,
+      taskIds: List<String>.from(
+        (map['taskIds'] as List? ?? []).map((item) => item.toString()),
+      ),
+    );
+  }
+}
+
+class AnalyticsMetrics {
+  final AnalyticsMetricBucket doneLast7Days;
+  final AnalyticsMetricBucket updatedLast7Days;
+  final AnalyticsMetricBucket createdLast7Days;
+  final AnalyticsMetricBucket dueSoonNext7Days;
+
+  AnalyticsMetrics({
+    required this.doneLast7Days,
+    required this.updatedLast7Days,
+    required this.createdLast7Days,
+    required this.dueSoonNext7Days,
+  });
+
+  factory AnalyticsMetrics.fromMap(Map<String, dynamic> map) {
+    return AnalyticsMetrics(
+      doneLast7Days: AnalyticsMetricBucket.fromMap(
+        map['doneLast7Days'] as Map<String, dynamic>? ?? {},
+      ),
+      updatedLast7Days: AnalyticsMetricBucket.fromMap(
+        map['updatedLast7Days'] as Map<String, dynamic>? ?? {},
+      ),
+      createdLast7Days: AnalyticsMetricBucket.fromMap(
+        map['createdLast7Days'] as Map<String, dynamic>? ?? {},
+      ),
+      dueSoonNext7Days: AnalyticsMetricBucket.fromMap(
+        map['dueSoonNext7Days'] as Map<String, dynamic>? ?? {},
+      ),
+    );
+  }
+}
+
+class AnalyticsStatusBucket {
+  final String status;
+  final int count;
+  final List<String> taskIds;
+
+  AnalyticsStatusBucket({
+    required this.status,
+    required this.count,
+    required this.taskIds,
+  });
+
+  factory AnalyticsStatusBucket.fromMap(Map<String, dynamic> map) {
+    return AnalyticsStatusBucket(
+      status: map['status']?.toString() ?? 'todo',
+      count: map['count']?.toInt() ?? 0,
+      taskIds: List<String>.from(
+        (map['taskIds'] as List? ?? []).map((item) => item.toString()),
+      ),
+    );
+  }
+}
+
+class AnalyticsStatusOverview {
+  final int total;
+  final int periodDays;
+  final List<AnalyticsStatusBucket> buckets;
+
+  AnalyticsStatusOverview({
+    required this.total,
+    required this.periodDays,
+    required this.buckets,
+  });
+
+  factory AnalyticsStatusOverview.fromMap(Map<String, dynamic> map) {
+    return AnalyticsStatusOverview(
+      total: map['total']?.toInt() ?? 0,
+      periodDays: map['periodDays']?.toInt() ?? 14,
+      buckets: List<AnalyticsStatusBucket>.from(
+        (map['buckets'] as List? ?? []).map(
+          (item) => AnalyticsStatusBucket.fromMap(item as Map<String, dynamic>),
+        ),
+      ),
+    );
+  }
+}
+
+class AnalyticsWorkloadMember {
+  final String? userId;
+  final String name;
+  final String avatar;
+  final String avatarColor;
+  final int count;
+  final int percentage;
+  final List<String> taskIds;
+
+  AnalyticsWorkloadMember({
+    required this.userId,
+    required this.name,
+    required this.avatar,
+    required this.avatarColor,
+    required this.count,
+    required this.percentage,
+    required this.taskIds,
+  });
+
+  factory AnalyticsWorkloadMember.fromMap(Map<String, dynamic> map) {
+    return AnalyticsWorkloadMember(
+      userId: map['userId']?.toString(),
+      name: map['name']?.toString() ?? '',
+      avatar: map['avatar']?.toString() ?? '',
+      avatarColor: map['avatarColor']?.toString() ?? '#9CA3AF',
+      count: map['count']?.toInt() ?? 0,
+      percentage: map['percentage']?.toInt() ?? 0,
+      taskIds: List<String>.from(
+        (map['taskIds'] as List? ?? []).map((item) => item.toString()),
+      ),
+    );
+  }
+}
+
+class AnalyticsTeamWorkload {
+  final int totalActiveTasks;
+  final List<AnalyticsWorkloadMember> members;
+
+  AnalyticsTeamWorkload({required this.totalActiveTasks, required this.members});
+
+  factory AnalyticsTeamWorkload.fromMap(Map<String, dynamic> map) {
+    return AnalyticsTeamWorkload(
+      totalActiveTasks: map['totalActiveTasks']?.toInt() ?? 0,
+      members: List<AnalyticsWorkloadMember>.from(
+        (map['members'] as List? ?? []).map(
+          (item) =>
+              AnalyticsWorkloadMember.fromMap(item as Map<String, dynamic>),
+        ),
+      ),
+    );
+  }
+}
+
 class ProjectMember {
   final String userId;
   final String? userName;
