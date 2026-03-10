@@ -155,8 +155,8 @@ class _TaskCalendarViewState extends State<TaskCalendarView> {
                 color: GlobalVariables.secondaryCoral,
                 shape: BoxShape.circle,
               ),
-              markersMaxCount: 3,
-              markerSize: 6,
+              markersMaxCount: 1,
+              markerSize: 9,
             ),
             headerStyle: HeaderStyle(
               titleCentered: true,

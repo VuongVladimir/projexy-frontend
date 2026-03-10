@@ -84,6 +84,7 @@ class Task {
   final String status;
   final String priority;
   final String projectId;
+  final String? projectTitle;
   final List<Map<String, dynamic>> assignedTo;
   final String createdBy;
   final DateTime? startDate;
@@ -91,6 +92,7 @@ class Task {
   final String schedulingMode;
   final int weight;
   final String? parentTaskId;
+  final String? parentTaskTitle;
   final String path;
   final int level;
   final int order;
@@ -109,6 +111,7 @@ class Task {
     required this.status,
     required this.priority,
     required this.projectId,
+    this.projectTitle,
     this.assignedTo = const [],
     required this.createdBy,
     this.startDate,
@@ -116,6 +119,7 @@ class Task {
     this.schedulingMode = 'AUTO',
     this.weight = 1,
     this.parentTaskId,
+    this.parentTaskTitle,
     required this.path,
     required this.level,
     required this.order,
@@ -136,6 +140,7 @@ class Task {
       'status': status,
       'priority': priority,
       'projectId': projectId,
+      'projectTitle': projectTitle,
       'assignedTo': assignedTo.map((user) => user['_id']).toList(),
       'createdBy': createdBy,
       'startDate': startDate?.toIso8601String(),
@@ -143,6 +148,7 @@ class Task {
       'schedulingMode': schedulingMode,
       'weight': weight,
       'parentTaskId': parentTaskId,
+      'parentTaskTitle': parentTaskTitle,
       'path': path,
       'level': level,
       'order': order,
@@ -205,6 +211,9 @@ class Task {
           : (map['projectId'] is Map
                 ? map['projectId']['_id']?.toString() ?? ''
                 : ''),
+      projectTitle: map['projectId'] is Map
+          ? map['projectId']['title']?.toString()
+          : map['projectTitle']?.toString(),
       assignedTo: assignedToList,
       createdBy: map['createdBy'] is String
           ? map['createdBy']
@@ -222,6 +231,9 @@ class Task {
           : (map['parentTaskId'] is Map
                 ? map['parentTaskId']['_id']?.toString()
                 : null),
+      parentTaskTitle: map['parentTaskId'] is Map
+          ? map['parentTaskId']['title']?.toString()
+          : map['parentTaskTitle']?.toString(),
       path: map['path']?.toString() ?? '',
       level: map['level']?.toInt() ?? 0,
       order: map['order']?.toInt() ?? 0,
@@ -264,6 +276,7 @@ class Task {
     String? status,
     String? priority,
     String? projectId,
+    String? projectTitle,
     List<Map<String, dynamic>>? assignedTo,
     String? createdBy,
     DateTime? startDate,
@@ -271,6 +284,7 @@ class Task {
     String? schedulingMode,
     int? weight,
     String? parentTaskId,
+    String? parentTaskTitle,
     String? path,
     int? level,
     int? order,
@@ -289,6 +303,7 @@ class Task {
       status: status ?? this.status,
       priority: priority ?? this.priority,
       projectId: projectId ?? this.projectId,
+      projectTitle: projectTitle ?? this.projectTitle,
       assignedTo: assignedTo ?? this.assignedTo,
       createdBy: createdBy ?? this.createdBy,
       startDate: startDate ?? this.startDate,
@@ -296,6 +311,7 @@ class Task {
       schedulingMode: schedulingMode ?? this.schedulingMode,
       weight: weight ?? this.weight,
       parentTaskId: parentTaskId ?? this.parentTaskId,
+      parentTaskTitle: parentTaskTitle ?? this.parentTaskTitle,
       path: path ?? this.path,
       level: level ?? this.level,
       order: order ?? this.order,

@@ -268,23 +268,7 @@ class _KanbanCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
 
-            // Description
-            if (task.description != null && task.description!.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                task.description!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: isDarkMode
-                      ? GlobalVariables.darkTextSecondary
-                      : GlobalVariables.textSecondary,
-                  fontSize: 12,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
             // Priority and due date
             Row(
@@ -328,8 +312,8 @@ class _KanbanCard extends StatelessWidget {
                         color: task.isOverdue
                             ? GlobalVariables.errorRed
                             : (isDarkMode
-                                  ? GlobalVariables.darkTextTertiary
-                                  : GlobalVariables.textTertiary),
+                                  ? GlobalVariables.darkTextSecondary
+                                  : GlobalVariables.textSecondary),
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -338,8 +322,8 @@ class _KanbanCard extends StatelessWidget {
                           color: task.isOverdue
                               ? GlobalVariables.errorRed
                               : (isDarkMode
-                                    ? GlobalVariables.darkTextTertiary
-                                    : GlobalVariables.textTertiary),
+                                    ? GlobalVariables.darkTextSecondary
+                                    : GlobalVariables.textSecondary),
                           fontSize: 11,
                           fontWeight: task.isOverdue
                               ? FontWeight.w600
