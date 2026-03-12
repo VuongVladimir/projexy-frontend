@@ -10,15 +10,17 @@ import 'package:frontend/models/task.dart';
 class ListTasksFilterScreen extends StatefulWidget {
   static const String routeName = '/list-tasks-filter';
 
-  final String projectId;
+  final String? projectId;
   final String title;
   final List<String> taskIds;
+  final String? widgetFilter;
 
   const ListTasksFilterScreen({
     super.key,
-    required this.projectId,
+    this.projectId,
     required this.title,
     required this.taskIds,
+    this.widgetFilter,
   });
 
   @override
@@ -37,9 +39,41 @@ class _ListTasksFilterScreenState extends State<ListTasksFilterScreen> {
 
   Future<void> _loadTasks() async {
     setState(() => _isLoading = true);
-    await TasksService.getProjectTasksByIds(
+    if (widget.widgetFilter != null) {
+      await TasksService.getMyTasks(
+        context: context,
+        onSuccess: (tasks) {
+          final filtered = _applyWidgetFilter(tasks, widget.widgetFilter!);
+          filtered.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+          if (!mounted) return;
+          setState(() {
+            _tasks = filtered;
+            _isLoading = false;
+          });
+        },
+      );
+      return;
+    }
+
+    if (widget.projectId != null && widget.projectId!.isNotEmpty) {
+      await TasksService.getProjectTasksByIds(
+        context: context,
+        projectId: widget.projectId!,
+        taskIds: widget.taskIds,
+        onSuccess: (tasks) {
+          tasks.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+          if (!mounted) return;
+          setState(() {
+            _tasks = tasks;
+            _isLoading = false;
+          });
+        },
+      );
+      return;
+    }
+
+    await TasksService.getMyTasksByIds(
       context: context,
-      projectId: widget.projectId,
       taskIds: widget.taskIds,
       onSuccess: (tasks) {
         tasks.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
@@ -50,6 +84,44 @@ class _ListTasksFilterScreenState extends State<ListTasksFilterScreen> {
         });
       },
     );
+  }
+
+  List<Task> _applyWidgetFilter(List<Task> source, String filter) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final weekStart = today.subtract(Duration(days: today.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 6));
+
+    bool isSameDay(DateTime a, DateTime b) =>
+        a.year == b.year && a.month == b.month && a.day == b.day;
+
+    DateTime normalize(DateTime value) =>
+        DateTime(value.year, value.month, value.day);
+
+    switch (filter) {
+      case 'assigned_recently':
+        return source.where((task) => task.assignedRecently).toList();
+      case 'due_today':
+        return source.where((task) {
+          final due = task.endDate;
+          return due != null && isSameDay(due, today);
+        }).toList();
+      case 'due_this_week':
+        return source.where((task) {
+          final due = task.endDate;
+          if (due == null) return false;
+          final dueDate = normalize(due);
+          return !dueDate.isBefore(weekStart) && !dueDate.isAfter(weekEnd);
+        }).toList();
+      case 'updated_recently':
+        return source.where((task) {
+          return !task.updatedAt.isBefore(
+            now.subtract(const Duration(days: 3)),
+          );
+        }).toList();
+      default:
+        return source;
+    }
   }
 
   @override

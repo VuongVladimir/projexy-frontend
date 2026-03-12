@@ -100,6 +100,7 @@ class Task {
   final int subTaskCount;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool assignedRecently;
   final List<Task>? subtasks;
   final List<TaskAttachment> attachments;
   final List<TaskComment> comments;
@@ -127,6 +128,7 @@ class Task {
     required this.subTaskCount,
     required this.createdAt,
     required this.updatedAt,
+    this.assignedRecently = false,
     this.subtasks,
     this.attachments = const [],
     this.comments = const [],
@@ -156,6 +158,7 @@ class Task {
       'subTaskCount': subTaskCount,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'assignedRecently': assignedRecently,
       'subtasks': subtasks?.map((x) => x.toMap()).toList(),
       'attachments': attachments.map((x) => x.toMap()).toList(),
       'comments': comments.map((x) => x.toMap()).toList(),
@@ -245,6 +248,7 @@ class Task {
       updatedAt: map['updatedAt'] != null
           ? DateTime.parse(map['updatedAt'])
           : DateTime.now(),
+      assignedRecently: map['assignedRecently'] == true,
       subtasks: map['subtasks'] != null
           ? List<Task>.from(
               (map['subtasks'] as List).map((x) => Task.fromMap(x)),
@@ -292,6 +296,7 @@ class Task {
     int? subTaskCount,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? assignedRecently,
     List<Task>? subtasks,
     List<TaskAttachment>? attachments,
     List<TaskComment>? comments,
@@ -319,6 +324,7 @@ class Task {
       subTaskCount: subTaskCount ?? this.subTaskCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      assignedRecently: assignedRecently ?? this.assignedRecently,
       subtasks: subtasks ?? this.subtasks,
       attachments: attachments ?? this.attachments,
       comments: comments ?? this.comments,

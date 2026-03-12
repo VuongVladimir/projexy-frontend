@@ -21,9 +21,51 @@ import 'package:frontend/features/tasks/screens/edit_task_screen.dart';
 import 'package:frontend/features/tasks/screens/list_tasks_filter.dart';
 import 'package:frontend/features/notifications/screens/notifications_screen.dart';
 import 'package:frontend/features/responsive/responsive_screen_layout.dart';
+import 'package:frontend/features/responsive/mobile_screen_layout.dart';
+import 'package:frontend/features/responsive/web_screen_layout.dart';
 import 'package:frontend/models/task.dart';
 
 Route<dynamic> generateRoute(RouteSettings routeSettings) {
+  final name = routeSettings.name ?? '';
+
+  if (name.contains('projexywidget://')) {
+    final parsed = Uri.tryParse(name);
+    if (parsed != null) {
+      switch (parsed.host) {
+        case 'task-detail':
+          final taskId = parsed.queryParameters['taskId'];
+          if (taskId != null && taskId.isNotEmpty) {
+            return MaterialPageRoute(
+              settings: routeSettings,
+              builder: (_) => TaskDetailScreen(taskId: taskId),
+            );
+          }
+          break;
+        case 'list-filter':
+          final filter = parsed.queryParameters['filter'];
+          final title = parsed.queryParameters['title'] ?? 'My Tasks';
+          if (filter != null && filter.isNotEmpty) {
+            return MaterialPageRoute(
+              settings: routeSettings,
+              builder: (_) => ListTasksFilterScreen(
+                projectId: null,
+                title: title,
+                taskIds: const [],
+                widgetFilter: filter,
+              ),
+            );
+          }
+          break;
+      }
+    }
+    return MaterialPageRoute(
+      builder: (_) => const ResponsiveLayout(
+        WebScreenLayout(),
+        MobileScreenLayout(),
+      ),
+    );
+  }
+
   switch (routeSettings.name) {
     case LoginScreen.routeName:
       return MaterialPageRoute(
@@ -63,10 +105,7 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
       final otpId = args['otpId'] as String;
       return MaterialPageRoute(
         settings: routeSettings,
-        builder: (_) => ResetPasswordScreen(
-          email: email,
-          otpId: otpId,
-        ),
+        builder: (_) => ResetPasswordScreen(email: email, otpId: otpId),
       );
 
     case HomeScreen.routeName:
@@ -88,9 +127,7 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
       var userId = routeSettings.arguments as String?;
       return MaterialPageRoute(
         settings: routeSettings,
-        builder: (_) => ProfileScreen(
-          userId: userId,
-        ),
+        builder: (_) => ProfileScreen(userId: userId),
       );
 
     case EditProfileScreen.routeName:
@@ -172,23 +209,22 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
       final project = args['project'] as Project?;
       return MaterialPageRoute(
         settings: routeSettings,
-        builder: (_) => EditTaskScreen(
-          task: task,
-          project: project,
-        ),
+        builder: (_) => EditTaskScreen(task: task, project: project),
       );
 
     case ListTasksFilterScreen.routeName:
       final args = routeSettings.arguments as Map<String, dynamic>;
-      final projectId = args['projectId'] as String;
-      final title = args['title'] as String;
-      final taskIds = List<String>.from(args['taskIds'] as List<dynamic>);
+      final projectId = args['projectId'] as String?;
+      final title = (args['title'] as String?) ?? 'My Tasks';
+      final taskIds = List<String>.from((args['taskIds'] as List?) ?? const []);
+      final widgetFilter = args['widgetFilter'] as String?;
       return MaterialPageRoute(
         settings: routeSettings,
         builder: (_) => ListTasksFilterScreen(
           projectId: projectId,
           title: title,
           taskIds: taskIds,
+          widgetFilter: widgetFilter,
         ),
       );
 
@@ -200,10 +236,9 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
 
     default:
       return MaterialPageRoute(
-        builder: (_) => Scaffold(
-          body: Center(
-            child: Text('No route defined for ${routeSettings.name}'),
-          ),
+        builder: (_) => const ResponsiveLayout(
+          WebScreenLayout(),
+          MobileScreenLayout(),
         ),
       );
   }

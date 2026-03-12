@@ -1,3 +1,5 @@
+import 'dart:async';
+
 // frontend/lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -11,6 +13,7 @@ import 'package:frontend/features/auth/services/auth_service.dart';
 import 'package:frontend/features/responsive/mobile_screen_layout.dart';
 import 'package:frontend/features/responsive/responsive_screen_layout.dart';
 import 'package:frontend/features/responsive/web_screen_layout.dart';
+import 'package:frontend/features/tasks/services/task_widgets_service.dart';
 import 'package:frontend/providers/theme_provider.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:frontend/router.dart';
@@ -56,6 +59,8 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final AuthService authService = AuthService();
+  final GlobalKey<NavigatorState> _appNavigatorKey =
+      GlobalKey<NavigatorState>();
   bool _isCheckingAuth = true;
   bool _hasValidToken = false;
   bool _userDataLoaded = false; // Flag to prevent multiple getUserData calls
@@ -63,7 +68,15 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    unawaited(TaskWidgetsService.initialize(navigatorKey: _appNavigatorKey));
+    unawaited(TaskWidgetsService.refreshWidgetsData());
     _checkAuthStatus();
+  }
+
+  @override
+  void dispose() {
+    unawaited(TaskWidgetsService.dispose());
+    super.dispose();
   }
 
   Future<void> _checkAuthStatus() async {
@@ -92,6 +105,7 @@ class _MyAppState extends State<MyApp> {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return MaterialApp(
+          navigatorKey: _appNavigatorKey,
           title: tr('app_title'),
           debugShowCheckedModeBanner: false,
           theme: ThemeConfig.lightTheme,
@@ -135,7 +149,8 @@ class _MyAppState extends State<MyApp> {
 
                 // Gọi getUserData để load thông tin user - chỉ gọi MỘT LẦN
                 if (!_userDataLoaded && user.id.isEmpty) {
-                  _userDataLoaded = true; // Mark as loading to prevent duplicate calls
+                  _userDataLoaded =
+                      true; // Mark as loading to prevent duplicate calls
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (context.mounted) {
                       authService.getUserData(context);

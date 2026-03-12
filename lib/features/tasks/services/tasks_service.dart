@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/constants/http_handling.dart';
 import 'package:frontend/common/constants/utils.dart';
+import 'package:frontend/features/tasks/services/task_widgets_service.dart';
 import 'package:frontend/models/task.dart';
 import 'package:frontend/models/comment.dart';
 
@@ -86,7 +87,9 @@ class TasksService {
       includeSubtasks: true,
       onSuccess: (tasks) {
         final idSet = taskIds.toSet();
-        final filtered = tasks.where((task) => idSet.contains(task.id)).toList();
+        final filtered = tasks
+            .where((task) => idSet.contains(task.id))
+            .toList();
         onSuccess(filtered);
       },
     );
@@ -178,6 +181,7 @@ class TasksService {
             final task = Task.fromMap(taskData as Map<String, dynamic>);
             //showSnackBar(context, 'Tạo công việc thành công!');
             onSuccess(task);
+            TaskWidgetsService.refreshWidgetsData();
           },
         );
       }
@@ -225,6 +229,7 @@ class TasksService {
           onSuccess: () {
             //showSnackBar(context, 'Cập nhật công việc thành công!');
             onSuccess();
+            TaskWidgetsService.refreshWidgetsData();
           },
         );
       }
@@ -251,6 +256,7 @@ class TasksService {
           onSuccess: () {
             //showSnackBar(context, 'Xóa công việc thành công!');
             onSuccess();
+            TaskWidgetsService.refreshWidgetsData();
           },
         );
       }
@@ -282,6 +288,7 @@ class TasksService {
           context: context,
           onSuccess: () {
             onSuccess();
+            TaskWidgetsService.refreshWidgetsData();
           },
         );
       }
@@ -313,6 +320,7 @@ class TasksService {
           context: context,
           onSuccess: () {
             onSuccess();
+            TaskWidgetsService.refreshWidgetsData();
           },
         );
       }
@@ -364,6 +372,7 @@ class TasksService {
                 .cast<Task>()
                 .toList();
             onSuccess(tasks);
+            TaskWidgetsService.syncFromTasks(tasks);
           },
         );
       }
@@ -372,6 +381,28 @@ class TasksService {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }
     }
+  }
+
+  static Future<void> getMyTasksByIds({
+    required BuildContext context,
+    required List<String> taskIds,
+    required Function(List<Task>) onSuccess,
+  }) async {
+    if (taskIds.isEmpty) {
+      onSuccess([]);
+      return;
+    }
+
+    await getMyTasks(
+      context: context,
+      onSuccess: (tasks) {
+        final idSet = taskIds.toSet();
+        final filtered = tasks
+            .where((task) => idSet.contains(task.id))
+            .toList();
+        onSuccess(filtered);
+      },
+    );
   }
 
   // Shift task/subtree
@@ -417,7 +448,8 @@ class TasksService {
     try {
       // Determine file type and folder
       final fileType = getFileTypeFromExtension(fileExtension);
-      final folder = 'task/$taskId/${fileType}s'; // tasks/{taskId}/images, documents, videos
+      final folder =
+          'task/$taskId/${fileType}s'; // tasks/{taskId}/images, documents, videos
 
       // Upload to Cloudinary
       final cloudinary = CloudinaryPublic('dkwp4prjj', 'projexy_preset');
@@ -430,7 +462,9 @@ class TasksService {
             fileBytes,
             identifier: '${fileName}_${DateTime.now().millisecondsSinceEpoch}',
             folder: folder,
-            resourceType: fileType == 'video' ? CloudinaryResourceType.Video : CloudinaryResourceType.Auto,
+            resourceType: fileType == 'video'
+                ? CloudinaryResourceType.Video
+                : CloudinaryResourceType.Auto,
           ),
         );
       } else if (filePath != null) {
@@ -439,7 +473,9 @@ class TasksService {
           CloudinaryFile.fromFile(
             filePath,
             folder: folder,
-            resourceType: fileType == 'video' ? CloudinaryResourceType.Video : CloudinaryResourceType.Auto,
+            resourceType: fileType == 'video'
+                ? CloudinaryResourceType.Video
+                : CloudinaryResourceType.Auto,
           ),
         );
       } else {
@@ -535,7 +571,9 @@ class TasksService {
 
             final List<dynamic> commentData = json.decode(responseBody);
             final comments = commentData
-                .map((data) => TaskComment.fromMap(data as Map<String, dynamic>))
+                .map(
+                  (data) => TaskComment.fromMap(data as Map<String, dynamic>),
+                )
                 .toList();
             onSuccess(comments);
           },
@@ -578,7 +616,9 @@ class TasksService {
             }
 
             final commentData = json.decode(responseBody);
-            final comment = TaskComment.fromMap(commentData as Map<String, dynamic>);
+            final comment = TaskComment.fromMap(
+              commentData as Map<String, dynamic>,
+            );
             onSuccess(comment);
           },
         );
@@ -617,7 +657,9 @@ class TasksService {
             }
 
             final commentData = json.decode(responseBody);
-            final comment = TaskComment.fromMap(commentData as Map<String, dynamic>);
+            final comment = TaskComment.fromMap(
+              commentData as Map<String, dynamic>,
+            );
             onSuccess(comment);
           },
         );
@@ -684,7 +726,9 @@ class TasksService {
             }
 
             final commentData = json.decode(responseBody);
-            final comment = TaskComment.fromMap(commentData as Map<String, dynamic>);
+            final comment = TaskComment.fromMap(
+              commentData as Map<String, dynamic>,
+            );
             onSuccess(comment);
           },
         );
@@ -720,7 +764,9 @@ class TasksService {
             }
 
             final data = json.decode(responseBody);
-            final reactions = ReactionsByEmoji.fromMap(data as Map<String, dynamic>);
+            final reactions = ReactionsByEmoji.fromMap(
+              data as Map<String, dynamic>,
+            );
             onSuccess(reactions);
           },
         );
@@ -757,13 +803,17 @@ class TasksService {
             }
 
             final List<dynamic> usersData = json.decode(responseBody);
-            final users = usersData.map((u) => {
-              '_id': u['_id']?.toString() ?? '',
-              'name': u['name']?.toString() ?? '',
-              'email': u['email']?.toString() ?? '',
-              'avatar': u['avatar']?.toString() ?? '',
-              'avatarColor': u['avatarColor']?.toString() ?? '',
-            }).toList();
+            final users = usersData
+                .map(
+                  (u) => {
+                    '_id': u['_id']?.toString() ?? '',
+                    'name': u['name']?.toString() ?? '',
+                    'email': u['email']?.toString() ?? '',
+                    'avatar': u['avatar']?.toString() ?? '',
+                    'avatarColor': u['avatarColor']?.toString() ?? '',
+                  },
+                )
+                .toList();
             onSuccess(users);
           },
         );
