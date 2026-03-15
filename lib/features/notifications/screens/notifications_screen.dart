@@ -774,7 +774,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       return taskCreatorColor.toColor();
     }
 
-    return GlobalVariables.primaryBlue;
+    return GlobalVariables.backgroundBlueLight;
   }
 
   IconData _getBadgeIcon(String type) {

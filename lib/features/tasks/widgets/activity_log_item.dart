@@ -24,26 +24,39 @@ class ActivityLogItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Actor avatar
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: log.actorAvatarColor.toColor(),
-            backgroundImage: log.actorAvatar.isNotEmpty
-                ? NetworkImage(log.actorAvatar)
-                : null,
-            child: log.actorAvatar.isEmpty
-                ? Text(
-                    log.actorName.isNotEmpty
-                        ? log.actorName.substring(0, 1).toUpperCase()
-                        : 'U',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : null,
-          ),
+          // Actor avatar (system icon hoặc user avatar)
+          if (log.isSystemAction)
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: GlobalVariables.blueFresh,
+              child: Icon(
+                Symbols.smart_toy_rounded,
+                color: Colors.white,
+                fill: 1,
+                size: 20,
+                weight: 600,
+              ),
+            )
+          else
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: log.actorAvatarColor.toColor(),
+              backgroundImage: log.actorAvatar.isNotEmpty
+                  ? NetworkImage(log.actorAvatar)
+                  : null,
+              child: log.actorAvatar.isEmpty
+                  ? Text(
+                      log.actorName.isNotEmpty
+                          ? log.actorName.substring(0, 1).toUpperCase()
+                          : 'U',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : null,
+            ),
           const SizedBox(width: 10),
           // Content
           Expanded(
@@ -127,7 +140,11 @@ class ActivityLogItem extends StatelessWidget {
         return log.action == 'task_updated'
             ? tr(
                 'activity_task_updated',
-                namedArgs: {'actor': actor, 'field': fieldKey},
+                namedArgs: {
+                  'actor': actor,
+                  'field': fieldKey,
+                  'taskTitle': _truncate(meta?['taskTitle'] ?? '', 30),
+                },
               )
             : tr(
                 'activity_project_updated',
@@ -207,7 +224,13 @@ class ActivityLogItem extends StatelessWidget {
         );
 
       case 'task_assigned':
-        return tr('activity_task_assigned', namedArgs: {'actor': actor});
+        return tr(
+          'activity_task_assigned',
+          namedArgs: {
+            'actor': actor,
+            'taskTitle': _truncate(meta?['taskTitle'] ?? '', 30),
+          },
+        );
 
       case 'dependency_added':
         return tr(
@@ -246,6 +269,7 @@ class ActivityLogItem extends StatelessWidget {
           namedArgs: {
             'actor': actor,
             'deltaDays': (meta?['deltaDays'] ?? 0).toString(),
+            'taskTitle': _truncate(meta?['taskTitle'] ?? '', 30),
           },
         );
 

@@ -3,7 +3,8 @@ class ActivityLog {
   final String id;
   final String projectId;
   final String? taskId;
-  final Map<String, dynamic> actor;
+  final Map<String, dynamic>? actor;
+  final String actorType; // 'user' hoặc 'system'
   final Map<String, dynamic>? targetUser;
   final String action;
   final String? field;
@@ -16,7 +17,8 @@ class ActivityLog {
     required this.id,
     required this.projectId,
     this.taskId,
-    required this.actor,
+    this.actor,
+    this.actorType = 'user',
     this.targetUser,
     required this.action,
     this.field,
@@ -31,7 +33,8 @@ class ActivityLog {
       id: map['_id'] ?? '',
       projectId: _extractId(map['projectId']),
       taskId: map['taskId'] != null ? _extractId(map['taskId']) : null,
-      actor: _extractUserMap(map['actor']),
+      actor: map['actor'] != null ? _extractUserMap(map['actor']) : null,
+      actorType: map['actorType']?.toString() ?? 'user',
       targetUser: map['targetUser'] != null
           ? _extractUserMap(map['targetUser'])
           : null,
@@ -76,10 +79,14 @@ class ActivityLog {
   }
 
   // Helper getters
-  String get actorName => actor['name'] ?? 'Unknown';
-  String get actorAvatar => actor['avatar'] ?? '';
-  String get actorAvatarColor => actor['avatarColor'] ?? '#2196F3';
-  String get actorId => actor['id'] ?? '';
+  bool get isSystemAction => actorType == 'system';
+
+  String get actorName =>
+      isSystemAction ? 'System' : (actor?['name'] ?? 'Unknown');
+  String get actorAvatar => isSystemAction ? '' : (actor?['avatar'] ?? '');
+  String get actorAvatarColor =>
+      isSystemAction ? '#2196F3' : (actor?['avatarColor'] ?? '#2196F3');
+  String get actorId => isSystemAction ? '' : (actor?['id'] ?? '');
 
   String? get targetUserName => targetUser?['name'];
   String? get targetUserAvatar => targetUser?['avatar'];
