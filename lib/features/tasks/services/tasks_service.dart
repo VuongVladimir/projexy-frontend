@@ -205,6 +205,7 @@ class TasksService {
     DateTime? endDate,
     String? schedulingMode,
     required VoidCallback onSuccess,
+    VoidCallback? onError,
   }) async {
     try {
       final body = <String, dynamic>{};
@@ -227,13 +228,14 @@ class TasksService {
           response: response,
           context: context,
           onSuccess: () {
-            //showSnackBar(context, 'Cập nhật công việc thành công!');
             onSuccess();
             TaskWidgetsService.refreshWidgetsData();
           },
+          onError: onError,
         );
       }
     } catch (e) {
+      onError?.call();
       if (context.mounted) {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }
@@ -273,6 +275,7 @@ class TasksService {
     required String taskId,
     required List<String> assignedTo,
     required VoidCallback onSuccess,
+    VoidCallback? onError,
   }) async {
     try {
       final body = {'assignedTo': assignedTo};
@@ -290,9 +293,11 @@ class TasksService {
             onSuccess();
             TaskWidgetsService.refreshWidgetsData();
           },
+          onError: onError,
         );
       }
     } catch (e) {
+      onError?.call();
       if (context.mounted) {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }
@@ -305,6 +310,7 @@ class TasksService {
     required String taskId,
     required bool isCompleted,
     required VoidCallback onSuccess,
+    VoidCallback? onError,
   }) async {
     try {
       final body = {'isCompleted': isCompleted};
@@ -322,9 +328,11 @@ class TasksService {
             onSuccess();
             TaskWidgetsService.refreshWidgetsData();
           },
+          onError: onError,
         );
       }
     } catch (e) {
+      onError?.call();
       if (context.mounted) {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }
@@ -411,6 +419,7 @@ class TasksService {
     required String taskId,
     required int deltaDays,
     required VoidCallback onSuccess,
+    VoidCallback? onError,
   }) async {
     try {
       final body = {'deltaDays': deltaDays};
@@ -425,9 +434,11 @@ class TasksService {
           response: response,
           context: context,
           onSuccess: onSuccess,
+          onError: onError,
         );
       }
     } catch (e) {
+      onError?.call();
       if (context.mounted) {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }
@@ -520,6 +531,7 @@ class TasksService {
     required String taskId,
     required String attachmentId,
     required VoidCallback onSuccess,
+    VoidCallback? onError,
   }) async {
     try {
       final response = await ApiClient.delete(
@@ -534,9 +546,11 @@ class TasksService {
             showSnackBar(context, 'Đã xóa tệp đính kèm!');
             onSuccess();
           },
+          onError: onError,
         );
       }
     } catch (e) {
+      onError?.call();
       if (context.mounted) {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }

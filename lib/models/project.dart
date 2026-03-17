@@ -259,12 +259,16 @@ class AnalyticsMetrics {
   final AnalyticsMetricBucket updatedLast7Days;
   final AnalyticsMetricBucket createdLast7Days;
   final AnalyticsMetricBucket dueSoonNext7Days;
+  final AnalyticsMetricBucket dependencyViolations;
+  final AnalyticsMetricBucket blockedTasks;
 
   AnalyticsMetrics({
     required this.doneLast7Days,
     required this.updatedLast7Days,
     required this.createdLast7Days,
     required this.dueSoonNext7Days,
+    required this.dependencyViolations,
+    required this.blockedTasks,
   });
 
   factory AnalyticsMetrics.fromMap(Map<String, dynamic> map) {
@@ -280,6 +284,12 @@ class AnalyticsMetrics {
       ),
       dueSoonNext7Days: AnalyticsMetricBucket.fromMap(
         map['dueSoonNext7Days'] as Map<String, dynamic>? ?? {},
+      ),
+      dependencyViolations: AnalyticsMetricBucket.fromMap(
+        map['dependencyViolations'] as Map<String, dynamic>? ?? {},
+      ),
+      blockedTasks: AnalyticsMetricBucket.fromMap(
+        map['blockedTasks'] as Map<String, dynamic>? ?? {},
       ),
     );
   }

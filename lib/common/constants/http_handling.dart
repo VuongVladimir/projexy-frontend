@@ -104,27 +104,31 @@ void httpResponseHandle({
   required BuildContext context,
   required VoidCallback onSuccess,
   VoidCallback? onUnauthorized,
+  VoidCallback? onError,
 }) {
   switch (response.statusCode) {
     case 200:
       onSuccess();
       break;
     case 401:
-      // Token hết hạn hoặc không hợp lệ
       if (onUnauthorized != null) {
         onUnauthorized();
       } else {
         _handleUnauthorized(context);
       }
+      onError?.call();
       break;
     case 400:
       showSnackBar(context, jsonDecode(response.body)['msg']);
+      onError?.call();
       break;
     case 500:
       showSnackBar(context, jsonDecode(response.body)['error']);
+      onError?.call();
       break;
     default:
       showSnackBar(context, response.body);
+      onError?.call();
       break;
   }
 }

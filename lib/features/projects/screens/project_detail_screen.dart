@@ -69,36 +69,48 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       context: context,
       projectId: widget.projectId,
       onSuccess: (project) {
-        final currentUser = Provider.of<UserProvider>(
-          context,
-          listen: false,
-        ).user;
+        _applyProjectData(project);
 
-        final isOwner = project.createdBy['id'] == currentUser.id;
-        final currentUserMember = project.members.firstWhere(
-          (member) => member.userId == currentUser.id,
-          orElse: () => ProjectMember(
-            userId: currentUser.id,
-            role: 'Viewer',
-            permissions: ProjectPermissions(),
-            joinedAt: DateTime.now(),
-          ),
-        );
-
-        // Set project first, then immediately start loading tasks
-        _project = project;
-        _isOwner = isOwner;
-        _currentUserMember = currentUserMember;
-
-        // Gọi load tasks ngay lập tức (không đợi setState rebuild)
         _loadTasks();
         _loadAnalytics();
 
-        // Sau đó mới setState để trigger rebuild
         setState(() {
           _isLoading = false;
         });
       },
+    );
+  }
+
+  /// Silent refresh - cập nhật project mà không hiển thị full-screen loading
+  Future<void> _refreshProject() async {
+    await ProjectsService.getProjectDetails(
+      context: context,
+      projectId: widget.projectId,
+      onSuccess: (project) {
+        if (mounted) {
+          _applyProjectData(project);
+          setState(() {});
+        }
+      },
+    );
+  }
+
+  void _applyProjectData(Project project) {
+    final currentUser = Provider.of<UserProvider>(
+      context,
+      listen: false,
+    ).user;
+
+    _project = project;
+    _isOwner = project.createdBy['id'] == currentUser.id;
+    _currentUserMember = project.members.firstWhere(
+      (member) => member.userId == currentUser.id,
+      orElse: () => ProjectMember(
+        userId: currentUser.id,
+        role: 'Viewer',
+        permissions: ProjectPermissions(),
+        joinedAt: DateTime.now(),
+      ),
     );
   }
 
@@ -762,6 +774,20 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         'color': Colors.blueGrey,
         'taskIds': metrics.dueSoonNext7Days.taskIds,
       },
+      {
+        'title': '${metrics.blockedTasks.count} ${tr('blocked')}',
+        'subtitle': tr('blocked_tasks_subtitle'),
+        'icon': Symbols.block,
+        'color': GlobalVariables.orangeBadge,
+        'taskIds': metrics.blockedTasks.taskIds,
+      },
+      {
+        'title': '${metrics.dependencyViolations.count} ${tr('violations')}',
+        'subtitle': tr('dependency_violations_subtitle'),
+        'icon': Symbols.warning_rounded,
+        'color': GlobalVariables.redPinkBadge,
+        'taskIds': metrics.dependencyViolations.taskIds,
+      },
     ];
 
     return GridView.builder(
@@ -1198,28 +1224,43 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       TaskDetailScreen.routeName,
       arguments: {'taskId': task.id},
     ).then((_) {
-      // Chỉ reload data khi cần thiết - gọi hàm kết hợp để tránh N+1 calls
       _refreshAfterTaskChange();
+      _activitySectionKey.currentState?.refreshActivity();
     });
   }
 
   void _updateTaskStatus(Task task, bool isCompleted) {
+    final previousTasks = List<Task>.from(_tasks);
+
+    setState(() {
+      final index = _tasks.indexWhere((t) => t.id == task.id);
+      if (index != -1) {
+        _tasks[index] = _tasks[index].copyWith(
+          status: isCompleted ? 'completed' : 'todo',
+          progress: isCompleted ? 100 : 0,
+        );
+      }
+    });
+
     TasksService.markCompleteTask(
       context: context,
       taskId: task.id,
       isCompleted: isCompleted,
-      onSuccess: () async {
-        await _refreshAfterTaskChange();
+      onSuccess: () {
+        _refreshAfterTaskChange();
         _activitySectionKey.currentState?.refreshActivity();
+      },
+      onError: () {
+        if (mounted) {
+          setState(() => _tasks = previousTasks);
+        }
       },
     );
   }
 
-  /// Hàm kết hợp để refresh data sau khi có thay đổi task
-  /// Gọi song song cả tasks và project details để tối ưu hiệu năng
+  /// Refresh song song tasks, project, analytics mà không full-screen loading
   Future<void> _refreshAfterTaskChange() async {
-    // Gọi song song cả hai để giảm thời gian chờ
-    await Future.wait([_loadTasks(), _loadProjectDetails(), _loadAnalytics()]);
+    await Future.wait([_loadTasks(), _refreshProject(), _loadAnalytics()]);
   }
 
   Widget _buildEmptyTasksState(
@@ -1777,7 +1818,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         projectId: _project!.id,
         isOwner: _isOwner,
         onPermissionsUpdated: () {
-          _loadProjectDetails(); // Reload project to get updated permissions
+          _refreshProject();
         },
       ),
     );
@@ -1817,12 +1858,28 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   }
 
   void _removeMember(ProjectMember member) {
+    final previousProject = _project!;
+
+    setState(() {
+      _project = _project!.copyWith(
+        members: _project!.members
+            .where((m) => m.userId != member.userId)
+            .toList(),
+      );
+    });
+
     ProjectsService.removeMemberFromProject(
       context: context,
-      projectId: _project!.id,
+      projectId: previousProject.id,
       userId: member.userId,
       onSuccess: () {
-        _loadProjectDetails(); // Reload project after removing member
+        _refreshProject();
+        _activitySectionKey.currentState?.refreshActivity();
+      },
+      onError: () {
+        if (mounted) {
+          setState(() => _project = previousProject);
+        }
       },
     );
   }
@@ -1836,9 +1893,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       ),
     ).then((result) {
       if (result == true) {
-        _loadTasks(); // Reload tasks after creating
-        _loadProjectDetails(); // Reload project để cập nhật progress
-        _loadAnalytics();
+        _refreshAfterTaskChange();
+        _activitySectionKey.currentState?.refreshActivity();
       }
     });
   }
@@ -1862,7 +1918,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       result,
     ) {
       if (result == true) {
-        _loadProjectDetails(); // Reload project after edit
+        _refreshProject();
+        _activitySectionKey.currentState?.refreshActivity();
       }
     });
   }
@@ -1949,12 +2006,24 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   }
 
   void _updateProjectStatus(String newStatus) {
+    final previousProject = _project!;
+
+    setState(() {
+      _project = _project!.copyWith(status: newStatus);
+    });
+
     ProjectsService.updateProject(
       context: context,
-      projectId: _project!.id,
+      projectId: previousProject.id,
       status: newStatus,
       onSuccess: () {
-        _loadProjectDetails(); // Reload project after status update
+        _refreshProject();
+        _activitySectionKey.currentState?.refreshActivity();
+      },
+      onError: () {
+        if (mounted) {
+          setState(() => _project = previousProject);
+        }
       },
     );
   }
@@ -1967,9 +2036,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       builder: (context) => ShiftProjectDialog(
         project: _project!,
         onShifted: () {
-          _loadProjectDetails();
-          _loadTasks();
-          _loadAnalytics();
+          _refreshAfterTaskChange();
+          _activitySectionKey.currentState?.refreshActivity();
         },
       ),
     );

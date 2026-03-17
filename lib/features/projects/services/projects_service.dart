@@ -134,6 +134,7 @@ class ProjectsService {
     List<String>? members,
     int? progress,
     required VoidCallback onSuccess,
+    VoidCallback? onError,
   }) async {
     try {
       final body = <String, dynamic>{};
@@ -157,12 +158,13 @@ class ProjectsService {
           response: response,
           context: context,
           onSuccess: () {
-            //showSnackBar(context, 'Cập nhật dự án thành công!');
             onSuccess();
           },
+          onError: onError,
         );
       }
     } catch (e) {
+      onError?.call();
       if (context.mounted) {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }
@@ -301,6 +303,7 @@ class ProjectsService {
     required String projectId,
     required String userId,
     required VoidCallback onSuccess,
+    VoidCallback? onError,
   }) async {
     try {
       final response = await ApiClient.delete(
@@ -312,12 +315,13 @@ class ProjectsService {
           response: response,
           context: context,
           onSuccess: () {
-            //showSnackBar(context, 'Xóa thành viên thành công!');
             onSuccess();
           },
+          onError: onError,
         );
       }
     } catch (e) {
+      onError?.call();
       if (context.mounted) {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }

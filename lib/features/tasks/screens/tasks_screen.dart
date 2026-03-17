@@ -801,7 +801,7 @@ class _TaskFilterSheetState extends State<_TaskFilterSheet> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 21),
                 Row(
                   children: [
                     Expanded(

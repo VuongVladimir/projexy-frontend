@@ -47,6 +47,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   List<Dependency> _predecessors = [];
   List<Dependency> _successors = [];
   DependencyViolation? _violation;
+  List<Task> _unfinishedPredecessors = [];
   bool _isLoading = true;
   bool _isLoadingSubtasks = false;
   bool _isUploadingAttachment = false;
@@ -66,10 +67,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       context: context,
       taskId: widget.taskId,
       onSuccess: (task) {
-        // Set task first
         _task = task;
 
-        // Gọi song song cả project, subtasks, dependencies và violations
         _loadProject();
         _loadSubtasks();
         _loadDependencies();
@@ -78,6 +77,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         setState(() {
           _isLoading = false;
         });
+      },
+    );
+  }
+
+  /// Silent refresh - cập nhật dữ liệu task mà không hiển thị full-screen loading
+  Future<void> _refreshTask() async {
+    await TasksService.getTaskDetails(
+      context: context,
+      taskId: widget.taskId,
+      onSuccess: (task) {
+        if (mounted) {
+          setState(() {
+            _task = task;
+          });
+        }
       },
     );
   }
@@ -105,10 +119,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     await DependencyService.getTaskViolations(
       context: context,
       taskId: _task!.id,
-      onSuccess: (violation) {
+      onSuccess: (violation, unfinishedPreds) {
         if (mounted) {
           setState(() {
             _violation = violation;
+            _unfinishedPredecessors = unfinishedPreds;
           });
         }
       },
@@ -549,7 +564,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               tr('belongs_to_project'),
                               _project!.title,
                               Icons.folder_rounded,
-                              GlobalVariables.warningAmber,
+                              GlobalVariables.secondaryCoral,
                             ),
                           ],
                         ],
@@ -1003,14 +1018,28 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   void _updateTaskStatus(String status) {
     final isCompleted = status == 'completed';
+    final previousTask = _task!;
+
+    setState(() {
+      _task = _task!.copyWith(
+        status: isCompleted ? 'completed' : 'todo',
+        progress: isCompleted ? 100 : 0,
+      );
+    });
+
     TasksService.markCompleteTask(
       context: context,
-      taskId: _task!.id,
+      taskId: previousTask.id,
       isCompleted: isCompleted,
       onSuccess: () {
-        _loadTaskDetails();
+        _refreshTask();
         _loadSubtasks();
         _commentSectionKey.currentState?.refreshActivity();
+      },
+      onError: () {
+        if (mounted) {
+          setState(() => _task = previousTask);
+        }
       },
     );
   }
@@ -1022,19 +1051,36 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       arguments: {'taskId': subtask.id},
     ).then((_) {
       _loadSubtasks();
-      _loadTaskDetails();
+      _refreshTask();
     });
   }
 
   void _updateSubtaskStatus(Task subtask, bool isCompleted) {
+    final previousSubtasks = List<Task>.from(_subtasks);
+
+    setState(() {
+      final index = _subtasks.indexWhere((t) => t.id == subtask.id);
+      if (index != -1) {
+        _subtasks[index] = _subtasks[index].copyWith(
+          status: isCompleted ? 'completed' : 'todo',
+          progress: isCompleted ? 100 : 0,
+        );
+      }
+    });
+
     TasksService.markCompleteTask(
       context: context,
       taskId: subtask.id,
       isCompleted: isCompleted,
       onSuccess: () {
         _loadSubtasks();
-        _loadTaskDetails();
+        _refreshTask();
         _commentSectionKey.currentState?.refreshActivity();
+      },
+      onError: () {
+        if (mounted) {
+          setState(() => _subtasks = previousSubtasks);
+        }
       },
     );
   }
@@ -1047,7 +1093,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
     ).then((result) {
       if (result == true) {
-        _loadTaskDetails();
+        _refreshTask();
       }
     });
   }
@@ -1065,7 +1111,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     ).then((result) {
       if (result == true) {
         _loadSubtasks();
-        _loadTaskDetails();
+        _refreshTask();
       }
     });
   }
@@ -1121,7 +1167,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         task: _task!,
         project: _project!,
         onAssigned: () {
-          _loadTaskDetails(); // Reload task details after assigning
+          _refreshTask();
         },
       ),
     );
@@ -1303,11 +1349,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           // Dependencies Section
           _buildDependenciesContent(canEdit),
 
+          // Completed with unfinished predecessors warning
+          if (_unfinishedPredecessors.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _buildUnfinishedPredecessorsWarning(),
+          ],
+
           // Violation Warning
           if (_violation != null) ...[
             const SizedBox(height: 18),
             _buildViolationWarning(),
           ],
+
         ],
       ),
     );
@@ -1359,12 +1412,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           decoration: BoxDecoration(
             color: _task!.isAutoScheduled
                 ? GlobalVariables.primaryBlue.withValues(alpha: 0.1)
-                : GlobalVariables.warningAmber.withValues(alpha: 0.1),
+                : GlobalVariables.secondaryCoral.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: _task!.isAutoScheduled
                   ? GlobalVariables.primaryBlue
-                  : GlobalVariables.warningAmber,
+                  : GlobalVariables.secondaryCoral,
             ),
           ),
           child: Row(
@@ -1375,7 +1428,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     : Icons.edit_rounded,
                 color: _task!.isAutoScheduled
                     ? GlobalVariables.primaryBlue
-                    : GlobalVariables.warningAmber,
+                    : GlobalVariables.secondaryCoral,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1475,7 +1528,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
             const SizedBox(height: 8),
             ..._predecessors.map(
-              (dep) => _buildDependencyCard(dep, isPredecessor: true),
+              (dep) => _buildDependencyCard(dep, canEdit, isPredecessor: true ),
             ),
           ],
 
@@ -1493,7 +1546,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
             const SizedBox(height: 8),
             ..._successors.map(
-              (dep) => _buildDependencyCard(dep, isPredecessor: false),
+              (dep) => _buildDependencyCard(dep, canEdit, isPredecessor: false),
             ),
           ],
         ],
@@ -1501,7 +1554,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildDependencyCard(Dependency dep, {required bool isPredecessor}) {
+  Widget _buildDependencyCard(Dependency dep, bool canEdit, {required bool isPredecessor}) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
     final task = isPredecessor ? dep.predecessor : dep.successor;
@@ -1578,9 +1631,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: GlobalVariables.errorRed.withValues(alpha: 0.1),
+        color: GlobalVariables.redPinkBadge.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: GlobalVariables.errorRed, width: 2),
+        border: Border.all(color: GlobalVariables.redPinkBadge, width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1589,7 +1642,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             children: [
               Icon(
                 Icons.warning_rounded,
-                color: GlobalVariables.errorRed,
+                color: GlobalVariables.redPinkBadge,
                 size: 24,
               ),
               const SizedBox(width: 12),
@@ -1598,7 +1651,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   tr('dependency_violation'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: GlobalVariables.errorRed,
+                    color: GlobalVariables.redPinkBadge,
                   ),
                 ),
               ),
@@ -1654,16 +1707,109 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
+  Widget _buildUnfinishedPredecessorsWarning() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: GlobalVariables.orangeBadge.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: GlobalVariables.orangeBadge, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.notification_important,
+                color: GlobalVariables.orangeBadge,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  tr('completed_with_unfinished_predecessors'),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: GlobalVariables.orangeBadge,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            tr('completed_unfinished_predecessors_description'),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: isDarkMode
+                  ? GlobalVariables.darkTextPrimary
+                  : GlobalVariables.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            tr('unfinished_predecessors'),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: isDarkMode
+                  ? GlobalVariables.darkTextPrimary
+                  : GlobalVariables.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._unfinishedPredecessors.map(
+            (pred) => Padding(
+              padding: const EdgeInsets.only(left: 16, bottom: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.radio_button_unchecked,
+                    size: 14,
+                    color: GlobalVariables.warningAmber,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      pred.title,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isDarkMode
+                            ? GlobalVariables.darkTextSecondary
+                            : GlobalVariables.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _toggleSchedulingMode() {
+    final previousTask = _task!;
     final newMode = _task!.isAutoScheduled ? 'MANUAL' : 'AUTO';
+
+    setState(() {
+      _task = _task!.copyWith(schedulingMode: newMode);
+    });
 
     TasksService.updateTask(
       context: context,
-      taskId: _task!.id,
+      taskId: previousTask.id,
       schedulingMode: newMode,
       onSuccess: () {
-        _loadTaskDetails();
+        _refreshTask();
         showSnackBar(context, tr('scheduling_mode_updated'));
+      },
+      onError: () {
+        if (mounted) {
+          setState(() => _task = previousTask);
+        }
       },
     );
   }
@@ -1676,7 +1822,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       builder: (context) => ShiftTaskDialog(
         task: _task!,
         onShifted: () {
-          _loadTaskDetails();
+          _refreshTask();
         },
       ),
     );
@@ -1693,7 +1839,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         onAdded: () {
           _loadDependencies();
           _loadViolations();
-          _loadTaskDetails();
+          _refreshTask();
         },
       ),
     );
@@ -2171,7 +2317,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         _isUploadingAttachment = true;
       });
 
-      // Upload file - truyền cả bytes và path
       await TasksService.addAttachment(
         context: context,
         taskId: _task!.id,
@@ -2186,7 +2331,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               _isUploadingAttachment = false;
             });
           }
-          _loadTaskDetails(); // Reload task to show new attachment
+          _refreshTask();
         },
       );
     } catch (e) {
@@ -2519,12 +2664,27 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   void _deleteAttachment(TaskAttachment attachment) {
+    final previousTask = _task!;
+
+    setState(() {
+      _task = _task!.copyWith(
+        attachments: _task!.attachments
+            .where((a) => a.id != attachment.id)
+            .toList(),
+      );
+    });
+
     TasksService.deleteAttachment(
       context: context,
-      taskId: _task!.id,
+      taskId: previousTask.id,
       attachmentId: attachment.id,
       onSuccess: () {
-        _loadTaskDetails();
+        _refreshTask();
+      },
+      onError: () {
+        if (mounted) {
+          setState(() => _task = previousTask);
+        }
       },
     );
   }
@@ -2544,6 +2704,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
+
+              final previousPredecessors = List<Dependency>.from(_predecessors);
+              final previousSuccessors = List<Dependency>.from(_successors);
+              final previousViolation = _violation;
+
+              setState(() {
+                _predecessors.removeWhere((d) => d.id == dep.id);
+                _successors.removeWhere((d) => d.id == dep.id);
+                _violation = null;
+              });
+
               DependencyService.deleteDependency(
                 context: context,
                 dependencyId: dep.id,
@@ -2551,6 +2722,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   _loadDependencies();
                   _loadViolations();
                   showSnackBar(context, tr('dependency_deleted'));
+                },
+                onError: () {
+                  if (mounted) {
+                    setState(() {
+                      _predecessors = previousPredecessors;
+                      _successors = previousSuccessors;
+                      _violation = previousViolation;
+                    });
+                  }
                 },
               );
             },

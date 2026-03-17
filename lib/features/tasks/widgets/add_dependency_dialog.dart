@@ -6,7 +6,7 @@ import 'package:frontend/features/tasks/services/tasks_service.dart';
 import 'package:frontend/features/tasks/services/dependency_service.dart';
 import 'package:frontend/models/project.dart';
 import 'package:frontend/models/task.dart';
-import 'package:intl/intl.dart';
+
 
 class AddDependencyDialog extends StatefulWidget {
   final Task task;
@@ -28,7 +28,10 @@ class _AddDependencyDialogState extends State<AddDependencyDialog> {
   List<Task> _availableTasks = [];
   Task? _selectedTask;
   bool _isLoading = true;
+  bool _isLoadingPreview = false;
+  bool _isCreating = false;
   String _dependencyType = 'predecessor'; // or 'successor'
+  List<Map<String, dynamic>> _impactedTasks = [];
   
   @override
   void initState() {
@@ -106,7 +109,13 @@ class _AddDependencyDialogState extends State<AddDependencyDialog> {
                     ),
                     value: 'predecessor',
                     groupValue: _dependencyType,
-                    onChanged: (val) => setState(() => _dependencyType = val!),
+                    onChanged: (val) {
+                      setState(() {
+                        _dependencyType = val!;
+                        _impactedTasks = [];
+                      });
+                      if (_selectedTask != null) _loadPreview();
+                    },
                     activeColor: GlobalVariables.primaryBlue,
                   ),
                 ),
@@ -119,7 +128,13 @@ class _AddDependencyDialogState extends State<AddDependencyDialog> {
                     ),
                     value: 'successor',
                     groupValue: _dependencyType,
-                    onChanged: (val) => setState(() => _dependencyType = val!),
+                    onChanged: (val) {
+                      setState(() {
+                        _dependencyType = val!;
+                        _impactedTasks = [];
+                      });
+                      if (_selectedTask != null) _loadPreview();
+                    },
                     activeColor: GlobalVariables.primaryBlue,
                   ),
                 ),
@@ -150,8 +165,75 @@ class _AddDependencyDialogState extends State<AddDependencyDialog> {
                     ),
                   )
                 ).toList(),
-                onChanged: (task) => setState(() => _selectedTask = task),
+                onChanged: (task) {
+                  setState(() {
+                    _selectedTask = task;
+                    _impactedTasks = [];
+                  });
+                  if (task != null) _loadPreview();
+                },
               ),
+
+            // Impact Preview
+            if (_isLoadingPreview) ...[
+              const SizedBox(height: 16),
+              const Center(child: SizedBox(
+                width: 20, height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )),
+            ] else if (_impactedTasks.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: GlobalVariables.warningAmber.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: GlobalVariables.warningAmber),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.schedule_rounded, 
+                          color: GlobalVariables.warningAmber, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            tr('schedule_impact_preview'),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: GlobalVariables.warningAmber,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ..._impactedTasks.map((task) => Padding(
+                      padding: const EdgeInsets.only(left: 8, bottom: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.arrow_forward_rounded, 
+                            size: 14, color: GlobalVariables.warningAmber),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${task['taskTitle']} ${tr('will_be_shifted')} ${task['shiftDays']} ${tr('days')}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: isDarkMode
+                                    ? GlobalVariables.darkTextPrimary
+                                    : GlobalVariables.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             
             // Actions
@@ -159,17 +241,20 @@ class _AddDependencyDialogState extends State<AddDependencyDialog> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _isCreating ? null : () => Navigator.pop(context),
                   child: Text(tr('cancel')),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
-                  onPressed: _selectedTask != null ? _createDependency : null,
+                  onPressed: (_selectedTask != null && !_isCreating) ? _createDependency : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: GlobalVariables.primaryBlue,
                     foregroundColor: Colors.white,
                   ),
-                  child: Text(tr('add')),
+                  child: _isCreating
+                      ? const SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Text(tr('add')),
                 ),
               ],
             ),
@@ -179,8 +264,38 @@ class _AddDependencyDialogState extends State<AddDependencyDialog> {
     );
   }
   
+  void _loadPreview() {
+    if (_selectedTask == null) return;
+
+    final predecessorId = _dependencyType == 'predecessor' 
+        ? _selectedTask!.id 
+        : widget.task.id;
+    final successorId = _dependencyType == 'predecessor' 
+        ? widget.task.id 
+        : _selectedTask!.id;
+
+    setState(() => _isLoadingPreview = true);
+
+    DependencyService.previewDependencyImpact(
+      context: context,
+      predecessorId: predecessorId,
+      successorId: successorId,
+      projectId: widget.project.id,
+      onSuccess: (impacted) {
+        if (mounted) {
+          setState(() {
+            _impactedTasks = impacted;
+            _isLoadingPreview = false;
+          });
+        }
+      },
+    );
+  }
+
   void _createDependency() {
     if (_selectedTask == null) return;
+
+    setState(() => _isCreating = true);
     
     final predecessorId = _dependencyType == 'predecessor' 
         ? _selectedTask!.id 
