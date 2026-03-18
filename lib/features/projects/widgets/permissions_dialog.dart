@@ -27,7 +27,8 @@ class PermissionsDialog extends StatefulWidget {
 class _PermissionsDialogState extends State<PermissionsDialog> {
   late String _selectedRole;
   late ProjectPermissions _permissions;
-  bool _showCustomPermissions = false;
+  bool _showCustomPermissions = true;
+  bool _showRolePermissions = false;
 
   @override
   void initState() {
@@ -93,6 +94,8 @@ class _PermissionsDialogState extends State<PermissionsDialog> {
                     const SizedBox(height: 12),
 
                     _buildRoleSelector(),
+                    const SizedBox(height: 16),
+                    _buildPermissionsPreview(),
                     const SizedBox(height: 20),
                   ],
 
@@ -140,7 +143,7 @@ class _PermissionsDialogState extends State<PermissionsDialog> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                tr('custom_permissions'),
+                                tr('effective_permissions'),
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: _showCustomPermissions
@@ -363,9 +366,6 @@ class _PermissionsDialogState extends State<PermissionsDialog> {
                             ),
                       enabled: !isReadOnlyMode,
                     ),
-                  ] else ...[
-                    // Display permissions preview for predefined roles
-                    _buildPermissionsPreview(),
                   ],
                 ],
               ),
@@ -379,22 +379,22 @@ class _PermissionsDialogState extends State<PermissionsDialog> {
                 ),
               ),
             ),
-      actions: canManageTarget
-          ? [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(tr('cancel')),
-              ),
-              ElevatedButton(
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(tr('cancel')),
+        ),
+        canManageTarget
+            ? ElevatedButton(
                 onPressed: _savePermissions,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GlobalVariables.primaryBlue,
                   foregroundColor: Colors.white,
                 ),
                 child: Text(tr('save')),
-              ),
-            ]
-          : [],
+              )
+            : const SizedBox.shrink(),
+      ],
     );
   }
 
@@ -507,88 +507,95 @@ class _PermissionsDialogState extends State<PermissionsDialog> {
       {
         'value': 'Manager',
         'label': tr('manager'),
-        'icon': Icons.supervisor_account_rounded,
+        'icon': Icons.admin_panel_settings_outlined,
       },
-      {'value': 'Member', 'label': tr('member'), 'icon': Icons.person_rounded},
+      {'value': 'Member', 'label': tr('member'), 'icon': Icons.person_outline},
       {
         'value': 'Viewer',
         'label': tr('viewer'),
-        'icon': Icons.visibility_rounded,
+        'icon': Icons.visibility_outlined,
       },
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: roles.map((role) {
+        Row(
+          children: roles.asMap().entries.map((entry) {
+            final index = entry.key;
+            final role = entry.value;
             final isSelected = _selectedRole == role['value'];
             // Chỉ Owner mới có thể chọn role Manager
             final isDisabled = role['value'] == 'Manager' && !widget.isOwner;
-            return InkWell(
-              onTap: isDisabled
-                  ? null
-                  : () {
-                      setState(() {
-                        _selectedRole = role['value'] as String;
-                        // Nếu chọn Viewer, ẩn custom permissions
-                        if (_selectedRole == 'Viewer') {
-                          _showCustomPermissions = false;
-                        }
-                      });
-                    },
-              child: Opacity(
-                opacity: isDisabled ? 0.4 : 1.0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? GlobalVariables.primaryBlue.withValues(alpha: 0.1)
-                        : (isDarkMode
-                              ? GlobalVariables.darkSurfaceCard
-                              : GlobalVariables.surfaceCard),
-                    border: Border.all(
-                      color: isSelected
-                          ? GlobalVariables.primaryBlue
-                          : (isDarkMode
-                                ? GlobalVariables.darkBorderPrimary
-                                : GlobalVariables.borderPrimary),
-                      width: isSelected ? 2 : 1,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        role['icon'] as IconData,
-                        size: 20,
+
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(left: index == 0 ? 0 : 8),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: isDisabled
+                      ? null
+                      : () {
+                          setState(() {
+                            _selectedRole = role['value'] as String;
+                            // Nếu chọn Viewer, ẩn custom permissions
+                            if (_selectedRole == 'Viewer') {
+                              _showCustomPermissions = false;
+                            }
+                          });
+                        },
+                  child: Opacity(
+                    opacity: isDisabled ? 0.45 : 1,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
                         color: isSelected
-                            ? GlobalVariables.primaryBlue
+                            ? GlobalVariables.primaryBlue.withValues(
+                                alpha: 0.08,
+                              )
                             : (isDarkMode
-                                  ? GlobalVariables.darkTextSecondary
-                                  : GlobalVariables.textSecondary),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        role['label'] as String,
-                        style: TextStyle(
+                                  ? GlobalVariables.darkSurfaceCard
+                                  : GlobalVariables.surfaceCard),
+                        border: Border.all(
                           color: isSelected
                               ? GlobalVariables.primaryBlue
                               : (isDarkMode
-                                    ? GlobalVariables.darkTextPrimary
-                                    : GlobalVariables.textPrimary),
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.w500,
+                                    ? GlobalVariables.darkBorderPrimary
+                                    : GlobalVariables.borderPrimary),
+                          width: isSelected ? 2 : 1,
                         ),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    ],
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            role['icon'] as IconData,
+                            size: 28,
+                            color: isSelected
+                                ? GlobalVariables.primaryBlue
+                                : (isDarkMode
+                                      ? GlobalVariables.darkTextSecondary
+                                      : GlobalVariables.textSecondary),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            (role['label'] as String),
+                            style: TextStyle(
+                              color: isSelected
+                                  ? GlobalVariables.primaryBlue
+                                  : (isDarkMode
+                                        ? GlobalVariables.darkTextPrimary
+                                        : GlobalVariables.textPrimary),
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                              letterSpacing: 0.3,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -638,64 +645,150 @@ class _PermissionsDialogState extends State<PermissionsDialog> {
 
     final permissions = rolePermissions[_selectedRole] ?? [];
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: GlobalVariables.primaryBlue.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: GlobalVariables.primaryBlue.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 18,
-                color: GlobalVariables.primaryBlue,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () {
+            setState(() {
+              _showRolePermissions = !_showRolePermissions;
+            });
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: _showRolePermissions
+                  ? GlobalVariables.primaryBlue.withValues(alpha: 0.06)
+                  : (isDarkMode
+                        ? GlobalVariables.darkSurfaceCard
+                        : GlobalVariables.surfaceCard),
+              border: Border.all(
+                color: _showRolePermissions
+                    ? GlobalVariables.primaryBlue.withValues(alpha: 0.3)
+                    : (isDarkMode
+                          ? GlobalVariables.darkBorderPrimary
+                          : GlobalVariables.borderPrimary),
               ),
-              const SizedBox(width: 8),
-              Text(
-                tr('role_permissions'),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: GlobalVariables.primaryBlue,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.manage_accounts_outlined,
+                  size: 23,
+                  color: _showRolePermissions
+                      ? GlobalVariables.primaryBlue
+                      : (isDarkMode
+                            ? GlobalVariables.darkTextSecondary
+                            : GlobalVariables.textSecondary),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...permissions
-              .map(
-                (perm) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.check_circle_rounded,
-                        size: 16,
-                        color: GlobalVariables.successGreen,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          perm,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: isDarkMode
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${tr('role_permissions')} ',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: _showRolePermissions
+                          ? GlobalVariables.primaryBlue
+                          : (isDarkMode
                                 ? GlobalVariables.darkTextPrimary
-                                : GlobalVariables.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
+                                : GlobalVariables.textPrimary),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              )
-              .toList(),
+                Icon(
+                  _showRolePermissions
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextSecondary
+                      : GlobalVariables.textSecondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_showRolePermissions) ...[
+          const SizedBox(height: 12),
+          ...List.generate((permissions.length / 2).ceil(), (rowIndex) {
+            final firstIndex = rowIndex * 2;
+            final secondIndex = firstIndex + 1;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildPermissionPreviewChip(
+                      permissions[firstIndex],
+                      isDarkMode,
+                      theme,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: secondIndex < permissions.length
+                        ? _buildPermissionPreviewChip(
+                            permissions[secondIndex],
+                            isDarkMode,
+                            theme,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
+      ],
+    );
+  }
+
+  Widget _buildPermissionPreviewChip(
+    String perm,
+    bool isDarkMode,
+    ThemeData theme,
+  ) {
+    return Tooltip(
+      message: perm,
+      waitDuration: const Duration(milliseconds: 90),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDarkMode
+              ? GlobalVariables.darkSurfaceCard
+              : GlobalVariables.surfaceCard,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: isDarkMode
+                ? GlobalVariables.darkBorderPrimary
+                : GlobalVariables.borderPrimary,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.check_rounded,
+              size: 14,
+              color: GlobalVariables.successGreen,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                perm,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextPrimary
+                      : GlobalVariables.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

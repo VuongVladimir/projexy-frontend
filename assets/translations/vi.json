@@ -87,6 +87,9 @@
   "has_all_permissions": "Có tất cả quyền hạn trong dự án",
   "add_member": "Thêm thành viên",
   "no_members": "Chưa có thành viên nào",
+  "search_member_name_email": "Tìm thành viên theo tên hoặc email",
+  "no_members_found": "Không tìm thấy thành viên",
+  "no_members_match_keyword": "Không có thành viên nào khớp với \"{keyword}\"",
   "add_members_to_collaborate": "Thêm thành viên để cùng làm việc trong dự án",
   "permissions": "Quyền hạn",
   "can_only_complete_tasks": "Chỉ có thể đánh dấu hoàn thành công việc",
@@ -203,6 +206,8 @@
   "list_invited_emails": "Danh sách email đã mời",
   "validation_invalid_email": "Email {email} không hợp lệ",
   "validation_email_already_added": "Email {email} đã được thêm",
+  "validation_email_not_found": "Email {email} chưa tồn tại trong hệ thống",
+  "validation_user_already_member": "Email {email} đã là thành viên của dự án",
   "project_invitations": "Lời mời dự án",
   "no_invitations": "Chưa có lời mời nào",
   "you_have_no_project_invitations": "Bạn chưa có lời mời tham gia dự án nào",
@@ -534,5 +539,6 @@
   "days": "ngày",
   "completed_with_unfinished_predecessors": "Hoàn thành sớm",
   "completed_unfinished_predecessors_description": "Task này đã được đánh dấu hoàn thành trong khi một số task phụ thuộc trước đó vẫn chưa hoàn tất.",
-  "unfinished_predecessors": "Task trước chưa hoàn thành:"
+  "unfinished_predecessors": "Task trước chưa hoàn thành:",
+  "effective_permissions": "Quyền hạn thực tế"
 }

@@ -141,7 +141,11 @@ class AccountService {
   }
 
   // Tìm kiếm users
-  Future<List<User>> searchUsers(BuildContext context, String query) async {
+  Future<List<User>> searchUsers(
+    BuildContext context,
+    String query, {
+    bool showErrorSnackBar = true,
+  }) async {
     List<User> results = [];
     try {
       final response = await ApiClient.get(
@@ -150,18 +154,30 @@ class AccountService {
       );
 
       if (!context.mounted) return [];
-      httpResponseHandle(
-        response: response,
-        context: context,
-        onSuccess: () {
-          List<dynamic> usersData = json.decode(response.body);
+
+      if (showErrorSnackBar) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {
+            List<dynamic> usersData = json.decode(response.body);
+            results = usersData
+                .map((userData) => User.fromMap(userData))
+                .toList();
+          },
+        );
+      } else {
+        if (response.statusCode == 200) {
+          final List<dynamic> usersData = json.decode(response.body);
           results = usersData
               .map((userData) => User.fromMap(userData))
               .toList();
-        },
-      );
+        } else {
+          return [];
+        }
+      }
     } catch (e) {
-      if (context.mounted) {
+      if (context.mounted && showErrorSnackBar) {
         showSnackBar(context, e.toString());
       }
       return [];

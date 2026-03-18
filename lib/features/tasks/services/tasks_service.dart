@@ -564,12 +564,18 @@ class TasksService {
     required BuildContext context,
     required String taskId,
     String sort = 'newest',
-    required Function(List<TaskComment>) onSuccess,
+    int page = 1,
+    int limit = 5,
+    required Function(List<TaskComment>, bool hasMore) onSuccess,
   }) async {
     try {
       final response = await ApiClient.get(
         url: '$uri/api/task/$taskId/comments',
-        queryParams: {'sort': sort},
+        queryParams: {
+          'sort': sort,
+          'page': page.toString(),
+          'limit': limit.toString(),
+        },
       );
 
       if (context.mounted) {
@@ -579,17 +585,23 @@ class TasksService {
           onSuccess: () {
             final responseBody = response.body;
             if (responseBody.isEmpty) {
-              onSuccess([]);
+              onSuccess([], false);
               return;
             }
 
-            final List<dynamic> commentData = json.decode(responseBody);
+            final dynamic payload = json.decode(responseBody);
+            final List<dynamic> commentData = payload is Map<String, dynamic>
+                ? (payload['comments'] as List<dynamic>? ?? [])
+                : (payload as List<dynamic>);
             final comments = commentData
                 .map(
                   (data) => TaskComment.fromMap(data as Map<String, dynamic>),
                 )
                 .toList();
-            onSuccess(comments);
+            final hasMore = payload is Map<String, dynamic>
+                ? payload['hasMore'] == true
+                : false;
+            onSuccess(comments, hasMore);
           },
         );
       }
@@ -607,6 +619,7 @@ class TasksService {
     required String content,
     String? parentCommentId,
     required Function(TaskComment) onSuccess,
+    VoidCallback? onError,
   }) async {
     try {
       final body = {
@@ -635,9 +648,11 @@ class TasksService {
             );
             onSuccess(comment);
           },
+          onError: onError,
         );
       }
     } catch (e) {
+      onError?.call();
       if (context.mounted) {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }
@@ -651,6 +666,7 @@ class TasksService {
     required String commentId,
     required String content,
     required Function(TaskComment) onSuccess,
+    VoidCallback? onError,
   }) async {
     try {
       final body = {'content': content};
@@ -676,9 +692,11 @@ class TasksService {
             );
             onSuccess(comment);
           },
+          onError: onError,
         );
       }
     } catch (e) {
+      onError?.call();
       if (context.mounted) {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }
@@ -691,6 +709,7 @@ class TasksService {
     required String taskId,
     required String commentId,
     required VoidCallback onSuccess,
+    VoidCallback? onError,
   }) async {
     try {
       final response = await ApiClient.delete(
@@ -704,9 +723,11 @@ class TasksService {
           onSuccess: () {
             onSuccess();
           },
+          onError: onError,
         );
       }
     } catch (e) {
+      onError?.call();
       if (context.mounted) {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }
@@ -720,6 +741,7 @@ class TasksService {
     required String commentId,
     required String emoji,
     required Function(TaskComment) onSuccess,
+    VoidCallback? onError,
   }) async {
     try {
       final body = {'emoji': emoji};
@@ -745,9 +767,11 @@ class TasksService {
             );
             onSuccess(comment);
           },
+          onError: onError,
         );
       }
     } catch (e) {
+      onError?.call();
       if (context.mounted) {
         showSnackBar(context, 'Lỗi: ${e.toString()}');
       }
@@ -797,12 +821,13 @@ class TasksService {
     required BuildContext context,
     required String projectId,
     required String query,
+    int limit = 5,
     required Function(List<Map<String, dynamic>>) onSuccess,
   }) async {
     try {
       final response = await ApiClient.get(
         url: '$uri/api/project/$projectId/members/search',
-        queryParams: {'q': query},
+        queryParams: {'q': query, 'limit': limit.toString()},
       );
 
       if (context.mounted) {

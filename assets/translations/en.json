@@ -87,6 +87,9 @@
   "has_all_permissions": "Has all permissions in the project",
   "add_member": "Add Member",
   "no_members": "No members yet",
+  "search_member_name_email": "Search members by name or email",
+  "no_members_found": "No members found",
+  "no_members_match_keyword": "No members match \"{keyword}\"",
   "add_members_to_collaborate": "Add members to collaborate on the project",
   "permissions": "Permissions",
   "can_only_complete_tasks": "Can only mark tasks as complete",
@@ -203,6 +206,8 @@
   "list_invited_emails": "List of invited emails",
   "validation_invalid_email": "Email {email} is invalid",
   "validation_email_already_added": "Email {email} has already been added",
+  "validation_email_not_found": "Email {email} does not exist in the system",
+  "validation_user_already_member": "Email {email} is already a project member",
   "project_invitations": "Project Invitations",
   "no_invitations": "No invitations yet",
   "you_have_no_project_invitations": "You have no project invitations yet",
@@ -534,5 +539,6 @@
   "days": "days",
   "completed_with_unfinished_predecessors": "Completed Early",
   "completed_unfinished_predecessors_description": "This task has been marked as completed while some of its predecessor tasks are still unfinished.",
-  "unfinished_predecessors": "Unfinished Predecessors:"
+  "unfinished_predecessors": "Unfinished Predecessors:",
+  "effective_permissions": "Effective Permissions"
 }

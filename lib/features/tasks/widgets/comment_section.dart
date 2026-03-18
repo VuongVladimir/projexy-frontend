@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/features/tasks/services/tasks_service.dart';
 import 'package:frontend/features/tasks/services/activity_log_service.dart';
@@ -25,8 +28,16 @@ class CommentSection extends StatefulWidget {
 }
 
 class CommentSectionState extends State<CommentSection> {
+  static const int _maxMentionSuggestions = 5;
+  static const int _commentPageSize = 5;
+
   List<TaskComment> _comments = [];
   bool _isLoading = true;
+  bool _isSubmittingComment = false;
+  bool _canSubmitComment = false;
+  bool _hasMoreComments = false;
+  int _commentPage = 1;
+  bool _isLoadingMoreComments = false;
   String _sortOrder = 'newest';
   String _selectedTab = 'comments';
 
@@ -41,8 +52,11 @@ class CommentSectionState extends State<CommentSection> {
   TaskComment? _editingComment;
 
   // State cho mention suggestions
+  List<Map<String, dynamic>> _projectMembers = [];
   List<Map<String, dynamic>> _mentionSuggestions = [];
   bool _showMentionSuggestions = false;
+  Timer? _mentionDebounce;
+  String _lastMentionQuery = '';
 
   // State cho Activity tab
   List<ActivityLog> _activityLogs = [];
@@ -55,6 +69,7 @@ class CommentSectionState extends State<CommentSection> {
   void initState() {
     super.initState();
     _loadComments();
+    _preloadMentionMembers();
     _commentController.addListener(_onCommentTextChanged);
   }
 
@@ -65,15 +80,37 @@ class CommentSectionState extends State<CommentSection> {
 
   @override
   void dispose() {
+    _mentionDebounce?.cancel();
     _commentController.removeListener(_onCommentTextChanged);
     _commentController.dispose();
     _commentFocusNode.dispose();
     super.dispose();
   }
 
+  Future<void> _preloadMentionMembers() async {
+    await TasksService.searchMembersForMention(
+      context: context,
+      projectId: widget.projectId,
+      query: '',
+      limit: _maxMentionSuggestions,
+      onSuccess: (users) {
+        if (!mounted) return;
+        setState(() {
+          _projectMembers = users;
+        });
+      },
+    );
+  }
+
   void _onCommentTextChanged() {
     final text = _commentController.text;
     final cursorPosition = _commentController.selection.baseOffset;
+    final canSubmit = text.trim().isNotEmpty;
+    if (canSubmit != _canSubmitComment && mounted) {
+      setState(() {
+        _canSubmitComment = canSubmit;
+      });
+    }
 
     if (cursorPosition > 0) {
       // Tìm @ gần nhất trước cursor
@@ -82,8 +119,8 @@ class CommentSectionState extends State<CommentSection> {
 
       if (lastAtIndex != -1) {
         final afterAt = beforeCursor.substring(lastAtIndex + 1);
-        // Chỉ hiện suggestions nếu sau @ không có space
-        if (!afterAt.contains(' ') && afterAt.isNotEmpty) {
+        // Hiển thị ngay khi vừa gõ @, miễn là mention chưa kết thúc bởi space
+        if (!afterAt.contains(' ')) {
           _searchMentions(afterAt);
           return;
         }
@@ -91,26 +128,78 @@ class CommentSectionState extends State<CommentSection> {
     }
 
     // Ẩn suggestions
-    if (_showMentionSuggestions) {
-      setState(() {
-        _showMentionSuggestions = false;
-        _mentionSuggestions = [];
-      });
-    }
+    _hideMentionSuggestions();
+  }
+
+  void _hideMentionSuggestions() {
+    if (!_showMentionSuggestions && _mentionSuggestions.isEmpty) return;
+    if (!mounted) return;
+    setState(() {
+      _showMentionSuggestions = false;
+      _mentionSuggestions = [];
+    });
   }
 
   void _searchMentions(String query) {
+    final normalizedQuery = query.trim().toLowerCase();
+    final currentUserId = Provider.of<UserProvider>(
+      context,
+      listen: false,
+    ).user.id;
+
+    // Ưu tiên phản hồi tức thì từ cache local
+    if (_projectMembers.isNotEmpty) {
+      final localMatches = _projectMembers
+          .where((user) {
+            final id = (user['_id'] ?? '').toString();
+            final name = (user['name'] ?? '').toString().toLowerCase();
+            final email = (user['email'] ?? '').toString().toLowerCase();
+            if (id == currentUserId) return false;
+            if (normalizedQuery.isEmpty) return true;
+            return name.contains(normalizedQuery) ||
+                email.contains(normalizedQuery);
+          })
+          .take(_maxMentionSuggestions)
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _mentionSuggestions = localMatches;
+          _showMentionSuggestions = localMatches.isNotEmpty;
+        });
+      }
+    }
+
+    _mentionDebounce?.cancel();
+    _mentionDebounce = Timer(const Duration(milliseconds: 140), () {
+      _fetchMentionSuggestions(normalizedQuery);
+    });
+  }
+
+  Future<void> _fetchMentionSuggestions(String query) async {
+    _lastMentionQuery = query;
+
     TasksService.searchMembersForMention(
       context: context,
       projectId: widget.projectId,
       query: query,
+      limit: _maxMentionSuggestions,
       onSuccess: (users) {
-        if (mounted) {
-          setState(() {
-            _mentionSuggestions = users;
-            _showMentionSuggestions = users.isNotEmpty;
-          });
-        }
+        if (!mounted || _lastMentionQuery != query) return;
+        final currentUserId = Provider.of<UserProvider>(
+          context,
+          listen: false,
+        ).user.id;
+        final filteredUsers = users
+            .where((user) => (user['_id'] ?? '').toString() != currentUserId)
+            .toList();
+        setState(() {
+          _projectMembers = query.isEmpty ? filteredUsers : _projectMembers;
+          _mentionSuggestions = filteredUsers
+              .take(_maxMentionSuggestions)
+              .toList();
+          _showMentionSuggestions = _mentionSuggestions.isNotEmpty;
+        });
       },
     );
   }
@@ -142,16 +231,23 @@ class CommentSectionState extends State<CommentSection> {
   }
 
   Future<void> _loadComments() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _commentPage = 1;
+      _comments = [];
+    });
 
     await TasksService.getComments(
       context: context,
       taskId: widget.taskId,
       sort: _sortOrder,
-      onSuccess: (comments) {
+      page: 1,
+      limit: _commentPageSize,
+      onSuccess: (comments, hasMore) {
         if (mounted) {
           setState(() {
             _comments = comments;
+            _hasMoreComments = hasMore;
             _isLoading = false;
           });
         }
@@ -161,6 +257,129 @@ class CommentSectionState extends State<CommentSection> {
     if (mounted && _isLoading) {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _loadMoreComments() async {
+    if (_isLoadingMoreComments || !_hasMoreComments) return;
+
+    setState(() {
+      _isLoadingMoreComments = true;
+    });
+
+    final nextPage = _commentPage + 1;
+    await TasksService.getComments(
+      context: context,
+      taskId: widget.taskId,
+      sort: _sortOrder,
+      page: nextPage,
+      limit: _commentPageSize,
+      onSuccess: (comments, hasMore) {
+        if (!mounted) return;
+        setState(() {
+          _comments.addAll(comments);
+          _commentPage = nextPage;
+          _hasMoreComments = hasMore;
+          _isLoadingMoreComments = false;
+        });
+      },
+    );
+
+    if (mounted && _isLoadingMoreComments) {
+      setState(() {
+        _isLoadingMoreComments = false;
+      });
+    }
+  }
+
+  List<TaskComment> _updateCommentTree(
+    List<TaskComment> source,
+    String targetId,
+    TaskComment Function(TaskComment) updater,
+  ) {
+    return source.map((comment) {
+      if (comment.id == targetId) {
+        return updater(comment);
+      }
+
+      if (comment.replies.isNotEmpty) {
+        final updatedReplies = _updateCommentTree(
+          comment.replies,
+          targetId,
+          updater,
+        );
+        if (updatedReplies != comment.replies) {
+          return comment.copyWith(replies: updatedReplies);
+        }
+      }
+
+      return comment;
+    }).toList();
+  }
+
+  List<TaskComment> _replaceOrInsertCreatedComment(
+    List<TaskComment> source,
+    TaskComment comment,
+  ) {
+    if (comment.isReply && comment.parentCommentId != null) {
+      return _updateCommentTree(source, comment.parentCommentId!, (parent) {
+        final nextReplies = List<TaskComment>.from(parent.replies);
+        if (_sortOrder == 'newest') {
+          nextReplies.insert(0, comment);
+        } else {
+          nextReplies.add(comment);
+        }
+        return parent.copyWith(replies: nextReplies);
+      });
+    }
+
+    final next = List<TaskComment>.from(source);
+    if (_sortOrder == 'newest') {
+      next.insert(0, comment);
+    } else {
+      next.add(comment);
+    }
+    return next;
+  }
+
+  List<TaskComment> _replaceCommentById(
+    List<TaskComment> source,
+    String targetId,
+    TaskComment replacement,
+  ) {
+    return _updateCommentTree(source, targetId, (existing) {
+      return replacement.copyWith(replies: existing.replies);
+    });
+  }
+
+  List<TaskComment> _removeCommentById(
+    List<TaskComment> source,
+    String targetId,
+  ) {
+    return source.where((comment) => comment.id != targetId).map((comment) {
+      if (comment.replies.isEmpty) return comment;
+      final nextReplies = _removeCommentById(comment.replies, targetId);
+      if (nextReplies.length == comment.replies.length) return comment;
+      return comment.copyWith(replies: nextReplies);
+    }).toList();
+  }
+
+  List<CommentReaction> _toggleLocalReaction(
+    List<CommentReaction> reactions,
+    String userId,
+    String emoji,
+  ) {
+    final existingIndex = reactions.indexWhere(
+      (reaction) => reaction.userId == userId && reaction.emoji == emoji,
+    );
+    final next = List<CommentReaction>.from(reactions);
+
+    if (existingIndex != -1) {
+      next.removeAt(existingIndex);
+      return next;
+    }
+
+    next.add(CommentReaction(user: {'_id': userId}, emoji: emoji));
+    return next;
   }
 
   Future<void> _loadActivity() async {
@@ -264,38 +483,109 @@ class CommentSectionState extends State<CommentSection> {
 
   Future<void> _submitComment() async {
     final content = _commentController.text.trim();
-    if (content.isEmpty) return;
+    if (content.isEmpty || _isSubmittingComment) return;
+
+    final previousComments = List<TaskComment>.from(_comments);
+    final currentUser = Provider.of<UserProvider>(context, listen: false).user;
+
+    setState(() {
+      _isSubmittingComment = true;
+    });
 
     if (_editingComment != null) {
-      // Update comment
+      final editingId = _editingComment!.id;
+      // Optimistic update for edited comment content
+      setState(() {
+        _comments = _updateCommentTree(_comments, editingId, (comment) {
+          return comment.copyWith(
+            content: content,
+            isEdited: true,
+            editedAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+        });
+        _editingComment = null;
+        _commentController.clear();
+      });
+
       await TasksService.updateComment(
         context: context,
         taskId: widget.taskId,
-        commentId: _editingComment!.id,
+        commentId: editingId,
         content: content,
         onSuccess: (updatedComment) {
-          _commentController.clear();
+          if (!mounted) return;
           setState(() {
-            _editingComment = null;
+            _comments = _replaceCommentById(
+              _comments,
+              editingId,
+              updatedComment,
+            );
+            _isSubmittingComment = false;
           });
-          _loadComments();
+        },
+        onError: () {
+          if (!mounted) return;
+          setState(() {
+            _comments = previousComments;
+            _isSubmittingComment = false;
+          });
         },
       );
     } else {
-      // Add new comment
+      final replyTargetId = _replyingTo?.id;
+      final tempId = 'temp_${DateTime.now().microsecondsSinceEpoch}';
+      final optimisticComment = TaskComment(
+        id: tempId,
+        content: content,
+        author: {
+          '_id': currentUser.id,
+          'name': currentUser.name,
+          'email': currentUser.email,
+          'avatar': currentUser.avatar ?? '',
+          'avatarColor': currentUser.avatarColor ?? '#2196F3',
+        },
+        parentCommentId: replyTargetId,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // Optimistic add
+      setState(() {
+        _comments = _replaceOrInsertCreatedComment(
+          _comments,
+          optimisticComment,
+        );
+        _replyingTo = null;
+        _commentController.clear();
+      });
+
       await TasksService.addComment(
         context: context,
         taskId: widget.taskId,
         content: content,
-        parentCommentId: _replyingTo?.id,
+        parentCommentId: replyTargetId,
         onSuccess: (newComment) {
-          _commentController.clear();
+          if (!mounted) return;
           setState(() {
-            _replyingTo = null;
+            _comments = _replaceCommentById(_comments, tempId, newComment);
+            _isSubmittingComment = false;
           });
-          _loadComments();
+        },
+        onError: () {
+          if (!mounted) return;
+          setState(() {
+            _comments = previousComments;
+            _isSubmittingComment = false;
+          });
         },
       );
+    }
+
+    if (mounted && _isSubmittingComment) {
+      setState(() {
+        _isSubmittingComment = false;
+      });
     }
   }
 
@@ -324,25 +614,68 @@ class CommentSectionState extends State<CommentSection> {
     );
 
     if (confirmed == true) {
+      final previousComments = List<TaskComment>.from(_comments);
+
+      setState(() {
+        _comments = _removeCommentById(_comments, comment.id);
+      });
+
       await TasksService.deleteComment(
         context: context,
         taskId: widget.taskId,
         commentId: comment.id,
         onSuccess: () {
-          _loadComments();
+          if (!mounted) return;
+        },
+        onError: () {
+          if (!mounted) return;
+          setState(() {
+            _comments = previousComments;
+          });
         },
       );
     }
   }
 
   Future<void> _toggleReaction(TaskComment comment, String emoji) async {
+    final previousComments = List<TaskComment>.from(_comments);
+    final currentUserId = Provider.of<UserProvider>(
+      context,
+      listen: false,
+    ).user.id;
+
+    setState(() {
+      _comments = _updateCommentTree(_comments, comment.id, (target) {
+        return target.copyWith(
+          reactions: _toggleLocalReaction(
+            target.reactions,
+            currentUserId,
+            emoji,
+          ),
+        );
+      });
+    });
+
     await TasksService.toggleReaction(
       context: context,
       taskId: widget.taskId,
       commentId: comment.id,
       emoji: emoji,
       onSuccess: (updatedComment) {
-        _loadComments();
+        if (!mounted) return;
+        setState(() {
+          _comments = _replaceCommentById(
+            _comments,
+            comment.id,
+            updatedComment,
+          );
+        });
+      },
+      onError: () {
+        if (!mounted) return;
+        setState(() {
+          _comments = previousComments;
+        });
       },
     );
   }
@@ -361,31 +694,52 @@ class CommentSectionState extends State<CommentSection> {
         const SizedBox(height: 16),
 
         if (_selectedTab == 'comments') ...[
-          SizedBox(
-            height: sectionHeight,
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: _isLoading
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(32),
-                              child: CircularProgressIndicator(),
-                            ),
-                          )
-                        : _comments.isEmpty
-                        ? _buildEmptyState(isDarkMode, theme)
-                        : _buildCommentsList(isDarkMode, theme),
+          GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () {
+              _hideMentionSuggestions();
+            },
+            child: SizedBox(
+              height: sectionHeight,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: (notification) {
+                        if (_showMentionSuggestions) {
+                          _hideMentionSuggestions();
+                        }
+                        return false;
+                      },
+                      child: SingleChildScrollView(
+                        child: _isLoading
+                            ? const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(32),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              )
+                            : _comments.isEmpty
+                            ? _buildEmptyState(isDarkMode, theme)
+                            : _buildCommentsList(isDarkMode, theme),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                if (_replyingTo != null || _editingComment != null)
-                  _buildReplyEditIndicator(isDarkMode),
-                if (_showMentionSuggestions)
-                  _buildMentionSuggestions(isDarkMode),
-                _buildCommentInput(isDarkMode, theme),
-              ],
+                  const SizedBox(height: 12),
+                  TapRegion(
+                    onTapOutside: (_) => _hideMentionSuggestions(),
+                    child: Column(
+                      children: [
+                        if (_replyingTo != null || _editingComment != null)
+                          _buildReplyEditIndicator(isDarkMode),
+                        if (_showMentionSuggestions)
+                          _buildMentionSuggestions(isDarkMode),
+                        _buildCommentInput(isDarkMode, theme),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ] else ...[
@@ -627,22 +981,42 @@ class CommentSectionState extends State<CommentSection> {
 
   Widget _buildCommentsList(bool isDarkMode, ThemeData theme) {
     return Column(
-      children: _comments.map((comment) {
-        return _CommentCard(
-          taskId: widget.taskId,
-          comment: comment,
-          isDarkMode: isDarkMode,
-          theme: theme,
-          onReply: () => _startReply(comment),
-          onEdit: () => _startEdit(comment),
-          onDelete: () => _deleteComment(comment),
-          onReaction: (emoji) => _toggleReaction(comment, emoji),
-          onReplyReaction: (reply, emoji) => _toggleReaction(reply, emoji),
-          onReplyEdit: (reply) => _startEdit(reply),
-          onReplyDelete: (reply) => _deleteComment(reply),
-          onReplyToReply: (reply) => _startReply(comment),
-        );
-      }).toList(),
+      children: [
+        ..._comments.map((comment) {
+          return _CommentCard(
+            taskId: widget.taskId,
+            comment: comment,
+            isDarkMode: isDarkMode,
+            theme: theme,
+            onReply: () => _startReply(comment),
+            onEdit: () => _startEdit(comment),
+            onDelete: () => _deleteComment(comment),
+            onReaction: (emoji) => _toggleReaction(comment, emoji),
+            onReplyReaction: (reply, emoji) => _toggleReaction(reply, emoji),
+            onReplyEdit: (reply) => _startEdit(reply),
+            onReplyDelete: (reply) => _deleteComment(reply),
+            onReplyToReply: (reply) => _startReply(comment),
+          );
+        }),
+        if (_hasMoreComments)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _isLoadingMoreComments
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : TextButton.icon(
+                    onPressed: _loadMoreComments,
+                    icon: const Icon(Icons.expand_more_rounded),
+                    label: Text(tr('activity_view_more')),
+                  ),
+          ),
+      ],
     );
   }
 
@@ -718,7 +1092,9 @@ class CommentSectionState extends State<CommentSection> {
       ),
       child: ListView.builder(
         shrinkWrap: true,
-        itemCount: _mentionSuggestions.length,
+        itemCount: _mentionSuggestions.length > _maxMentionSuggestions
+            ? _maxMentionSuggestions
+            : _mentionSuggestions.length,
         itemBuilder: (context, index) {
           final user = _mentionSuggestions[index];
           return ListTile(
@@ -770,6 +1146,7 @@ class CommentSectionState extends State<CommentSection> {
 
   Widget _buildCommentInput(bool isDarkMode, ThemeData theme) {
     final currentUser = Provider.of<UserProvider>(context).user;
+    final canSend = _canSubmitComment && !_isSubmittingComment;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -810,43 +1187,67 @@ class CommentSectionState extends State<CommentSection> {
           const SizedBox(width: 12),
           // Text input
           Expanded(
-            child: TextField(
-              controller: _commentController,
-              focusNode: _commentFocusNode,
-              maxLines: 4,
-              minLines: 1,
-              decoration: InputDecoration(
-                hintText: tr('add_comment_hint'),
-                hintStyle: TextStyle(
-                  color: isDarkMode
-                      ? GlobalVariables.darkTextTertiary
-                      : GlobalVariables.textTertiary,
+            child: Focus(
+              onKeyEvent: (node, event) {
+                if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                if (event.logicalKey == LogicalKeyboardKey.enter &&
+                    !HardwareKeyboard.instance.isShiftPressed) {
+                  if (canSend) {
+                    _submitComment();
+                    return KeyEventResult.handled;
+                  }
+                }
+                return KeyEventResult.ignored;
+              },
+              child: TextField(
+                controller: _commentController,
+                focusNode: _commentFocusNode,
+                maxLines: 4,
+                minLines: 1,
+                decoration: InputDecoration(
+                  hintText: tr('add_comment_hint'),
+                  hintStyle: TextStyle(
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextTertiary
+                        : GlobalVariables.textTertiary,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
                 ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-              style: TextStyle(
-                color: isDarkMode
-                    ? GlobalVariables.darkTextPrimary
-                    : GlobalVariables.textPrimary,
+                style: TextStyle(
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextPrimary
+                      : GlobalVariables.textPrimary,
+                ),
               ),
             ),
           ),
           const SizedBox(width: 8),
           // Send button
           GestureDetector(
-            onTap: _submitComment,
+            onTap: canSend ? _submitComment : null,
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: GlobalVariables.primaryBlue,
+                color: canSend
+                    ? GlobalVariables.primaryBlue
+                    : GlobalVariables.textTertiary,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
+              child: _isSubmittingComment
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
             ),
           ),
         ],

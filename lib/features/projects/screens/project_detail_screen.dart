@@ -4,6 +4,7 @@ import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/task_card.dart';
 import 'package:frontend/features/account/screens/profile_screen.dart';
+import 'package:frontend/features/account/services/account_service.dart';
 import 'package:frontend/features/chat/screens/chat_room_screen.dart';
 import 'package:frontend/features/notifications/services/notification_service.dart';
 import 'package:frontend/features/projects/services/projects_service.dart';
@@ -34,7 +35,10 @@ class ProjectDetailScreen extends StatefulWidget {
 
 class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     with SingleTickerProviderStateMixin {
+  final AccountService _accountService = AccountService();
   late TabController _tabController;
+  final TextEditingController _memberSearchController = TextEditingController();
+  final FocusNode _memberSearchFocusNode = FocusNode();
   Project? _project;
   ProjectAnalytics? _analytics;
   List<Task> _tasks = [];
@@ -42,6 +46,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   bool _isLoadingTasks = false;
   bool _isLoadingAnalytics = false;
   bool _isOwner = false;
+  bool _showMemberSearch = false;
   ProjectMember? _currentUserMember;
   final GlobalKey<ProjectActivitySectionState> _activitySectionKey =
       GlobalKey<ProjectActivitySectionState>();
@@ -58,6 +63,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
 
   @override
   void dispose() {
+    _memberSearchFocusNode.dispose();
+    _memberSearchController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -96,10 +103,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   }
 
   void _applyProjectData(Project project) {
-    final currentUser = Provider.of<UserProvider>(
-      context,
-      listen: false,
-    ).user;
+    final currentUser = Provider.of<UserProvider>(context, listen: false).user;
 
     _project = project;
     _isOwner = project.createdBy['id'] == currentUser.id;
@@ -629,71 +633,203 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     final ProjectMember currentUserMember,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final searchKeyword = _showMemberSearch
+        ? _memberSearchController.text.trim().toLowerCase()
+        : '';
+    final filteredMembers = _project!.members.where((member) {
+      if (searchKeyword.isEmpty) return true;
+
+      final name = (member.userName ?? '').toLowerCase();
+      final email = (member.userEmail ?? '').toLowerCase();
+      return name.contains(searchKeyword) || email.contains(searchKeyword);
+    }).toList();
 
     return RefreshIndicator(
       onRefresh: _loadProjectDetails,
       child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Owner Section
-            Text(
-              tr('owner'),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: isDarkMode
-                    ? GlobalVariables.darkTextPrimary
-                    : GlobalVariables.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildOwnerCard(_project!.createdBy),
-            const SizedBox(height: 24),
-
-            // Members List
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${tr('members')} (${_project!.members.length})',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isDarkMode
-                        ? GlobalVariables.darkTextPrimary
-                        : GlobalVariables.textPrimary,
-                  ),
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          behavior: HitTestBehavior.translucent,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Owner Section
+              Text(
+                tr('owner'),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextPrimary
+                      : GlobalVariables.textPrimary,
                 ),
-                if (isOwner ||
-                    currentUserMember.permissions.addMemberPermission)
-                  TextButton.icon(
-                    onPressed: () => _showAddMemberDialog(),
-                    icon: const Icon(Icons.person_add_rounded, size: 18),
-                    label: Text(tr('add')),
-                    style: TextButton.styleFrom(
-                      foregroundColor: GlobalVariables.primaryBlue,
+              ),
+              const SizedBox(height: 12),
+              _buildOwnerCard(_project!.createdBy),
+              const SizedBox(height: 24),
+
+              // Members List
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${tr('members')} (${_project!.members.length})',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isDarkMode
+                          ? GlobalVariables.darkTextPrimary
+                          : GlobalVariables.textPrimary,
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            if (_project!.members.isEmpty)
-              _buildEmptyMembersState()
-            else
-              ...List.generate(_project!.members.length, (index) {
-                final member = _project!.members[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildMemberCard(
-                    member: member,
-                    currentUserMember: currentUserMember,
-                    isOwner: isOwner,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          setState(() => _showMemberSearch = true);
+                          Future.microtask(
+                            () => _memberSearchFocusNode.requestFocus(),
+                          );
+                        },
+                        icon: Icon(
+                          Icons.search_rounded,
+                          color: Color(0xFF6B7280),
+                        ),
+                        tooltip: tr('search_member_name_email'),
+                      ),
+                      if (isOwner ||
+                          currentUserMember.permissions.addMemberPermission)
+                        TextButton.icon(
+                          onPressed: () => _showAddMemberDialog(),
+                          icon: const Icon(Icons.person_add_rounded, size: 18),
+                          label: Text(tr('add')),
+                          style: TextButton.styleFrom(
+                            foregroundColor: GlobalVariables.primaryBlue,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                    ],
                   ),
-                );
-              }),
-          ],
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              if (_showMemberSearch) ...[
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F3F7),
+                    borderRadius: BorderRadius.circular(60),
+                  ),
+                  child: TextField(
+                    focusNode: _memberSearchFocusNode,
+                    controller: _memberSearchController,
+                    onChanged: (_) => setState(() {}),
+                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText: tr('search_member_name_email'),
+                      prefixIcon: IconButton(
+                        onPressed: () {
+                          FocusScope.of(context).unfocus();
+                          _memberSearchController.clear();
+                          setState(() => _showMemberSearch = false);
+                        },
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        tooltip: tr('cancel'),
+                        color: const Color(0xFF6B7280),
+                      ),
+                      suffixIcon: _memberSearchController.text.isNotEmpty
+                          ? IconButton(
+                              onPressed: () {
+                                _memberSearchController.clear();
+                                setState(() {});
+                              },
+                              icon: const Icon(Icons.close_rounded),
+                              tooltip: tr('clear_filter'),
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              if (_project!.members.isEmpty)
+                _buildEmptyMembersState()
+              else if (filteredMembers.isEmpty)
+                _buildEmptyMemberSearchState(searchKeyword)
+              else
+                ...List.generate(filteredMembers.length, (index) {
+                  final member = filteredMembers[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildMemberCard(
+                      member: member,
+                      currentUserMember: currentUserMember,
+                      isOwner: isOwner,
+                    ),
+                  );
+                }),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyMemberSearchState(String keyword) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      decoration: BoxDecoration(
+        color: isDarkMode
+            ? GlobalVariables.darkSurfaceCard
+            : GlobalVariables.surfaceCard,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDarkMode
+              ? GlobalVariables.darkBorderPrimary
+              : GlobalVariables.borderPrimary,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.search_off_rounded,
+            size: 40,
+            color: isDarkMode
+                ? GlobalVariables.darkTextTertiary
+                : GlobalVariables.textTertiary,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            tr('no_members_found'),
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: isDarkMode
+                  ? GlobalVariables.darkTextSecondary
+                  : GlobalVariables.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            tr('no_members_match_keyword', namedArgs: {'keyword': keyword}),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isDarkMode
+                  ? GlobalVariables.darkTextTertiary
+                  : GlobalVariables.textTertiary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1393,13 +1529,17 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
               children: [
                 Row(
                   children: [
-                    Text(
-                      owner['name'],
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: isDarkMode
-                            ? GlobalVariables.darkTextPrimary
-                            : GlobalVariables.textPrimary,
+                    Expanded(
+                      child: Text(
+                        owner['name'],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode
+                              ? GlobalVariables.darkTextPrimary
+                              : GlobalVariables.textPrimary,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1425,6 +1565,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                 ),
                 Text(
                   owner['email'],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: isDarkMode
                         ? GlobalVariables.darkTextSecondary
@@ -1513,13 +1655,17 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                         children: [
                           Row(
                             children: [
-                              Text(
-                                member.userName ?? tr('user'),
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: isDarkMode
-                                      ? GlobalVariables.darkTextPrimary
-                                      : GlobalVariables.textPrimary,
+                              Expanded(
+                                child: Text(
+                                  member.userName ?? tr('user'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: isDarkMode
+                                        ? GlobalVariables.darkTextPrimary
+                                        : GlobalVariables.textPrimary,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -1546,6 +1692,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                           if (member.userEmail != null)
                             Text(
                               member.userEmail!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: isDarkMode
                                     ? GlobalVariables.darkTextSecondary
@@ -1725,6 +1873,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
               ),
               const SizedBox(height: 24),
               MemberInvitationForm(
+                validateEmailBeforeAdd: _validateInvitationEmailBeforeAdd,
                 showSubmitButton: true,
                 submitButtonText: tr('add_member'),
                 onSubmit: (emails, message) async {
@@ -1766,6 +1915,33 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         ),
       ),
     );
+  }
+
+  Future<String?> _validateInvitationEmailBeforeAdd(String email) async {
+    final users = await _accountService.searchUsers(
+      context,
+      email,
+      showErrorSnackBar: false,
+    );
+    final matchedUser = users
+        .where((u) => u.email.toLowerCase() == email)
+        .toList();
+
+    if (matchedUser.isEmpty) {
+      return tr('validation_email_not_found', namedArgs: {'email': email});
+    }
+
+    final user = matchedUser.first;
+    final ownerId = _project?.createdBy['id']?.toString() ?? '';
+    final isOwnerUser = ownerId == user.id;
+    final isMember =
+        _project?.members.any((member) => member.userId == user.id) ?? false;
+
+    if (isOwnerUser || isMember) {
+      return tr('validation_user_already_member', namedArgs: {'email': email});
+    }
+
+    return null;
   }
 
   void _showLeaveProjectDialog() {

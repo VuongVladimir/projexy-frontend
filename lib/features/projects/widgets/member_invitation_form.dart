@@ -2,9 +2,12 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 
+typedef InvitationEmailValidator = Future<String?> Function(String email);
+
 class MemberInvitationForm extends StatefulWidget {
   final void Function(List<String> emails, String message) onSubmit;
   final void Function(List<String> emails, String message)? onEmailsChanged;
+  final InvitationEmailValidator? validateEmailBeforeAdd;
   final bool showSubmitButton;
   final String submitButtonText;
 
@@ -12,6 +15,7 @@ class MemberInvitationForm extends StatefulWidget {
     super.key,
     required this.onSubmit,
     this.onEmailsChanged,
+    this.validateEmailBeforeAdd,
     this.showSubmitButton = false,
     this.submitButtonText = 'Gửi lời mời',
   });
@@ -24,6 +28,8 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
   final _emailController = TextEditingController();
   final _messageController = TextEditingController();
   List<String> _invitedEmails = [];
+  bool _isValidatingEmail = false;
+  bool _isAddingEmail = false;
 
   @override
   void dispose() {
@@ -32,7 +38,17 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
     super.dispose();
   }
 
-  void _addEmail(String email) {
+  void _showSingleSnackBar(String message, {required Color backgroundColor}) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: backgroundColor),
+    );
+  }
+
+  Future<void> _addEmail(String email) async {
+    if (_isAddingEmail) return;
+
     final trimmedEmail = email.trim().toLowerCase();
 
     // Kiểm tra email không rỗng
@@ -45,44 +61,73 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
       r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
     );
     if (!emailRegex.hasMatch(trimmedEmail)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            tr('validation_invalid_email', namedArgs: {'email': trimmedEmail}),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      _showSingleSnackBar(
+        tr('validation_invalid_email', namedArgs: {'email': trimmedEmail}),
+        backgroundColor: Colors.red,
       );
       return;
     }
 
     // Kiểm tra email đã tồn tại
     if (_invitedEmails.contains(trimmedEmail)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            tr(
-              'validation_email_already_added',
-              namedArgs: {'email': trimmedEmail},
-            ),
-          ),
-          backgroundColor: Colors.orange,
+      _showSingleSnackBar(
+        tr(
+          'validation_email_already_added',
+          namedArgs: {'email': trimmedEmail},
         ),
+        backgroundColor: Colors.orange,
       );
       return;
     }
 
-    // Thêm email vào danh sách
     setState(() {
-      _invitedEmails.add(trimmedEmail);
-      _emailController.clear();
+      _isAddingEmail = true;
     });
 
-    // Thông báo về thay đổi danh sách emails
-    widget.onEmailsChanged?.call(
-      _invitedEmails,
-      _messageController.text.trim(),
-    );
+    try {
+      if (widget.validateEmailBeforeAdd != null) {
+        setState(() {
+          _isValidatingEmail = true;
+        });
+
+        final validationError = await widget.validateEmailBeforeAdd!(
+          trimmedEmail,
+        );
+
+        if (!mounted) return;
+
+        setState(() {
+          _isValidatingEmail = false;
+        });
+
+        if (validationError != null && validationError.isNotEmpty) {
+          _showSingleSnackBar(
+            validationError,
+            backgroundColor: GlobalVariables.warningAmber,
+          );
+          return;
+        }
+      }
+
+      // Thêm email vào danh sách
+      setState(() {
+        _invitedEmails.add(trimmedEmail);
+        _emailController.clear();
+      });
+
+      // Thông báo về thay đổi danh sách emails
+      widget.onEmailsChanged?.call(
+        _invitedEmails,
+        _messageController.text.trim(),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAddingEmail = false;
+          _isValidatingEmail = false;
+        });
+      }
+    }
   }
 
   void _removeEmail(String email) {
@@ -100,6 +145,7 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final maxChipWidth = MediaQuery.of(context).size.width * 0.7;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,7 +174,10 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
           child: TextField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
-            onSubmitted: (value) => _addEmail(value),
+            onSubmitted: (value) {
+              if (_isAddingEmail) return;
+              _addEmail(value);
+            },
             decoration: InputDecoration(
               hintText: tr('validation_enter_email'),
               prefixIcon: Icon(
@@ -138,8 +187,21 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
                     : GlobalVariables.textSecondary,
               ),
               suffixIcon: IconButton(
-                icon: const Icon(Icons.add_rounded),
-                onPressed: () => _addEmail(_emailController.text),
+                icon: _isValidatingEmail
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: isDarkMode
+                              ? GlobalVariables.darkTextSecondary
+                              : GlobalVariables.textSecondary,
+                        ),
+                      )
+                    : const Icon(Icons.add_rounded),
+                onPressed: (_isValidatingEmail || _isAddingEmail)
+                    ? null
+                    : () => _addEmail(_emailController.text),
               ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
@@ -202,7 +264,7 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${tr('list_invited_email')} (${_invitedEmails.length})',
+                '${tr('list_invited_emails')} (${_invitedEmails.length})',
                 style: TextStyle(
                   fontWeight: FontWeight.w500,
                   color: isDarkMode
@@ -216,48 +278,58 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
                 runSpacing: 8,
                 children: _invitedEmails
                     .map(
-                      (email) => Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: GlobalVariables.primaryBlue.withValues(
-                            alpha: 0.1,
+                      (email) => ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: maxChipWidth),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
                           ),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
+                          decoration: BoxDecoration(
                             color: GlobalVariables.primaryBlue.withValues(
-                              alpha: 0.3,
+                              alpha: 0.1,
                             ),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.email_outlined,
-                              size: 16,
-                              color: GlobalVariables.primaryBlue,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              email,
-                              style: TextStyle(
-                                color: GlobalVariables.primaryBlue,
-                                fontWeight: FontWeight.w500,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: GlobalVariables.primaryBlue.withValues(
+                                alpha: 0.3,
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            GestureDetector(
-                              onTap: () => _removeEmail(email),
-                              child: Icon(
-                                Icons.close_rounded,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.email_outlined,
                                 size: 16,
                                 color: GlobalVariables.primaryBlue,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Tooltip(
+                                  message: email,
+                                  child: Text(
+                                    email,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      color: GlobalVariables.primaryBlue,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () => _removeEmail(email),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 16,
+                                  color: GlobalVariables.primaryBlue,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     )

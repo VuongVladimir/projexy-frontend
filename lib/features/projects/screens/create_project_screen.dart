@@ -3,6 +3,7 @@ import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/custom_button.dart';
 import 'package:frontend/common/widgets/custom_textfield.dart';
+import 'package:frontend/features/account/services/account_service.dart';
 import 'package:frontend/features/notifications/services/notification_service.dart';
 import 'package:frontend/features/projects/services/projects_service.dart';
 import 'package:frontend/features/projects/widgets/member_invitation_form.dart';
@@ -19,6 +20,7 @@ class CreateProjectScreen extends StatefulWidget {
 }
 
 class _CreateProjectScreenState extends State<CreateProjectScreen> {
+  final AccountService _accountService = AccountService();
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -197,6 +199,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
               ),
               const SizedBox(height: 12),
               MemberInvitationForm(
+                validateEmailBeforeAdd: _validateInvitationEmailBeforeAdd,
                 onSubmit: (emails, message) {
                   setState(() {
                     _invitedEmails = emails;
@@ -226,6 +229,22 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     );
   }
 
+  Future<String?> _validateInvitationEmailBeforeAdd(String email) async {
+    final users = await _accountService.searchUsers(
+      context,
+      email,
+      showErrorSnackBar: false,
+    );
+    final matchedUser = users
+        .where((u) => u.email.toLowerCase() == email)
+        .toList();
+
+    if (matchedUser.isEmpty) {
+      return tr('validation_email_not_found', namedArgs: {'email': email});
+    }
+
+    return null;
+  }
 
   void _addTag(String tag) {
     final trimmedTag = tag.trim();
