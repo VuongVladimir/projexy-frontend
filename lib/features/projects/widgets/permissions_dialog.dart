@@ -538,10 +538,10 @@ class _PermissionsDialogState extends State<PermissionsDialog> {
                       : () {
                           setState(() {
                             _selectedRole = role['value'] as String;
-                            // Nếu chọn Viewer, ẩn custom permissions
-                            if (_selectedRole == 'Viewer') {
-                              _showCustomPermissions = false;
-                            }
+                            _permissions = ProjectPermissions.defaultForRole(
+                              _selectedRole,
+                            );
+                            _showCustomPermissions = _selectedRole != 'Viewer';
                           });
                         },
                   child: Opacity(
@@ -622,28 +622,10 @@ class _PermissionsDialogState extends State<PermissionsDialog> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
 
-    // Mô tả permissions mặc định theo role
-    Map<String, List<String>> rolePermissions = {
-      'Manager': [
-        tr('edit_project'),
-        tr('add_member'),
-        tr('remove_member'),
-        tr('manage_access'),
-        tr('create_task'),
-        tr('edit_task'),
-        tr('delete_task'),
-        tr('assign_task'),
-        tr('mark_complete_task'),
-        tr('add_attachment'),
-        tr('delete_attachment'),
-        tr('add_comment'),
-        tr('delete_comment'),
-      ],
-      'Member': [tr('add_attachment'), tr('add_comment')],
-      'Viewer': [tr('view_only')],
-    };
-
-    final permissions = rolePermissions[_selectedRole] ?? [];
+    final defaultPermissions = ProjectPermissions.defaultForRole(_selectedRole);
+    final permissions = _selectedRole == 'Viewer'
+        ? <String>[tr('view_only')]
+        : defaultPermissions.permissionsList;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

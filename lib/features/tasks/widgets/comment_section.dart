@@ -1013,7 +1013,7 @@ class CommentSectionState extends State<CommentSection> {
                 : TextButton.icon(
                     onPressed: _loadMoreComments,
                     icon: const Icon(Icons.expand_more_rounded),
-                    label: Text(tr('activity_view_more')),
+                    label: Text(tr('comment_view_more')),
                   ),
           ),
       ],

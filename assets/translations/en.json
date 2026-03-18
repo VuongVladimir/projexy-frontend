@@ -426,6 +426,7 @@
   "replying_to": "Replying to",
   "activity_no_logs": "No activity yet",
   "activity_view_more": "View older activities",
+  "comment_view_more": "View more comments",
   "activity_loading": "Loading activities...",
   "activity_task_updated": "{actor} updated {field} for task \"{taskTitle}\"",
   "activity_task_created": "{actor} created task \"{taskTitle}\"",
@@ -540,5 +541,17 @@
   "completed_with_unfinished_predecessors": "Completed Early",
   "completed_unfinished_predecessors_description": "This task has been marked as completed while some of its predecessor tasks are still unfinished.",
   "unfinished_predecessors": "Unfinished Predecessors:",
-  "effective_permissions": "Effective Permissions"
+  "effective_permissions": "Effective Permissions",
+  "invitation_progress": "Sending invitations: {processed}/{total}",
+  "invitation_stopping_hint": "Stopping... waiting for in-flight requests to complete.",
+  "invitation_cancel_hint": "You can cancel if the list is long",
+  "invitation_summary_success": "Sent {success}/{total} invitations successfully.",
+  "invitation_summary_failed": "Failed: {count}.",
+  "invitation_summary_unprocessed": "Unprocessed: {count}.",
+  "invitation_result_title": "Invitation send details",
+  "invitation_result_success": "Success: {count}",
+  "invitation_result_failed": "Failed: {count}",
+  "invitation_result_unprocessed": "Unprocessed: {count}",
+  "invitation_failed_emails_title": "Failed invitation emails:",
+  "unknown_error": "Unknown error"
 }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:frontend/common/constants/global_variables.dart';
@@ -47,6 +48,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   bool _isLoadingAnalytics = false;
   bool _isOwner = false;
   bool _showMemberSearch = false;
+  String? _pressedTagKey;
+  String? _activeTagActionKey;
   ProjectMember? _currentUserMember;
   final GlobalKey<ProjectActivitySectionState> _activitySectionKey =
       GlobalKey<ProjectActivitySectionState>();
@@ -379,6 +382,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
 
     final canCreateTask =
         isOwner || currentUserMember.permissions.createTaskPermission;
+    final canManageTags =
+        isOwner || currentUserMember.permissions.editProjectPermission;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -521,6 +526,12 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                       fontSize: 16,
                     ),
                   ),
+                  const SizedBox(height: 18),
+                  _buildProjectTagsSection(
+                    theme: theme,
+                    isDarkMode: isDarkMode,
+                    canManageTags: canManageTags,
+                  ),
                   const SizedBox(height: 24),
 
                   // Progress
@@ -625,6 +636,456 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildProjectTagsSection({
+    required ThemeData theme,
+    required bool isDarkMode,
+    required bool canManageTags,
+  }) {
+    final tags = _project!.tags
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList();
+
+    if (tags.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    const int maxVisibleTags = 6;
+    final visibleCount = math.min(maxVisibleTags, tags.length);
+    final hasMoreTags = tags.length > maxVisibleTags;
+    final remainingTags = tags.length - visibleCount;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tags',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: isDarkMode
+                ? GlobalVariables.darkTextPrimary
+                : GlobalVariables.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            ...List.generate(
+              visibleCount,
+              (index) => _buildProjectTagChip(
+                index: index,
+                tag: tags[index],
+                isDarkMode: isDarkMode,
+                canManageTags: canManageTags,
+              ),
+            ),
+            if (hasMoreTags)
+              _buildRemainingTagsCircle(
+                remainingCount: remainingTags,
+                isDarkMode: isDarkMode,
+                allTags: tags,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProjectTagChip({
+    required int index,
+    required String tag,
+    required bool isDarkMode,
+    required bool canManageTags,
+  }) {
+    final key = '$index::$tag';
+    final isPressed = _pressedTagKey == key;
+    final showActions = _activeTagActionKey == key && canManageTags;
+
+    final baseColor = isDarkMode
+        ? GlobalVariables.darkSurfaceCard
+        : GlobalVariables.surfaceCard;
+    final borderColor = showActions
+        ? GlobalVariables.primaryBlue
+        : (isDarkMode
+              ? GlobalVariables.darkBorderPrimary
+              : GlobalVariables.borderPrimary);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        color: isPressed
+            ? GlobalVariables.primaryBlue.withValues(alpha: 0.14)
+            : baseColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: borderColor),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          splashColor: GlobalVariables.primaryBlue.withValues(alpha: 0.18),
+          highlightColor: GlobalVariables.primaryBlue.withValues(alpha: 0.08),
+          onHighlightChanged: (value) {
+            if (!mounted) return;
+            setState(() {
+              _pressedTagKey = value ? key : null;
+            });
+          },
+          onTap: () {
+            if (_activeTagActionKey != null) {
+              setState(() => _activeTagActionKey = null);
+            }
+          },
+          onLongPress: canManageTags
+              ? () {
+                  setState(() {
+                    _activeTagActionKey = _activeTagActionKey == key
+                        ? null
+                        : key;
+                  });
+                }
+              : null,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(12, 8, showActions ? 6 : 12, 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.sell_rounded,
+                  size: 16,
+                  color: GlobalVariables.greyDark.withValues(alpha: 0.84),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  tag,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextSecondary
+                        : GlobalVariables.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (showActions) ...[
+                  const SizedBox(width: 6),
+                  _buildTagActionIcon(
+                    icon: Icons.edit_outlined,
+                    tooltip: tr('edit'),
+                    color: GlobalVariables.primaryBlue,
+                    onPressed: () => _showEditTagDialog(index, tag),
+                  ),
+                  const SizedBox(width: 2),
+                  _buildTagActionIcon(
+                    icon: Icons.close_rounded,
+                    tooltip: tr('delete'),
+                    color: GlobalVariables.errorRed,
+                    onPressed: () => _removeTag(index),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTagActionIcon({
+    required IconData icon,
+    required String tooltip,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Icon(icon, size: 18, color: color),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRemainingTagsCircle({
+    required int remainingCount,
+    required bool isDarkMode,
+    required List<String> allTags,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () => _showAllTagsBottomSheet(allTags),
+        child: Ink(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isDarkMode
+                ? GlobalVariables.darkSurfaceCard
+                : GlobalVariables.surfaceCard,
+            border: Border.all(
+              color: isDarkMode
+                  ? GlobalVariables.darkBorderPrimary
+                  : GlobalVariables.borderPrimary,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              '+$remainingCount',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: isDarkMode
+                    ? GlobalVariables.darkTextSecondary
+                    : GlobalVariables.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAllTagsBottomSheet(List<String> tags) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDarkMode
+          ? GlobalVariables.darkBackgroundPrimary
+          : GlobalVariables.backgroundPrimary,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: isDarkMode
+                          ? GlobalVariables.darkBorderPrimary
+                          : GlobalVariables.borderPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'All tags (${tags.length})',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextPrimary
+                        : GlobalVariables.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: tags
+                          .map(
+                            (tag) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isDarkMode
+                                    ? GlobalVariables.darkSurfaceCard
+                                    : GlobalVariables.surfaceCard,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: isDarkMode
+                                      ? GlobalVariables.darkBorderPrimary
+                                      : GlobalVariables.borderPrimary,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.sell_rounded,
+                                    size: 16,
+                                    color: GlobalVariables.greyDark.withValues(
+                                      alpha: 0.84,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    tag,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: isDarkMode
+                                              ? GlobalVariables
+                                                    .darkTextSecondary
+                                              : GlobalVariables.textSecondary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEditTagDialog(int index, String tag) {
+    final controller = TextEditingController(text: tag);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('${tr('edit')}: #$tag'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(
+            hintText: 'Tag name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(tr('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newTag = controller.text.trim();
+              if (newTag.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Tag cannot be empty')),
+                );
+                return;
+              }
+
+              final hasDuplicate = _project!.tags.asMap().entries.any((entry) {
+                return entry.key != index &&
+                    entry.value.toLowerCase() == newTag.toLowerCase();
+              });
+
+              if (hasDuplicate) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Tag already exists')),
+                );
+                return;
+              }
+
+              Navigator.of(dialogContext).pop();
+              _editTag(index, newTag);
+            },
+            child: Text(tr('save')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _editTag(int index, String newTag) {
+    if (_project == null) return;
+    if (index < 0 || index >= _project!.tags.length) return;
+
+    final previousProject = _project!;
+    final updatedTags = List<String>.from(previousProject.tags);
+    updatedTags[index] = newTag;
+
+    setState(() {
+      _project = previousProject.copyWith(tags: updatedTags);
+      _activeTagActionKey = null;
+      _pressedTagKey = null;
+    });
+
+    ProjectsService.updateProject(
+      context: context,
+      projectId: previousProject.id,
+      tags: updatedTags,
+      onSuccess: () {
+        _refreshProject();
+        _activitySectionKey.currentState?.refreshActivity();
+      },
+      onError: () {
+        if (mounted) {
+          setState(() {
+            _project = previousProject;
+            _activeTagActionKey = null;
+            _pressedTagKey = null;
+          });
+        }
+      },
+    );
+  }
+
+  void _removeTag(int index) {
+    if (_project == null) return;
+    if (index < 0 || index >= _project!.tags.length) return;
+
+    final previousProject = _project!;
+    final updatedTags = List<String>.from(previousProject.tags)
+      ..removeAt(index);
+
+    setState(() {
+      _project = previousProject.copyWith(tags: updatedTags);
+      _activeTagActionKey = null;
+      _pressedTagKey = null;
+    });
+
+    ProjectsService.updateProject(
+      context: context,
+      projectId: previousProject.id,
+      tags: updatedTags,
+      onSuccess: () {
+        _refreshProject();
+        _activitySectionKey.currentState?.refreshActivity();
+      },
+      onError: () {
+        if (mounted) {
+          setState(() {
+            _project = previousProject;
+            _activeTagActionKey = null;
+            _pressedTagKey = null;
+          });
+        }
+      },
     );
   }
 
@@ -1848,71 +2309,278 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   void _showAddMemberDialog() {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    tr('add_member'),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              MemberInvitationForm(
-                validateEmailBeforeAdd: _validateInvitationEmailBeforeAdd,
-                showSubmitButton: true,
-                submitButtonText: tr('add_member'),
-                onSubmit: (emails, message) async {
-                  Navigator.pop(context); // Đóng dialog
-
-                  int successCount = 0;
-                  for (String email in emails) {
-                    await NotificationService.sendProjectInvitation(
-                      context: context,
-                      email: email,
-                      projectId: _project!.id,
-                      message: message.isNotEmpty ? message : null,
-                      onSuccess: () {
-                        successCount++;
-                      },
-                    );
-                  }
-
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          tr(
-                            'success_invitations_sent',
-                            namedArgs: {
-                              'count': '$successCount',
-                              'total': '${emails.length}',
-                            },
+      builder: (dialogContext) {
+        final media = MediaQuery.of(dialogContext);
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 24,
+          ),
+          child: SafeArea(
+            child: AnimatedPadding(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: media.size.height * 0.82,
+                  maxWidth: 560,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            tr('add_member'),
+                            style: Theme.of(dialogContext).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
-                        ),
-                        backgroundColor: GlobalVariables.successGreen,
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(dialogContext),
+                          ),
+                        ],
                       ),
-                    );
-                  }
-                },
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: MemberInvitationForm(
+                          validateEmailBeforeAdd:
+                              _validateInvitationEmailBeforeAdd,
+                          showSubmitButton: true,
+                          submitButtonText: tr('add_member'),
+                          onSubmit: (emails, message) async {
+                            Navigator.pop(dialogContext);
+                            await _sendProjectInvitationsWithProgress(
+                              emails: emails,
+                              message: message,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _sendProjectInvitationsWithProgress({
+    required List<String> emails,
+    required String message,
+  }) async {
+    if (_project == null || emails.isEmpty) return;
+
+    const int concurrencyLimit = 3;
+    int nextIndex = 0;
+    int processed = 0;
+    bool isCancelled = false;
+    StateSetter? setProgressState;
+
+    final List<String> successEmails = [];
+    final List<Map<String, String>> failedEmails = [];
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, stateSetter) {
+          setProgressState = stateSetter;
+          final progress = emails.isEmpty ? 0.0 : processed / emails.length;
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(tr('add_member')),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr(
+                    'invitation_progress',
+                    namedArgs: {
+                      'processed': '$processed',
+                      'total': '${emails.length}',
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                LinearProgressIndicator(value: progress),
+                const SizedBox(height: 8),
+                Text(
+                  isCancelled
+                      ? tr('invitation_stopping_hint')
+                      : tr('invitation_cancel_hint'),
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isCancelled
+                    ? null
+                    : () {
+                        stateSetter(() {
+                          isCancelled = true;
+                        });
+                      },
+                child: Text(tr('cancel')),
               ),
             ],
+          );
+        },
+      ),
+    );
+
+    Future<void> worker() async {
+      while (true) {
+        if (isCancelled) return;
+        if (nextIndex >= emails.length) return;
+
+        final currentIndex = nextIndex;
+        nextIndex += 1;
+        final email = emails[currentIndex];
+
+        final result =
+            await NotificationService.sendProjectInvitationWithResult(
+              context: context,
+              email: email,
+              projectId: _project!.id,
+              message: message.isNotEmpty ? message : null,
+            );
+
+        if (result['success'] == true) {
+          successEmails.add(email);
+        } else {
+          failedEmails.add({
+            'email': email,
+            'message': (result['message']?.toString() ?? tr('unknown_error')),
+          });
+        }
+
+        processed += 1;
+        if (mounted && setProgressState != null) {
+          setProgressState!.call(() {});
+        }
+      }
+    }
+
+    final int workerCount = emails.length < concurrencyLimit
+        ? emails.length
+        : concurrencyLimit;
+    await Future.wait(List.generate(workerCount, (_) => worker()));
+
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+
+    if (!mounted) return;
+
+    final int cancelledCount = emails.length - processed;
+    final summaryParts = <String>[
+      tr(
+        'invitation_summary_success',
+        namedArgs: {
+          'success': '${successEmails.length}',
+          'total': '${emails.length}',
+        },
+      ),
+      if (failedEmails.isNotEmpty)
+        tr(
+          'invitation_summary_failed',
+          namedArgs: {'count': '${failedEmails.length}'},
+        ),
+      if (cancelledCount > 0)
+        tr(
+          'invitation_summary_unprocessed',
+          namedArgs: {'count': '$cancelledCount'},
+        ),
+    ];
+    final String summaryMessage = summaryParts.join(' ');
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(summaryMessage),
+        backgroundColor: failedEmails.isEmpty && cancelledCount == 0
+            ? GlobalVariables.successGreen
+            : GlobalVariables.warningAmber,
+      ),
+    );
+
+    if (failedEmails.isEmpty && cancelledCount == 0) {
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(tr('invitation_result_title')),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(dialogContext).size.height * 0.45,
+            maxWidth: 520,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr(
+                    'invitation_result_success',
+                    namedArgs: {'count': '${successEmails.length}'},
+                  ),
+                ),
+                Text(
+                  tr(
+                    'invitation_result_failed',
+                    namedArgs: {'count': '${failedEmails.length}'},
+                  ),
+                ),
+                if (cancelledCount > 0)
+                  Text(
+                    tr(
+                      'invitation_result_unprocessed',
+                      namedArgs: {'count': '$cancelledCount'},
+                    ),
+                  ),
+                if (failedEmails.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    tr('invitation_failed_emails_title'),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  ...failedEmails.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text('- ${item['email']}: ${item['message']}'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(tr('cancel')),
+          ),
+        ],
       ),
     );
   }

@@ -9,7 +9,7 @@ class Project {
   final String priority;
   final DateTime? startDate;
   final DateTime? endDate;
-  final Map<String,dynamic> createdBy;
+  final Map<String, dynamic> createdBy;
   final List<ProjectMember> members;
   final List<String> tags;
   final int progress;
@@ -57,19 +57,17 @@ class Project {
     if (map == null) {
       throw ArgumentError('Project.fromMap: map cannot be null');
     }
-    
+
     return Project(
       id: map['_id']?.toString() ?? '',
       title: map['title']?.toString() ?? '',
       description: map['description']?.toString() ?? '',
       status: map['status']?.toString() ?? 'Planning',
       priority: map['priority']?.toString() ?? 'Medium',
-      startDate: map['startDate'] != null 
-          ? DateTime.parse(map['startDate']) 
+      startDate: map['startDate'] != null
+          ? DateTime.parse(map['startDate'])
           : null,
-      endDate: map['endDate'] != null 
-          ? DateTime.parse(map['endDate']) 
-          : null,
+      endDate: map['endDate'] != null ? DateTime.parse(map['endDate']) : null,
       createdBy: map['createdBy'] is Map<String, dynamic>
           ? {
               'id': map['createdBy']['_id']?.toString() ?? '',
@@ -78,27 +76,38 @@ class Project {
               'avatar': map['createdBy']['avatar']?.toString() ?? '',
               'avatarColor': map['createdBy']['avatarColor']?.toString() ?? '',
             }
-          : {'id': '', 'name': '', 'email': '', 'avatar': '', 'avatarColor': ''},
+          : {
+              'id': '',
+              'name': '',
+              'email': '',
+              'avatar': '',
+              'avatarColor': '',
+            },
       members: List<ProjectMember>.from(
-        (map['members'] as List? ?? []).map((member) => 
-          ProjectMember.fromMap(member is Map<String, dynamic> ? member : {'user': member})
-        )
+        (map['members'] as List? ?? []).map(
+          (member) => ProjectMember.fromMap(
+            member is Map<String, dynamic> ? member : {'user': member},
+          ),
+        ),
       ),
-      tags: List<String>.from((map['tags'] as List? ?? []).map((tag) => tag.toString())),
+      tags: List<String>.from(
+        (map['tags'] as List? ?? []).map((tag) => tag.toString()),
+      ),
       progress: map['progress']?.toInt() ?? 0,
       taskCount: map['taskCount']?.toInt() ?? 0,
-      createdAt: map['createdAt'] != null 
-          ? DateTime.parse(map['createdAt']) 
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'])
           : DateTime.now(),
-      updatedAt: map['updatedAt'] != null 
-          ? DateTime.parse(map['updatedAt']) 
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.parse(map['updatedAt'])
           : DateTime.now(),
     );
   }
 
   String toJson() => json.encode(toMap());
 
-  factory Project.fromJson(String source) => Project.fromMap(json.decode(source));
+  factory Project.fromJson(String source) =>
+      Project.fromMap(json.decode(source));
 
   Project copyWith({
     String? id,
@@ -142,7 +151,7 @@ class Project {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-  
+
     return other is Project && other.id == id;
   }
 
@@ -197,8 +206,9 @@ class Project {
   bool get isPlanning => status == 'Planning';
 
   // Kiểm tra thời hạn
-  bool get isOverdue => endDate != null && DateTime.now().isAfter(endDate!) && !isCompleted;
-  
+  bool get isOverdue =>
+      endDate != null && DateTime.now().isAfter(endDate!) && !isCompleted;
+
   int get daysRemaining {
     if (isCompleted || endDate == null) return 0;
     final now = DateTime.now();
@@ -379,7 +389,10 @@ class AnalyticsTeamWorkload {
   final int totalActiveTasks;
   final List<AnalyticsWorkloadMember> members;
 
-  AnalyticsTeamWorkload({required this.totalActiveTasks, required this.members});
+  AnalyticsTeamWorkload({
+    required this.totalActiveTasks,
+    required this.members,
+  });
 
   factory AnalyticsTeamWorkload.fromMap(Map<String, dynamic> map) {
     return AnalyticsTeamWorkload(
@@ -432,26 +445,28 @@ class ProjectMember {
     if (map == null) {
       throw ArgumentError('ProjectMember.fromMap: map cannot be null');
     }
-    
+
     return ProjectMember(
-      userId: map['user'] is String 
-          ? map['user'] 
+      userId: map['user'] is String
+          ? map['user']
           : (map['user'] is Map ? map['user']['_id']?.toString() ?? '' : ''),
-      userName: map['user'] is String 
-          ? null 
+      userName: map['user'] is String
+          ? null
           : (map['user'] is Map ? map['user']['name']?.toString() : null),
-      userEmail: map['user'] is String 
-          ? null 
+      userEmail: map['user'] is String
+          ? null
           : (map['user'] is Map ? map['user']['email']?.toString() : null),
-      avatar: map['user'] is String 
-          ? null 
+      avatar: map['user'] is String
+          ? null
           : (map['user'] is Map ? map['user']['avatar']?.toString() : null),
-      avatarColor: map['user'] is String 
-          ? null 
-          : (map['user'] is Map ? map['user']['avatarColor']?.toString() : null),
+      avatarColor: map['user'] is String
+          ? null
+          : (map['user'] is Map
+                ? map['user']['avatarColor']?.toString()
+                : null),
       role: map['role']?.toString() ?? 'Member',
       permissions: ProjectPermissions.fromMap(map['permissions'] ?? {}),
-      joinedAt: map['joinedAt'] != null 
+      joinedAt: map['joinedAt'] != null
           ? DateTime.parse(map['joinedAt'])
           : DateTime.now(),
     );
@@ -531,6 +546,60 @@ class ProjectPermissions {
     this.deleteCommentPermission = false,
   });
 
+  static ProjectPermissions defaultForRole(String role) {
+    switch (role) {
+      case 'Manager':
+        return ProjectPermissions(
+          editProjectPermission: true,
+          addMemberPermission: true,
+          removeMemberPermission: true,
+          manageAccessPermission: true,
+          createTaskPermission: true,
+          editTaskPermission: true,
+          deleteTaskPermission: true,
+          assignTaskPermission: true,
+          markCompleteTaskPermission: true,
+          addAttachmentPermission: true,
+          deleteAttachmentPermission: true,
+          addCommentPermission: true,
+          deleteCommentPermission: true,
+        );
+      case 'Viewer':
+        return ProjectPermissions(
+          editProjectPermission: false,
+          addMemberPermission: false,
+          removeMemberPermission: false,
+          manageAccessPermission: false,
+          createTaskPermission: false,
+          editTaskPermission: false,
+          deleteTaskPermission: false,
+          assignTaskPermission: false,
+          markCompleteTaskPermission: false,
+          addAttachmentPermission: false,
+          deleteAttachmentPermission: false,
+          addCommentPermission: false,
+          deleteCommentPermission: false,
+        );
+      case 'Member':
+      default:
+        return ProjectPermissions(
+          editProjectPermission: false,
+          addMemberPermission: false,
+          removeMemberPermission: false,
+          manageAccessPermission: false,
+          createTaskPermission: false,
+          editTaskPermission: false,
+          deleteTaskPermission: false,
+          assignTaskPermission: false,
+          markCompleteTaskPermission: false,
+          addAttachmentPermission: true,
+          deleteAttachmentPermission: false,
+          addCommentPermission: true,
+          deleteCommentPermission: false,
+        );
+    }
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'editProjectPermission': editProjectPermission,
@@ -553,7 +622,7 @@ class ProjectPermissions {
     if (map == null) {
       return ProjectPermissions();
     }
-    
+
     return ProjectPermissions(
       editProjectPermission: map['editProjectPermission'] == true,
       addMemberPermission: map['addMemberPermission'] == true,
@@ -587,30 +656,45 @@ class ProjectPermissions {
     bool? deleteCommentPermission,
   }) {
     return ProjectPermissions(
-      editProjectPermission: editProjectPermission ?? this.editProjectPermission,
+      editProjectPermission:
+          editProjectPermission ?? this.editProjectPermission,
       addMemberPermission: addMemberPermission ?? this.addMemberPermission,
-      removeMemberPermission: removeMemberPermission ?? this.removeMemberPermission,
-      manageAccessPermission: manageAccessPermission ?? this.manageAccessPermission,
+      removeMemberPermission:
+          removeMemberPermission ?? this.removeMemberPermission,
+      manageAccessPermission:
+          manageAccessPermission ?? this.manageAccessPermission,
       createTaskPermission: createTaskPermission ?? this.createTaskPermission,
       editTaskPermission: editTaskPermission ?? this.editTaskPermission,
       deleteTaskPermission: deleteTaskPermission ?? this.deleteTaskPermission,
       assignTaskPermission: assignTaskPermission ?? this.assignTaskPermission,
-      markCompleteTaskPermission: markCompleteTaskPermission ?? this.markCompleteTaskPermission,
-      addAttachmentPermission: addAttachmentPermission ?? this.addAttachmentPermission,
-      deleteAttachmentPermission: deleteAttachmentPermission ?? this.deleteAttachmentPermission,
+      markCompleteTaskPermission:
+          markCompleteTaskPermission ?? this.markCompleteTaskPermission,
+      addAttachmentPermission:
+          addAttachmentPermission ?? this.addAttachmentPermission,
+      deleteAttachmentPermission:
+          deleteAttachmentPermission ?? this.deleteAttachmentPermission,
       addCommentPermission: addCommentPermission ?? this.addCommentPermission,
-      deleteCommentPermission: deleteCommentPermission ?? this.deleteCommentPermission,
+      deleteCommentPermission:
+          deleteCommentPermission ?? this.deleteCommentPermission,
     );
   }
 
   // Utility getters
-  bool get hasAnyPermission => 
-      editProjectPermission || addMemberPermission || removeMemberPermission || 
-      manageAccessPermission || createTaskPermission || editTaskPermission || 
-      deleteTaskPermission || assignTaskPermission || markCompleteTaskPermission ||
-      addAttachmentPermission || deleteAttachmentPermission || 
-      addCommentPermission || deleteCommentPermission;
-  
+  bool get hasAnyPermission =>
+      editProjectPermission ||
+      addMemberPermission ||
+      removeMemberPermission ||
+      manageAccessPermission ||
+      createTaskPermission ||
+      editTaskPermission ||
+      deleteTaskPermission ||
+      assignTaskPermission ||
+      markCompleteTaskPermission ||
+      addAttachmentPermission ||
+      deleteAttachmentPermission ||
+      addCommentPermission ||
+      deleteCommentPermission;
+
   List<String> get permissionsList {
     List<String> permissions = [];
     if (editProjectPermission) permissions.add(tr('edit_project'));

@@ -20,7 +20,7 @@ class NotificationService {
         'limit': limit.toString(),
         'skip': skip.toString(),
       };
-      
+
       if (type != null) queryParams['type'] = type;
       if (isRead != null) queryParams['isRead'] = isRead.toString();
 
@@ -35,9 +35,10 @@ class NotificationService {
           context: context,
           onSuccess: () {
             final data = json.decode(response.body);
-            final List<AppNotification> notifications = (data['notifications'] as List)
-                .map((n) => AppNotification.fromMap(n))
-                .toList();
+            final List<AppNotification> notifications =
+                (data['notifications'] as List)
+                    .map((n) => AppNotification.fromMap(n))
+                    .toList();
             final int total = data['total'];
             final int unreadCount = data['unreadCount'];
             final bool hasMore = data['hasMore'];
@@ -54,9 +55,7 @@ class NotificationService {
   }
 
   // Lấy số lượng thông báo chưa đọc
-  static Future<int> getUnreadCount({
-    required BuildContext context,
-  }) async {
+  static Future<int> getUnreadCount({required BuildContext context}) async {
     try {
       final response = await ApiClient.get(
         url: '$uri/api/notifications/unread-count',
@@ -193,6 +192,26 @@ class NotificationService {
     String? message,
     required VoidCallback onSuccess,
   }) async {
+    final result = await sendProjectInvitationWithResult(
+      context: context,
+      email: email,
+      projectId: projectId,
+      message: message,
+      showErrorSnackBar: true,
+    );
+
+    if (result['success'] == true) {
+      onSuccess();
+    }
+  }
+
+  static Future<Map<String, dynamic>> sendProjectInvitationWithResult({
+    required BuildContext context,
+    required String email,
+    required String projectId,
+    String? message,
+    bool showErrorSnackBar = false,
+  }) async {
     try {
       final response = await ApiClient.post(
         url: '$uri/api/notifications/project-invitations/send',
@@ -203,17 +222,50 @@ class NotificationService {
         }),
       );
 
-      if (context.mounted) {
-        httpResponseHandle(
-          response: response,
-          context: context,
-          onSuccess: onSuccess,
-        );
+      if (response.statusCode == 200) {
+        return {'success': true, 'email': email, 'message': ''};
       }
+
+      String errorMessage = 'Không thể gửi lời mời';
+      try {
+        final responseBody = response.body;
+        if (responseBody.isNotEmpty) {
+          final decoded = json.decode(responseBody);
+          if (decoded is Map<String, dynamic>) {
+            errorMessage =
+                decoded['msg']?.toString() ??
+                decoded['error']?.toString() ??
+                errorMessage;
+          } else {
+            errorMessage = responseBody;
+          }
+        }
+      } catch (_) {
+        if (response.body.isNotEmpty) {
+          errorMessage = response.body;
+        }
+      }
+
+      if (context.mounted && showErrorSnackBar) {
+        showSnackBar(context, errorMessage);
+      }
+
+      return {'success': false, 'email': email, 'message': errorMessage};
     } catch (e) {
       if (context.mounted) {
-        showSnackBar(context, 'Lỗi: ${e.toString()}');
+        final errorMessage = 'Lỗi: ${e.toString()}';
+        if (showErrorSnackBar) {
+          showSnackBar(context, errorMessage);
+        }
+
+        return {'success': false, 'email': email, 'message': errorMessage};
       }
+
+      return {
+        'success': false,
+        'email': email,
+        'message': 'Lỗi không xác định',
+      };
     }
   }
 
@@ -251,7 +303,8 @@ class NotificationService {
   }) async {
     try {
       final response = await ApiClient.post(
-        url: '$uri/api/notifications/$notificationId/project-invitation/decline',
+        url:
+            '$uri/api/notifications/$notificationId/project-invitation/decline',
       );
 
       if (context.mounted) {
@@ -376,13 +429,10 @@ class NotificationService {
     try {
       await ApiClient.delete(
         url: '$uri/api/user/fcm-token',
-        body: json.encode({
-          'token': token,
-        }),
+        body: json.encode({'token': token}),
       );
     } catch (e) {
       debugPrint('Error deleting FCM token: $e');
     }
   }
 }
-

@@ -426,6 +426,7 @@
   "replying_to": "Trả lời",
   "activity_no_logs": "Chưa có hoạt động nào",
   "activity_view_more": "Xem hoạt động cũ hơn",
+  "comment_view_more": "Xem thêm bình luận",
   "activity_loading": "Đang tải hoạt động...",
   "activity_task_updated": "{actor} đã cập nhật {field} cho task \"{taskTitle}\"",
   "activity_task_created": "{actor} đã tạo task \"{taskTitle}\"",
@@ -540,5 +541,17 @@
   "completed_with_unfinished_predecessors": "Hoàn thành sớm",
   "completed_unfinished_predecessors_description": "Task này đã được đánh dấu hoàn thành trong khi một số task phụ thuộc trước đó vẫn chưa hoàn tất.",
   "unfinished_predecessors": "Task trước chưa hoàn thành:",
-  "effective_permissions": "Quyền hạn thực tế"
+  "effective_permissions": "Quyền hạn thực tế",
+  "invitation_progress": "Đang gửi lời mời: {processed}/{total}",
+  "invitation_stopping_hint": "Đang dừng, chờ các yêu cầu đang xử lý hoàn tất...",
+  "invitation_cancel_hint": "Có thể hủy nếu danh sách dài",
+  "invitation_summary_success": "Đã gửi thành công {success}/{total} lời mời.",
+  "invitation_summary_failed": "Thất bại: {count}.",
+  "invitation_summary_unprocessed": "Chưa xử lý: {count}.",
+  "invitation_result_title": "Chi tiết gửi lời mời",
+  "invitation_result_success": "Thành công: {count}",
+  "invitation_result_failed": "Thất bại: {count}",
+  "invitation_result_unprocessed": "Chưa xử lý: {count}",
+  "invitation_failed_emails_title": "Email gửi thất bại:",
+  "unknown_error": "Lỗi không xác định"
 }

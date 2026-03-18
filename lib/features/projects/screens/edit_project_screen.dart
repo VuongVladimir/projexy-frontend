@@ -85,9 +85,6 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                   if (value == null || value.trim().isEmpty) {
                     return tr('validation_enter_project_name');
                   }
-                  if (value.trim().length < 3) {
-                    return tr('validation_project_name_min');
-                  }
                   return null;
                 },
               ),
@@ -111,9 +108,6 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return tr('validation_enter_project_desc');
-                  }
-                  if (value.trim().length < 10) {
-                    return tr('validation_project_desc_min');
                   }
                   return null;
                 },
