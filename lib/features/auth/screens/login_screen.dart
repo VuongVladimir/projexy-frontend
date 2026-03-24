@@ -1,9 +1,9 @@
 // frontend/lib/features/auth/screens/login_screen.dart
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:frontend/features/auth/screens/forgot_password_screen.dart';
 import 'package:frontend/features/auth/screens/signup_screen.dart';
 import 'package:frontend/features/auth/services/auth_service.dart';
-import '../../../common/constants/global_variables.dart';
 import '../../../common/widgets/custom_button.dart';
 import '../../../common/widgets/custom_textfield.dart';
 
@@ -54,158 +54,180 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 40),
-                  // Logo hoặc hình ảnh
-                  Center(
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDarkMode 
-                              ? GlobalVariables.darkPrimaryGradient
-                              : GlobalVariables.primaryGradient,
-                        ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(context).shadowColor.withValues(alpha: 0.3),
-                            blurRadius: 15,
-                            offset: Offset(0, 8),
+      body: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 32),
+                    // Logo và tên ứng dụng
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(
+                            'assets/images/logo_projexy1.png',
+                            width: 125,
+                            height: 125,
+                            fit: BoxFit.contain,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Projexy',
+                            style: TextStyle(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                           ),
                         ],
                       ),
-                      child: Icon(
-                        Icons.business_center_rounded,
-                        size: 60,
-                        color: GlobalVariables.white,
+                    ),
+                    const SizedBox(height: 32),
+                    // Tiêu đề
+                    Text(
+                      tr('login'),
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 40),
-                  // Tiêu đề
-                  Text(
-                    'Đăng nhập',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Chào mừng bạn trở lại!',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  // Form đăng nhập
-                  CustomTextField(
-                    controller: _emailController,
-                    hintText: 'Nhập email của bạn',
-                    labelText: 'Email',
-                    keyboardType: TextInputType.emailAddress,
-                    prefixIcon: Icon(
-                      Icons.email_outlined,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Vui lòng nhập email';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  CustomTextField(
-                    controller: _passwordController,
-                    hintText: 'Nhập mật khẩu của bạn',
-                    labelText: 'Mật khẩu',
-                    obscureText: _obscurePassword,
-                    prefixIcon: Icon(
-                      Icons.lock_outline,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    const SizedBox(height: 8),
+                    Text(
+                      tr('auth_welcome_back'),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
-                      onPressed: _togglePasswordVisibility,
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Vui lòng nhập mật khẩu';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  // Quên mật khẩu
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, ForgotPasswordScreen.routeName);
+                    const SizedBox(height: 36),
+                    // Form đăng nhập
+                    CustomTextField(
+                      controller: _emailController,
+                      hintText: tr('auth_enter_your_email'),
+                      labelText: tr('email'),
+                      isBorder: false,
+                      keyboardType: TextInputType.emailAddress,
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return tr('validation_enter_email_required');
+                        }
+                        if (!RegExp(
+                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                        ).hasMatch(value)) {
+                          return tr('validation_invalid_email_format');
+                        }
+                        return null;
                       },
-                      child: Text(
-                        'Quên mật khẩu?',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Nút đăng nhập
-                  CustomButton(
-                    text: 'Đăng nhập',
-                    onTap: _signIn,
-                    isLoading: _isLoading,
-                  ),
-                  const SizedBox(height: 24),
-                  // Đăng ký
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Chưa có tài khoản? ',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
+                    const SizedBox(height: 20),
+                    CustomTextField(
+                      controller: _passwordController,
+                      hintText: tr('auth_enter_your_password'),
+                      labelText: tr('password'),
+                      isBorder: false,
+                      obscureText: _obscurePassword,
+                      prefixIcon: Icon(
+                        Icons.lock_outline,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
-                      TextButton(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                        onPressed: _togglePasswordVisibility,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return tr('validation_enter_password_required');
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Quên mật khẩu
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
                         onPressed: () {
-                          Navigator.pushNamed(context, SignUpScreen.routeName);
+                          Navigator.pushNamed(
+                            context,
+                            ForgotPasswordScreen.routeName,
+                          );
                         },
                         child: Text(
-                          'Đăng ký ngay',
+                          tr('auth_forgot_password_question'),
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 24),
+                    // Nút đăng nhập
+                    CustomButton(
+                      text: tr('login'),
+                      onTap: _signIn,
+                      isLoading: _isLoading,
+                    ),
+                    const SizedBox(height: 24),
+                    // Đăng ký
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          tr('auth_no_account_question'),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pushNamed(
+                              context,
+                              SignUpScreen.routeName,
+                            );
+                          },
+                          child: Text(
+                            tr('auth_sign_up_now'),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

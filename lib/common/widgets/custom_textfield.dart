@@ -1,6 +1,6 @@
 // frontend/lib/common/widgets/custom_textfield.dart
 import 'package:flutter/material.dart';
-import '../constants/global_variables.dart';
+import 'package:frontend/common/constants/global_variables.dart';
 
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -13,6 +13,7 @@ class CustomTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final int maxLines;
   final bool enabled;
+  final bool isBorder;
 
   const CustomTextField({
     super.key,
@@ -26,6 +27,7 @@ class CustomTextField extends StatelessWidget {
     this.suffixIcon,
     this.maxLines = 1,
     this.enabled = true,
+    this.isBorder = true,
   });
 
   @override
@@ -53,12 +55,20 @@ class CustomTextField extends StatelessWidget {
           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
         ),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surface,
+        fillColor: isBorder
+            ? Theme.of(context).colorScheme.surface
+            : const Color(0xFFF3F4F6),
 
         // Border states
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: GlobalVariables.darkBorderPrimary.withValues(alpha: 0.5)),
+          borderSide: isBorder
+              ? BorderSide(
+                  color: GlobalVariables.darkBorderPrimary.withValues(
+                    alpha: 0.5,
+                  ),
+                )
+              : BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -69,7 +79,9 @@ class CustomTextField extends StatelessWidget {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Theme.of(context).colorScheme.error),
+          borderSide: isBorder
+              ? BorderSide(color: Theme.of(context).colorScheme.error)
+              : BorderSide.none,
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -80,11 +92,13 @@ class CustomTextField extends StatelessWidget {
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.3),
-          ),
+          borderSide: isBorder
+              ? BorderSide(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.3),
+                )
+              : BorderSide.none,
         ),
       ),
     );

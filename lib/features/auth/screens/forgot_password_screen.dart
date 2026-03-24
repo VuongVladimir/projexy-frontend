@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:frontend/common/widgets/custom_button.dart';
 import 'package:frontend/common/widgets/custom_textfield.dart';
 import 'package:frontend/features/auth/services/auth_service.dart';
@@ -46,10 +47,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Quên mật khẩu'),
+        title: Text(tr('auth_forgot_password_title')),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -68,14 +69,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     height: 120,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: isDarkMode 
+                        colors: isDarkMode
                             ? GlobalVariables.darkPrimaryGradient
                             : GlobalVariables.primaryGradient,
                       ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Theme.of(context).shadowColor.withValues(alpha: 0.3),
+                          color: Theme.of(
+                            context,
+                          ).shadowColor.withValues(alpha: 0.3),
                           blurRadius: 15,
                           offset: const Offset(0, 8),
                         ),
@@ -91,7 +94,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 40),
                 // Title
                 Text(
-                  'Đặt lại mật khẩu',
+                  tr('auth_reset_password_title'),
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -100,30 +103,36 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Nhập email của bạn để nhận mã xác thực',
+                  tr('auth_enter_email_for_otp'),
                   style: TextStyle(
                     fontSize: 16,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
                 const SizedBox(height: 40),
                 // Email field
                 CustomTextField(
                   controller: _emailController,
-                  hintText: 'Nhập email của bạn',
-                  labelText: 'Email',
+                  hintText: tr('auth_enter_your_email'),
+                  labelText: tr('email'),
+                  isBorder: false,
                   keyboardType: TextInputType.emailAddress,
                   prefixIcon: Icon(
                     Icons.email_outlined,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Vui lòng nhập email';
+                      return tr('validation_enter_email_required');
                     }
-                    // Basic email validation
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                      return 'Email không hợp lệ';
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value)) {
+                      return tr('validation_invalid_email_format');
                     }
                     return null;
                   },
@@ -131,7 +140,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 40),
                 // Send OTP Button
                 CustomButton(
-                  text: 'Gửi mã xác thực',
+                  text: tr('auth_send_verification_code'),
                   onTap: _sendOTP,
                   isLoading: _isLoading,
                 ),
@@ -141,9 +150,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Nhớ mật khẩu? ',
+                      tr('auth_remember_password_question'),
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                     TextButton(
@@ -151,7 +162,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         Navigator.pop(context);
                       },
                       child: Text(
-                        'Đăng nhập',
+                        tr('login'),
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.w600,
@@ -168,4 +179,3 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 }
-

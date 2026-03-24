@@ -9,7 +9,7 @@ import 'package:frontend/features/chat/widgets/channel_avatar_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
-enum ChannelCategoryFilter { all, project, team, direct }
+enum ChannelCategoryFilter { all, project, direct }
 
 class ChannelMessagesScreen extends StatefulWidget {
   static const String routeName = '/channel-messages';
@@ -253,36 +253,50 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
         scrollDirection: Axis.horizontal,
         children: ChannelCategoryFilter.values.map((filter) {
           final isSelected = _selectedFilter == filter;
+          final selectedColor = isDarkMode
+              ? const Color(0xFF5E72F6)
+              : const Color(0xFF6E7CFB);
+          final unselectedColor = isDarkMode
+              ? const Color(0xFF2D3150)
+              : const Color(0xFFE8E5FA);
+          final unselectedTextColor = isDarkMode
+              ? const Color(0xFFD7DBFF)
+              : const Color(0xFF6F7192);
+
           return Padding(
             padding: const EdgeInsets.only(right: 10),
-            child: ChoiceChip(
-              label: Text(_filterLabel(filter)),
-              selected: isSelected,
-              onSelected: (_) {
-                setState(() {
-                  _selectedFilter = filter;
-                });
-              },
-              selectedColor: GlobalVariables.primaryBlue.withValues(
-                alpha: 0.12,
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                chipTheme: Theme.of(context).chipTheme.copyWith(
+                  showCheckmark: false,
+                  shape: const StadiumBorder(),
+                ),
               ),
-              backgroundColor: isDarkMode
-                  ? GlobalVariables.darkSurfaceCard
-                  : GlobalVariables.surfaceCard,
-              labelStyle: TextStyle(
-                color: isSelected
-                    ? GlobalVariables.primaryBlue
-                    : (isDarkMode
-                          ? GlobalVariables.darkTextSecondary
-                          : GlobalVariables.textSecondary),
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              ),
-              side: BorderSide(
-                color: isSelected
-                    ? GlobalVariables.primaryBlue
-                    : (isDarkMode
-                          ? GlobalVariables.darkBorderPrimary
-                          : GlobalVariables.borderPrimary),
+              child: ChoiceChip(
+                label: Text(_filterLabel(filter)),
+                selected: isSelected,
+                onSelected: (_) {
+                  setState(() {
+                    _selectedFilter = filter;
+                  });
+                },
+                showCheckmark: false,
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                selectedColor: selectedColor,
+                backgroundColor: unselectedColor,
+                surfaceTintColor: Colors.transparent,
+                pressElevation: 0,
+                elevation: 2,
+                side: BorderSide.none,
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : unselectedTextColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                  letterSpacing: 0.1,
+                ),
+                shape: const StadiumBorder(),
+                shadowColor: GlobalVariables.primaryBlue.withValues(alpha: 0.3),
               ),
             ),
           );
@@ -380,23 +394,19 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
           category != 'project') {
         return false;
       }
-      if (_selectedFilter == ChannelCategoryFilter.team && category != 'team') {
-        return false;
-      }
+
       if (_selectedFilter == ChannelCategoryFilter.direct &&
           category != 'direct') {
         return false;
       }
 
       if (_searchQuery.isEmpty) return true;
-      final title =
-          _resolveChannelTitle(channel).toLowerCase();
+      final title = _resolveChannelTitle(channel).toLowerCase();
       return title.contains(_searchQuery);
     }).toList();
 
     return filtered;
   }
-
 
   String _resolveChannelCategory(Channel channel) {
     return channel.resolvedCategory;
@@ -438,8 +448,6 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
         return 'Tất cả';
       case ChannelCategoryFilter.project:
         return 'Dự án';
-      case ChannelCategoryFilter.team:
-        return 'Nhóm';
       case ChannelCategoryFilter.direct:
         return 'Trực tiếp';
     }
@@ -484,8 +492,9 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Xóa cuộc trò chuyện?'),
-          content:
-              const Text('Thao tác này sẽ xóa channel direct cho cả hai bên.'),
+          content: const Text(
+            'Thao tác này sẽ xóa channel direct cho cả hai bên.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -493,10 +502,7 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(
-                'Xóa',
-                style: TextStyle(color: Colors.red),
-              ),
+              child: const Text('Xóa', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -661,7 +667,6 @@ class _ChannelPreviewTile extends StatelessWidget {
     return channel.resolvedCategory;
   }
 
-
   bool _isDirectChannel() {
     final isMessaging = channel.type == 'messaging';
     final memberCount =
@@ -691,10 +696,7 @@ class _ChannelPreviewTile extends StatelessWidget {
   }
 
   Widget _buildAvatar(String category) {
-    return ChannelAvatarWidget(
-      channel: channel,
-      radius: 28,
-    );
+    return ChannelAvatarWidget(channel: channel, radius: 28);
   }
 
   String _buildSubtitle(Message? message) {

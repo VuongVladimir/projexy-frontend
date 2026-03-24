@@ -1,16 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:frontend/common/widgets/custom_button.dart';
 import 'package:frontend/features/auth/services/auth_service.dart';
 import '../../../common/constants/global_variables.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
   static const String routeName = '/otp-verification';
-  
+
   final String email;
   final String otpType; // 'signup' hoặc 'forgot_password'
   final Map<String, dynamic>? signupData; // Dữ liệu đăng ký nếu là signup
-  
+
   const OTPVerificationScreen({
     super.key,
     required this.email,
@@ -27,15 +28,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     6,
     (index) => TextEditingController(),
   );
-  final List<FocusNode> _focusNodes = List.generate(
-    6,
-    (index) => FocusNode(),
-  );
-  
+  final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
+
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   bool _isResending = false;
-  
+
   // Timer cho resend OTP
   Timer? _timer;
   int _remainingSeconds = 60;
@@ -63,7 +61,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     _canResend = false;
     _remainingSeconds = 60;
     _timer?.cancel();
-    
+
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
         setState(() {
@@ -96,7 +94,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     });
 
     final otp = _getOTP();
-    
+
     await _authService.verifyOTP(
       context: context,
       email: widget.email,
@@ -141,10 +139,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Xác thực OTP'),
+        title: Text(tr('auth_otp_verification_title')),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -160,14 +158,16 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 height: 100,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: isDarkMode 
+                    colors: isDarkMode
                         ? GlobalVariables.darkPrimaryGradient
                         : GlobalVariables.primaryGradient,
                   ),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).shadowColor.withValues(alpha: 0.2),
+                      color: Theme.of(
+                        context,
+                      ).shadowColor.withValues(alpha: 0.2),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     ),
@@ -182,7 +182,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               const SizedBox(height: 30),
               // Title
               Text(
-                'Nhập mã OTP',
+                tr('auth_enter_otp_title'),
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -192,11 +192,13 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               const SizedBox(height: 12),
               // Description
               Text(
-                'Chúng tôi đã gửi mã xác thực đến',
+                tr('auth_otp_sent_to'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
               const SizedBox(height: 4),
@@ -255,7 +257,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                         } else if (value.isEmpty && index > 0) {
                           _focusNodes[index - 1].requestFocus();
                         }
-                        
+
                         // Auto verify when complete
                         if (_isOTPComplete()) {
                           _verifyOTP();
@@ -268,7 +270,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               const SizedBox(height: 40),
               // Verify Button
               CustomButton(
-                text: 'Xác thực',
+                text: tr('auth_verify'),
                 onTap: _verifyOTP,
                 isLoading: _isLoading,
               ),
@@ -278,9 +280,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Không nhận được mã? ',
+                    tr('auth_no_code_received_question'),
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                   if (_canResend)
@@ -296,7 +300,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                               ),
                             )
                           : Text(
-                              'Gửi lại',
+                              tr('auth_resend'),
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w600,
@@ -305,9 +309,14 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                     )
                   else
                     Text(
-                      'Gửi lại sau $_remainingSeconds giây',
+                      tr(
+                        'auth_resend_in_seconds',
+                        namedArgs: {'seconds': _remainingSeconds.toString()},
+                      ),
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                 ],
@@ -319,4 +328,3 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     );
   }
 }
-
