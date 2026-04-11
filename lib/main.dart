@@ -17,6 +17,7 @@ import 'package:frontend/features/tasks/services/task_widgets_service.dart';
 import 'package:frontend/providers/theme_provider.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:frontend/router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
@@ -32,6 +33,13 @@ void main() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   } catch (e) {
     debugPrint('Error initializing Firebase: $e');
+  }
+
+  // Initialize Google Sign-In (must be called once before use)
+  try {
+    await GoogleSignIn.instance.initialize();
+  } catch (e) {
+    debugPrint('Error initializing Google Sign-In: $e');
   }
 
   runApp(

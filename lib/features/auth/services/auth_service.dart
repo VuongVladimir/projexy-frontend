@@ -1,4 +1,5 @@
 import 'package:cloudinary_public/cloudinary_public.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/http_handling.dart';
 import 'package:frontend/common/constants/global_variables.dart';
@@ -13,6 +14,7 @@ import 'package:frontend/features/responsive/responsive_screen_layout.dart';
 import 'package:frontend/features/responsive/web_screen_layout.dart';
 import 'package:frontend/models/user.dart';
 import 'package:frontend/providers/user_provider.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'dart:convert';
@@ -194,6 +196,97 @@ class AuthService {
   static bool _servicesInitialized = false;
   static String? _currentUserId;
 
+  Future<void> signInWithGoogle({required BuildContext context}) async {
+    try {
+      // Đăng xuất phiên cũ để người dùng có thể chọn tài khoản mới
+      await GoogleSignIn.instance.signOut();
+
+      // Hiển thị màn hình chọn tài khoản Google
+      final GoogleSignInAccount googleUser =
+          await GoogleSignIn.instance.authenticate();
+
+      // Lấy Google idToken (synchronous trong v7)
+      final String? googleIdToken = googleUser.authentication.idToken;
+
+      if (googleIdToken == null) {
+        if (context.mounted) {
+          showSnackBar(
+            context,
+            'Không thể lấy token từ Google. Vui lòng thử lại.',
+          );
+        }
+        return;
+      }
+
+      // Tạo Firebase credential từ Google idToken
+      final credential = firebase_auth.GoogleAuthProvider.credential(
+        idToken: googleIdToken,
+      );
+
+      // Đăng nhập vào Firebase
+      final userCredential = await firebase_auth.FirebaseAuth.instance
+          .signInWithCredential(credential);
+
+      // Lấy Firebase ID token để gửi lên backend
+      final firebaseIdToken = await userCredential.user?.getIdToken();
+      if (firebaseIdToken == null) {
+        if (context.mounted) {
+          showSnackBar(
+            context,
+            'Không thể xác thực với server. Vui lòng thử lại.',
+          );
+        }
+        return;
+      }
+
+      // Gửi Firebase ID token lên backend
+      final http.Response res = await http.post(
+        Uri.parse('$uri/auth/google'),
+        body: jsonEncode({'idToken': firebaseIdToken}),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      );
+
+      if (!context.mounted) return;
+      httpResponseHandle(
+        response: res,
+        context: context,
+        onSuccess: () async {
+          final data = json.decode(res.body);
+          await TokenManager.saveTokens(
+            data['accessToken'],
+            data['refreshToken'],
+          );
+          await getUserData(context);
+          if (!context.mounted) return;
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            ResponsiveLayout.routeName,
+            arguments: {
+              'mobile': MobileScreenLayout(),
+              'web': WebScreenLayout(),
+            },
+            (route) => false,
+          );
+        },
+        onError: () async {
+          // Đăng xuất khỏi Firebase nếu backend từ chối
+          await firebase_auth.FirebaseAuth.instance.signOut();
+          await GoogleSignIn.instance.signOut();
+        },
+      );
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      await firebase_auth.FirebaseAuth.instance.signOut();
+      await GoogleSignIn.instance.signOut();
+      if (context.mounted) showSnackBar(context, e.message ?? e.code);
+    } catch (e) {
+      await firebase_auth.FirebaseAuth.instance.signOut();
+      await GoogleSignIn.instance.signOut();
+      if (context.mounted) showSnackBar(context, e.toString());
+    }
+  }
+
   // get user data - sử dụng ApiClient với auto-retry
   Future<void> getUserData(BuildContext context) async {
     try {
@@ -308,6 +401,14 @@ class AuthService {
       } catch (e) {
         // Ignore logout API errors, vẫn clear tokens local
         debugPrint('Logout API error: $e');
+      }
+
+      // Sign out khỏi Firebase và Google (cho trường hợp Google Sign-In)
+      try {
+        await firebase_auth.FirebaseAuth.instance.signOut();
+        await GoogleSignIn.instance.signOut();
+      } catch (e) {
+        debugPrint('Firebase/Google sign out error: $e');
       }
 
       // Clear stored tokens sử dụng TokenManager

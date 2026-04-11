@@ -1,6 +1,7 @@
 // frontend/lib/features/auth/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:frontend/features/auth/screens/forgot_password_screen.dart';
 import 'package:frontend/features/auth/screens/signup_screen.dart';
 import 'package:frontend/features/auth/services/auth_service.dart';
@@ -21,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final AuthService authService = AuthService();
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   bool _obscurePassword = true;
 
   @override
@@ -46,8 +48,22 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _signInWithGoogle() async {
+    setState(() {
+      _isGoogleLoading = true;
+    });
+    await authService.signInWithGoogle(context: context);
+    if (mounted) {
       setState(() {
-        _isLoading = false;
+        _isGoogleLoading = false;
       });
     }
   }
@@ -67,23 +83,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16),
                     // Logo và tên ứng dụng
                     Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Image.asset(
-                            'assets/images/logo_projexy1.png',
-                            width: 125,
-                            height: 125,
+                            'assets/images/logo_projexy.png',
+                            width: 120,
+                            height: 120,
                             fit: BoxFit.contain,
                           ),
                           const SizedBox(height: 6),
                           Text(
                             'Projexy',
                             style: TextStyle(
-                              fontSize: 36,
+                              fontSize: 32,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.5,
                               color: Theme.of(context).colorScheme.primary,
@@ -92,27 +108,27 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 21),
                     // Tiêu đề
                     Text(
                       tr('login'),
                       style: TextStyle(
-                        fontSize: 32,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 7),
                     Text(
                       tr('auth_welcome_back'),
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         color: Theme.of(
                           context,
                         ).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
-                    const SizedBox(height: 36),
+                    const SizedBox(height: 16),
                     // Form đăng nhập
                     CustomTextField(
                       controller: _emailController,
@@ -169,7 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 9),
                     // Quên mật khẩu
                     Align(
                       alignment: Alignment.centerRight,
@@ -189,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 9),
                     // Nút đăng nhập
                     CustomButton(
                       text: tr('login'),
@@ -197,6 +213,47 @@ class _LoginScreenState extends State<LoginScreen> {
                       isLoading: _isLoading,
                     ),
                     const SizedBox(height: 24),
+                    // Divider OR
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Divider(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.2),
+                            thickness: 1,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            tr('auth_or'),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.5),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Divider(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.2),
+                            thickness: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    // Nút đăng nhập bằng Google
+                    _GoogleSignInButton(
+                      onTap: _signInWithGoogle,
+                      isLoading: _isGoogleLoading,
+                    ),
+                    const SizedBox(height: 12),
                     // Đăng ký
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -232,6 +289,68 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _GoogleSignInButton extends StatelessWidget {
+  final VoidCallback onTap;
+  final bool isLoading;
+
+  const _GoogleSignInButton({required this.onTap, required this.isLoading});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton(
+        onPressed: isLoading ? null : onTap,
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.2),
+            width: 1.5,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          backgroundColor: isDark
+              ? Theme.of(context).colorScheme.surface
+              : Colors.white,
+        ),
+        child: isLoading
+            ? SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SvgPicture.asset(
+                    'assets/icons/google-icon.svg',
+                    width: 22,
+                    height: 22,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    tr('auth_sign_in_with_google'),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

@@ -95,7 +95,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 21),
                     // Logo hoặc hình ảnh
                     Center(
                       child: Stack(
@@ -150,12 +150,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 21),
                     // Tiêu đề
                     Text(
                       tr('auth_create_account_title'),
                       style: TextStyle(
-                        fontSize: 32,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
@@ -164,13 +164,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     Text(
                       tr('auth_create_account_subtitle'),
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         color: Theme.of(
                           context,
                         ).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 21),
                     // Form đăng ký
                     CustomTextField(
                       controller: _nameController,

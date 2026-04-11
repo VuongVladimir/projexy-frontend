@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
   desktop_drop
   file_selector_windows
+  firebase_auth
   firebase_core
   gal
   media_kit_video

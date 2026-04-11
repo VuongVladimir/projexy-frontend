@@ -592,5 +592,7 @@
   "invitation_result_failed": "Thất bại: {count}",
   "invitation_result_unprocessed": "Chưa xử lý: {count}",
   "invitation_failed_emails_title": "Email gửi thất bại:",
-  "unknown_error": "Lỗi không xác định"
+  "unknown_error": "Lỗi không xác định",
+  "auth_or": "HOẶC",
+  "auth_sign_in_with_google": "Tiếp tục với Google"
 }
