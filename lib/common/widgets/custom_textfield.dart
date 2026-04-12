@@ -32,6 +32,9 @@ class CustomTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
@@ -56,17 +59,21 @@ class CustomTextField extends StatelessWidget {
         ),
         filled: true,
         fillColor: isBorder
-            ? Theme.of(context).colorScheme.surface
-            : const Color(0xFFF3F4F6),
+            ? theme.colorScheme.surface
+            : (isDarkMode
+                  ? GlobalVariables.darkBackgroundElevated
+                  : const Color(0xFFF3F4F6)),
 
         // Border states
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: isBorder
               ? BorderSide(
-                  color: GlobalVariables.darkBorderPrimary.withValues(
-                    alpha: 0.5,
-                  ),
+                  color:
+                      (isDarkMode
+                              ? GlobalVariables.darkBorderPrimary
+                              : GlobalVariables.borderPrimary)
+                          .withValues(alpha: 0.85),
                 )
               : BorderSide.none,
         ),
@@ -94,9 +101,7 @@ class CustomTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           borderSide: isBorder
               ? BorderSide(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.3),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
                 )
               : BorderSide.none,
         ),

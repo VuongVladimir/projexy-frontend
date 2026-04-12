@@ -80,10 +80,12 @@ class _MobileScreenLayoutState extends State<MobileScreenLayout>
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+          color: GlobalVariables.getNavigationBackground(isDarkMode),
           boxShadow: [
             BoxShadow(
-              color: Theme.of(context).shadowColor.withValues(alpha: 0.2),
+              color: Theme.of(
+                context,
+              ).shadowColor.withValues(alpha: isDarkMode ? 0.16 : 0.1),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -115,7 +117,10 @@ class _MobileScreenLayoutState extends State<MobileScreenLayout>
                     decoration: BoxDecoration(
                       color: isSelected
                           ? GlobalVariables.primaryBlue
-                          : Colors.transparent,
+                          : (isDarkMode
+                                ? GlobalVariables.darkBackgroundElevated
+                                      .withValues(alpha: 0.72)
+                                : Colors.transparent),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(

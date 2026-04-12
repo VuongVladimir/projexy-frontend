@@ -184,7 +184,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     child: Container(
                                       decoration: BoxDecoration(
                                         color: Colors.black.withValues(
-                                          alpha: 0.5,
+                                          alpha: 0.42,
                                         ),
                                         shape: BoxShape.circle,
                                       ),
@@ -428,10 +428,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
         ),
       ),
       child: Row(

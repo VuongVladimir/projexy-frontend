@@ -5,7 +5,7 @@ import 'package:frontend/features/home/screens/home_screen.dart';
 import 'package:frontend/features/tasks/screens/tasks_screen.dart';
 
 //String uri = "https://projexy-backend.me";
-String uri = "http://192.168.1.104:3000";
+String uri = "http://192.168.1.127:3000";
 const webScreenSize = 600;
 List<Widget> bottomBarItems = [
   const HomeScreen(),
@@ -95,57 +95,59 @@ class GlobalVariables {
 
   // Primary Colors (Dark Theme)
   static const Color darkPrimaryBlue = Color(
-    0xFF5161FF,
+    0xFF6D7CFF,
   ); // phiên bản sáng của #2B38D3 cho dark
-  static const Color darkPrimaryBlueLight = Color(0xFF8090FF);
-  static const Color darkPrimaryBlueDark = Color(0xFF2B38D3);
+  static const Color darkPrimaryBlueLight = Color(0xFF93A0FF);
+  static const Color darkPrimaryBlueDark = Color(0xFF495BE8);
 
   // Secondary Colors (Dark Theme)
   static const Color darkSecondaryCoral = Color(
-    0xFFFF8B82,
+    0xFFFF958C,
   ); // sáng hơn của #EF746B
   static const Color darkSecondaryAlternate = Color(
-    0xFFEB6334,
+    0xFFFF744C,
   ); // sáng hơn của #D4502A
 
   // Background Colors (Dark Theme)
   static const Color darkBackgroundPrimary = Color(
-    0xFF020617,
+    0xFF162033,
   ); // Nền chính (Slate 950 - rất tối)
   static const Color darkBackgroundSecondary = Color(
-    0xFF0F172A,
+    0xFF1B2740,
   ); // Nền phụ (Slate 900)
   static const Color darkBackgroundTertiary = Color(
-    0xFF1E293B,
+    0xFF22304A,
   ); // Nền card (Slate 800)
   static const Color darkBackgroundElevated = Color(
-    0xFF1E293B,
+    0xFF263652,
   ); // Nền elevated tối
+  static const Color darkAppBarBackground = Color(0xFF162033);
+  static const Color darkNavigationBackground = Color(0xFF162033);
 
   // Surface Colors (Dark Theme)
   static const Color darkSurfacePrimary = Color(
-    0xFF0F172A,
+    0xFF162033,
   ); // Surface chính tối
   static const Color darkSurfaceSecondary = Color(
-    0xFF1E293B,
+    0xFF1B2740,
   ); // Surface phụ tối
-  static const Color darkSurfaceCard = Color(0xFF1E293B); // Card surface tối
+  static const Color darkSurfaceCard = Color(0xFF1F2D46); // Card surface tối
   static const Color darkSurfaceDialog = Color(
-    0xFF1E293B,
+    0xFF22314B,
   ); // Dialog surface tối
 
   // Text Colors (Dark Theme)
   static const Color darkTextPrimary = Color(
-    0xFFF1F5F9,
+    0xFFF4F7FB,
   ); // Chữ chính sáng (Slate 100)
   static const Color darkTextSecondary = Color(
-    0xFF94A3B8,
+    0xFFAAB6C8,
   ); // Chữ phụ sáng (Slate 400)
   static const Color darkTextTertiary = Color(
-    0xFF64748B,
+    0xFF7F8DA3,
   ); // Chữ mờ sáng (Slate 500)
   static const Color darkTextDisabled = Color(
-    0xFF475569,
+    0xFF556377,
   ); // Chữ vô hiệu sáng (Slate 600)
   static const Color darkTextOnPrimary = Color(
     0xFFFFFFFF,
@@ -153,13 +155,13 @@ class GlobalVariables {
 
   // Border Colors (Dark Theme)
   static const Color darkBorderPrimary = Color(
-    0xFF334155,
+    0xFF334563,
   ); // Viền chính tối (Slate 700)
   static const Color darkBorderSecondary = Color(
-    0xFF475569,
+    0xFF435373,
   ); // Viền phụ tối (Slate 600)
   static const Color darkBorderFocus = Color(0xFF3B82F6); // Viền focus tối
-  static const Color darkDivider = Color(0xFF334155); // Đường phân cách tối
+  static const Color darkDivider = Color(0xFF253247); // Đường phân cách tối
 
   // ==================== LEGACY COLORS (Backward Compatibility) ====================
 
@@ -316,8 +318,20 @@ class GlobalVariables {
     return isDarkMode ? darkSurfacePrimary : surfacePrimary;
   }
 
+  static Color getSurfaceCard(bool isDarkMode) {
+    return isDarkMode ? darkSurfaceCard : surfaceCard;
+  }
+
   static Color getBorderPrimary(bool isDarkMode) {
     return isDarkMode ? darkBorderPrimary : borderPrimary;
+  }
+
+  static Color getAppBarBackground(bool isDarkMode) {
+    return isDarkMode ? darkAppBarBackground : white;
+  }
+
+  static Color getNavigationBackground(bool isDarkMode) {
+    return isDarkMode ? darkNavigationBackground : white;
   }
 
   static Color getPrimaryBlue(bool isDarkMode) {

@@ -200,9 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _getGreeting(),
                   style: TextStyle(
                     fontSize: 13,
-                    color: (isDarkMode
-                        ? Colors.white
-                        : GlobalVariables.textPrimary),
+                    color: Theme.of(context).appBarTheme.foregroundColor,
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
@@ -213,9 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
-                    color: isDarkMode
-                        ? Colors.white
-                        : GlobalVariables.textPrimary,
+                    color: Theme.of(context).appBarTheme.foregroundColor,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -267,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // Projects Horizontal List
         SizedBox(
-          height: 225,
+          height: 240,
           child: _isLoadingProjects
               ? const Center(child: CircularProgressIndicator())
               : _projects.isEmpty

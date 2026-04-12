@@ -71,10 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    final currentUser = Provider.of<UserProvider>(
-      context,
-      listen: false,
-    ).user;
+    final currentUser = Provider.of<UserProvider>(context, listen: false).user;
 
     if (StreamChatService.currentUserId == null) {
       debugPrint(
@@ -93,8 +90,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    final channel =
-        await StreamChatService.createAndWatchDirectChat(profileUser!.id);
+    final channel = await StreamChatService.createAndWatchDirectChat(
+      profileUser!.id,
+    );
 
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -105,13 +103,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ChatRoomScreen(channel: channel)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => ChatRoomScreen(channel: channel)));
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
     if (isLoading) {
       return Scaffold(
         appBar: CustomAppBar(title: 'Profile', centerTitle: false),
@@ -145,10 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Navigator.pushNamed(context, EditProfileScreen.routeName);
                   },
                 )
-              : IconButton(
-                  icon: Icon(Symbols.sms),
-                  onPressed: _openDirectChat,
-                ),
+              : IconButton(icon: Icon(Symbols.sms), onPressed: _openDirectChat),
         ],
       ),
       body: SingleChildScrollView(
@@ -159,7 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: double.infinity,
               color: Theme.of(context).appBarTheme.backgroundColor,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 5, 20, 10),
+                padding: const EdgeInsets.fromLTRB(20, 5, 20, 10),
                 child: Column(
                   children: [
                     // Avatar
@@ -168,9 +166,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
+                            color: Colors.black.withValues(
+                              alpha: isDarkMode ? 0.28 : 0.2,
+                            ),
                             blurRadius: 10,
-                            offset: Offset(0, 4),
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -202,23 +202,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             : null,
                       ),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     // Tên user
                     Text(
                       profileUser!.name,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: GlobalVariables.black,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     // Email
                     Text(
                       profileUser!.email,
                       style: TextStyle(
                         fontSize: 16,
-                        color: GlobalVariables.black.withValues(alpha: 0.8),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.72,
+                        ),
                       ),
                     ),
                   ],

@@ -21,6 +21,7 @@ class AccountScreen extends StatelessWidget {
     final user = Provider.of<UserProvider>(context).user;
     final authService = AuthService();
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
 
     // Kiểm tra nếu user chưa đăng nhập hoặc đang logout
     if (user.id.isEmpty || user.token.isEmpty) {
@@ -33,15 +34,19 @@ class AccountScreen extends StatelessWidget {
               Icon(
                 Icons.person_off_outlined,
                 size: 80,
-                color: GlobalVariables.textTertiary,
+                color: isDarkMode
+                    ? GlobalVariables.darkTextTertiary
+                    : GlobalVariables.textTertiary,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 tr('unknown_user'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w500,
-                  color: GlobalVariables.textSecondary,
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextSecondary
+                      : GlobalVariables.textSecondary,
                 ),
               ),
             ],
@@ -107,7 +112,7 @@ class AccountScreen extends StatelessWidget {
               width: double.infinity,
               color: Theme.of(context).appBarTheme.backgroundColor,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 5, 20, 10),
+                padding: const EdgeInsets.fromLTRB(20, 5, 20, 10),
                 child: Column(
                   children: [
                     // Avatar
@@ -116,9 +121,11 @@ class AccountScreen extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
+                            color: Colors.black.withValues(
+                              alpha: isDarkMode ? 0.28 : 0.2,
+                            ),
                             blurRadius: 10,
-                            offset: Offset(0, 4),
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -145,23 +152,25 @@ class AccountScreen extends StatelessWidget {
                             : null,
                       ),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     // Tên user
                     Text(
                       user.name.isNotEmpty ? user.name : tr('unknown_user'),
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: GlobalVariables.black,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     // Email
                     Text(
                       user.email.isNotEmpty ? user.email : tr('no_email'),
                       style: TextStyle(
                         fontSize: 16,
-                        color: GlobalVariables.black.withValues(alpha: 0.8),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.72,
+                        ),
                       ),
                     ),
                   ],
@@ -296,7 +305,14 @@ class AccountScreen extends StatelessWidget {
         ),
         child:
             svgIcon ??
-            Icon(icon, color: GlobalVariables.white, size: 28, fill: 1, weight: 600, grade: 300),
+            Icon(
+              icon,
+              color: GlobalVariables.white,
+              size: 28,
+              fill: 1,
+              weight: 600,
+              grade: 300,
+            ),
       ),
       title: Text(
         title,

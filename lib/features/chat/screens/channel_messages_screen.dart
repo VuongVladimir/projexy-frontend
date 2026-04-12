@@ -6,7 +6,6 @@ import 'package:frontend/common/services/stream_chat_service.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/features/chat/screens/chat_room_screen.dart';
 import 'package:frontend/features/chat/widgets/channel_avatar_widget.dart';
-import 'package:intl/intl.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
 enum ChannelCategoryFilter { all, project, direct }
@@ -254,13 +253,13 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
         children: ChannelCategoryFilter.values.map((filter) {
           final isSelected = _selectedFilter == filter;
           final selectedColor = isDarkMode
-              ? const Color(0xFF5E72F6)
+              ? GlobalVariables.darkPrimaryBlue
               : const Color(0xFF6E7CFB);
           final unselectedColor = isDarkMode
-              ? const Color(0xFF2D3150)
+              ? GlobalVariables.darkSurfaceCard
               : const Color(0xFFE8E5FA);
           final unselectedTextColor = isDarkMode
-              ? const Color(0xFFD7DBFF)
+              ? GlobalVariables.darkTextSecondary
               : const Color(0xFF6F7192);
 
           return Padding(
@@ -281,7 +280,10 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
                   });
                 },
                 showCheckmark: false,
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 8,
+                ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 selectedColor: selectedColor,
                 backgroundColor: unselectedColor,
@@ -296,7 +298,7 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
                   letterSpacing: 0.1,
                 ),
                 shape: const StadiumBorder(),
-                shadowColor: GlobalVariables.primaryBlue.withValues(alpha: 0.3),
+                shadowColor: selectedColor.withValues(alpha: 0.24),
               ),
             ),
           );

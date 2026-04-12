@@ -138,6 +138,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   void _showFilterBottomSheet() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Theme.of(context).bottomSheetTheme.modalBackgroundColor,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -149,6 +150,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   void _showSortBottomSheet() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Theme.of(context).bottomSheetTheme.modalBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -212,7 +214,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           boxShadow: [
                             BoxShadow(
                               color: isDarkMode
-                                  ? Colors.black.withValues(alpha: 0.3)
+                                  ? Colors.black.withValues(alpha: 0.22)
                                   : Colors.grey.shade300.withValues(alpha: 0.6),
                               blurRadius: 8,
                               offset: const Offset(0, 3),
@@ -239,9 +241,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                               Icons.search_rounded,
                               color: _searchFocusNode.hasFocus
                                   ? GlobalVariables.primaryBlue
-                                  : GlobalVariables.black.withValues(
-                                      alpha: 0.75,
-                                    ),
+                                  : (isDarkMode
+                                        ? GlobalVariables.darkTextSecondary
+                                        : GlobalVariables.textSecondary),
                               size: 22,
                             ),
                             suffixIcon: _searchController.text.isNotEmpty
@@ -264,7 +266,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                               borderRadius: BorderRadius.circular(28.0),
                               borderSide: BorderSide(
                                 color: isDarkMode
-                                    ? Colors.grey.shade800
+                                    ? GlobalVariables.darkBorderPrimary
                                     : Colors.grey.shade300,
                                 width: 1.5,
                               ),
@@ -311,7 +313,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          childAspectRatio: 0.84, // Tỷ lệ chiều rộng/chiều cao
+                          childAspectRatio: 0.78, // Tăng nhẹ chiều cao card
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
@@ -452,6 +454,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   void _showManageViewBottomSheet() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Theme.of(context).bottomSheetTheme.modalBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -497,7 +500,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           ListTile(
             leading: Icon(
               Symbols.filter_list,
-              color: GlobalVariables.black.withValues(alpha: 0.6),
+              color: isDarkMode
+                  ? GlobalVariables.darkTextSecondary
+                  : GlobalVariables.textSecondary,
             ),
             title: Text(
               tr('filter'),
@@ -524,7 +529,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           Divider(
             height: 1.2,
             thickness: 1.2,
-            color: GlobalVariables.borderPrimary,
+            color: isDarkMode
+                ? GlobalVariables.darkBorderPrimary
+                : GlobalVariables.borderPrimary,
             indent: 50, // Thụt lề trái
           ),
 
@@ -532,7 +539,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           ListTile(
             leading: Icon(
               Symbols.swap_vert,
-              color: GlobalVariables.black.withValues(alpha: 0.6),
+              color: isDarkMode
+                  ? GlobalVariables.darkTextSecondary
+                  : GlobalVariables.textSecondary,
             ),
             title: Text(
               tr('sort'),
@@ -553,6 +562,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   Widget _buildFilterBottomSheet() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return StatefulBuilder(
       builder: (context, setState) {
         return Container(
@@ -566,7 +576,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: isDarkMode
+                        ? GlobalVariables.darkBorderSecondary
+                        : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -711,7 +723,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
+                      color: isDarkMode
+                          ? GlobalVariables.darkBorderSecondary
+                          : Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -761,7 +775,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 Divider(
                   height: 1.2,
                   thickness: 1.2,
-                  color: GlobalVariables.black.withValues(alpha: 0.6),
+                  color: isDarkMode
+                      ? GlobalVariables.darkBorderPrimary
+                      : GlobalVariables.black.withValues(alpha: 0.6),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -865,6 +881,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -875,7 +892,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           border: Border.all(
             color: isSelected
                 ? GlobalVariables.primaryBlue
-                : GlobalVariables.borderPrimary,
+                : (isDarkMode
+                      ? GlobalVariables.darkBorderPrimary
+                      : GlobalVariables.borderPrimary),
           ),
         ),
         child: Text(

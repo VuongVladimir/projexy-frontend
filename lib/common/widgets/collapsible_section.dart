@@ -34,7 +34,9 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDarkMode ? Colors.black : Colors.white,
+        color: isDarkMode
+            ? GlobalVariables.darkBackgroundPrimary
+            : Colors.white,
       ),
       child: Column(
         children: [

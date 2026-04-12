@@ -983,10 +983,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ElevatedButton(
                 onPressed: () => _navigateToCreateSubtask(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.white,
+                  backgroundColor: isDarkMode
+                      ? GlobalVariables.darkBackgroundElevated
+                      : Colors.white,
+                  foregroundColor: isDarkMode
+                      ? GlobalVariables.darkPrimaryBlueLight
+                      : Colors.white,
                   side: BorderSide(
-                    color: GlobalVariables.primaryBlueLight.withValues(
+                    color: (isDarkMode
+                            ? GlobalVariables.darkPrimaryBlueLight
+                            : GlobalVariables.primaryBlueLight)
+                        .withValues(
                       alpha: 0.9,
                     ),
                     width: 1.5,
@@ -1002,7 +1009,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 child: Text(
                   tr('create_subtask'),
                   style: TextStyle(
-                    color: GlobalVariables.primaryBlueLight.withValues(
+                    color: (isDarkMode
+                            ? GlobalVariables.darkPrimaryBlueLight
+                            : GlobalVariables.primaryBlueLight)
+                        .withValues(
                       alpha: 0.9,
                     ),
                     fontSize: 18,

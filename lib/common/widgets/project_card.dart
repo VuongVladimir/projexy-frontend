@@ -3,7 +3,6 @@ import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/models/project.dart';
 import 'package:easy_localization/easy_localization.dart';
 
-
 class ProjectCard extends StatelessWidget {
   final Project project;
   final VoidCallback? onTap;
@@ -54,85 +53,157 @@ class ProjectCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           //borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Status, Priority và Due Days ở đầu
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: _buildPriorityPill(context, isPrimaryCard),
-                    ),
-                    Expanded(flex: 5, child: _buildDueDays(context)),
-                  ],
-                ),
-                const SizedBox(height: 16),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final hasBoundedHeight = constraints.hasBoundedHeight;
+              final maxHeight = constraints.maxHeight;
+              final isCompact =
+                  hasBoundedHeight && maxHeight < (isHomeScreen ? 242 : 222);
+              final isUltraCompact =
+                  hasBoundedHeight && maxHeight < (isHomeScreen ? 220 : 200);
+              final hideMembers =
+                  hasBoundedHeight && maxHeight < (isHomeScreen ? 232 : 212);
+              final hideProgressText =
+                  hasBoundedHeight && maxHeight < (isHomeScreen ? 222 : 202);
+              final hideTaskCount =
+                  hasBoundedHeight && maxHeight < (isHomeScreen ? 208 : 190);
+              final hideProgressSection =
+                  hasBoundedHeight && maxHeight < (isHomeScreen ? 192 : 174);
 
-                // Tên project
-                Text(
-                  project.title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    fontSize: isHomeScreen ? 22 : 18,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                // Task count
-                Text(
-                  tr('task_count', namedArgs: {'count': project.taskCount.toString()}),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 16),
+              final verticalPadding = isUltraCompact
+                  ? 8.0
+                  : (isCompact ? 10.0 : 16.0);
+              final headerSpacing = isUltraCompact
+                  ? 6.0
+                  : (isCompact ? 8.0 : 16.0);
+              final titleSpacing = isUltraCompact
+                  ? 4.0
+                  : (isCompact ? 6.0 : 8.0);
+              final progressTopSpacing = isUltraCompact
+                  ? 6.0
+                  : (isCompact ? 8.0 : 14.0);
 
-                // Progress bar
-                Column(
+              return Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: verticalPadding,
+                ),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Status, Priority và Due Days ở đầu
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        SizedBox(),
-                        Text(
-                          '${project.progress}% ${tr('done')}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontWeight: FontWeight.w500,
+                        Expanded(
+                          flex: 3,
+                          child: _buildPriorityPill(context, isPrimaryCard),
+                        ),
+                        Expanded(
+                          flex: 5,
+                          child: _buildDueDays(
+                            context,
+                            maxLines: isCompact ? 1 : 2,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: project.progressPercentage,
-                        backgroundColor: Colors.white.withValues(alpha: 0.3),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          progressColor,
-                        ),
-                        minHeight: 6,
+                    SizedBox(height: headerSpacing),
+
+                    // Tên project (tối đa 2 dòng)
+                    Text(
+                      project.title,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        fontSize: isHomeScreen
+                            ? (isCompact ? 20 : 22)
+                            : (isCompact ? 17 : 18),
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 12),
-                    // Avatar thành viên
-                    _buildMemberAvatars(progressColor),
+                    SizedBox(height: titleSpacing),
+
+                    // Task count
+                    if (!hideTaskCount)
+                      Text(
+                        tr(
+                          'task_count',
+                          namedArgs: {'count': project.taskCount.toString()},
+                        ),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: isCompact ? 14 : 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                    if (!hideProgressSection && hasBoundedHeight)
+                      const Spacer(),
+                    if (!hideProgressSection && !hasBoundedHeight)
+                      SizedBox(height: progressTopSpacing),
+
+                    // Progress bar
+                    if (!hideProgressSection)
+                      _buildProgressSection(
+                        theme,
+                        progressColor,
+                        showMembers: !hideMembers,
+                        compact: isCompact,
+                        showProgressText: !hideProgressText,
+                      ),
                   ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildProgressSection(
+    ThemeData theme,
+    Color progressColor, {
+    required bool showMembers,
+    required bool compact,
+    required bool showProgressText,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showProgressText)
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '${project.progress}% ${tr('done')}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        if (showProgressText) SizedBox(height: compact ? 6 : 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: project.progressPercentage,
+            backgroundColor: Colors.white.withValues(alpha: 0.3),
+            valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+            minHeight: 6,
+          ),
+        ),
+        if (showMembers) ...[
+          SizedBox(height: compact ? 8 : 12),
+          // Avatar thành viên
+          _buildMemberAvatars(progressColor),
+        ],
+      ],
     );
   }
 
@@ -144,7 +215,9 @@ class ProjectCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(7),
       ),
       child: Text(
-        isHomeScreen ? project.priorityDisplayFullName : project.priorityDisplayName,
+        isHomeScreen
+            ? project.priorityDisplayFullName
+            : project.priorityDisplayName,
         style: TextStyle(
           color: isPrimaryCard
               ? GlobalVariables.secondaryAlternate
@@ -152,12 +225,14 @@ class ProjectCard extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.center,
       ),
     );
   }
 
-  Widget _buildDueDays(BuildContext context) {
+  Widget _buildDueDays(BuildContext context, {int maxLines = 2}) {
     final daysRemaining = project.daysRemaining;
     final isOverdue = project.isOverdue;
 
@@ -174,8 +249,9 @@ class ProjectCard extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w500,
         ),
-        softWrap: true,
-        maxLines: 2,
+        softWrap: maxLines > 1,
+        maxLines: maxLines,
+        overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.right,
       ),
     );
@@ -184,7 +260,7 @@ class ProjectCard extends StatelessWidget {
   Widget _buildMemberAvatars(Color progressColor) {
     // Tạo danh sách tất cả thành viên (owner + members)
     final List<Map<String, dynamic>> allMembers = [];
-    
+
     // Thêm owner
     if (project.createdBy['id'] != null) {
       allMembers.add({
@@ -194,7 +270,7 @@ class ProjectCard extends StatelessWidget {
         'avatarColor': project.createdBy['avatarColor'] ?? '#2196F3',
       });
     }
-    
+
     // Thêm members
     for (var member in project.members) {
       if (member.userId != project.createdBy['id']) {
@@ -220,7 +296,8 @@ class ProjectCard extends StatelessWidget {
     final totalItemsOnStack = displayCount + (remaining > 0 ? 1 : 0);
     final avatarDiameter = 32.0; // Đường kính avatar nhỏ hơn cho project card
     final overlap = 24.0; // Khoảng cách chồng lên nhau
-    final double stackWidth = (totalItemsOnStack - 1) * overlap + avatarDiameter;
+    final double stackWidth =
+        (totalItemsOnStack - 1) * overlap + avatarDiameter;
 
     return SizedBox(
       height: 32, // Chiều cao phù hợp với avatar nhỏ
@@ -234,7 +311,8 @@ class ProjectCard extends StatelessWidget {
               child: CircleAvatar(
                 radius: 16, // Bán kính nhỏ hơn cho project card
                 backgroundColor: member['avatarColor'].toString().toColor(),
-                backgroundImage: member['avatar'] != null && member['avatar'].isNotEmpty
+                backgroundImage:
+                    member['avatar'] != null && member['avatar'].isNotEmpty
                     ? NetworkImage(member['avatar'])
                     : null,
                 child: member['avatar'] == null || member['avatar'].isEmpty

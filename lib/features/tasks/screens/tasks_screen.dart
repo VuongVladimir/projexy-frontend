@@ -617,7 +617,11 @@ class _TaskFilterSheetState extends State<_TaskFilterSheet> {
                       ),
                       Divider(
                         height: 1.2,
-                        color: GlobalVariables.black.withValues(alpha: 0.3),
+                        color:
+                            (Theme.of(context).brightness == Brightness.dark
+                                    ? GlobalVariables.darkBorderPrimary
+                                    : GlobalVariables.borderPrimary)
+                                .withValues(alpha: 0.9),
                       ),
                       const SizedBox(height: 10),
                       Expanded(
@@ -889,7 +893,9 @@ class _FilterSelectionTile extends StatelessWidget {
             Icon(
               icon,
               size: 25,
-              color: GlobalVariables.black.withValues(alpha: 0.66),
+              color: isDarkMode
+                  ? GlobalVariables.darkTextSecondary
+                  : GlobalVariables.textSecondary,
             ),
             const SizedBox(width: 10),
             Expanded(

@@ -4,7 +4,6 @@ import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/features/notifications/services/notification_service.dart';
 import 'package:frontend/models/notification.dart';
-import 'package:intl/intl.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -103,7 +102,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final screenBg = isDarkMode
         ? GlobalVariables.darkBackgroundPrimary
-        : Colors.white;
+        : GlobalVariables.backgroundPrimary;
 
     return Scaffold(
       backgroundColor: screenBg,
@@ -178,7 +177,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   Widget _buildTabs(bool isDarkMode) {
     return Container(
-      color: isDarkMode ? GlobalVariables.darkSurfaceCard : Colors.white,
+      color: isDarkMode
+          ? GlobalVariables.darkSurfaceCard
+          : GlobalVariables.surfaceCard,
       child: TabBar(
         controller: _tabController,
         indicator: UnderlineTabIndicator(
@@ -199,8 +200,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ),
         indicatorSize: TabBarIndicatorSize.tab,
         tabs: [
-          Tab(text: '${tr('notification_tab_all')} (${_total > 99 ? '99+' : _total})'),
-          Tab(text: '${tr('notification_tab_unread')} (${_unreadCount > 99 ? '99+' : _unreadCount})'),
+          Tab(
+            text:
+                '${tr('notification_tab_all')} (${_total > 99 ? '99+' : _total})',
+          ),
+          Tab(
+            text:
+                '${tr('notification_tab_unread')} (${_unreadCount > 99 ? '99+' : _unreadCount})',
+          ),
           Tab(text: tr('notification_tab_read')),
         ],
       ),
@@ -211,7 +218,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: isDarkMode ? GlobalVariables.darkSurfaceCard : Colors.white,
+      color: isDarkMode
+          ? GlobalVariables.darkSurfaceCard
+          : GlobalVariables.surfaceCard,
       child: Wrap(
         spacing: 8,
         children: [
@@ -265,8 +274,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   Widget _buildNotificationRow(AppNotification notification, bool isDarkMode) {
     final rowColor = notification.isRead
-        ? (isDarkMode ? GlobalVariables.darkSurfaceCard : Colors.white)
-        : const Color(0xFFEAF3FF);
+        ? (isDarkMode ? GlobalVariables.darkSurfaceCard : GlobalVariables.white)
+        : (isDarkMode
+              ? GlobalVariables.darkPrimaryBlue.withValues(alpha: 0.12)
+              : const Color(0xFFEAF3FF));
 
     return Dismissible(
       key: Key(notification.id),
@@ -398,8 +409,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 child: OutlinedButton(
                   onPressed: () => _declineInvitation(notification),
                   style: OutlinedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE4E6EB),
-                    foregroundColor: Colors.black87,
+                    backgroundColor: isDarkMode
+                        ? GlobalVariables.darkBackgroundElevated
+                        : const Color(0xFFE4E6EB),
+                    foregroundColor: isDarkMode
+                        ? GlobalVariables.darkTextPrimary
+                        : Colors.black87,
                     side: BorderSide.none,
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
@@ -420,11 +435,18 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   Widget _buildTrailingMenu(AppNotification notification) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return SizedBox(
       width: 30,
       height: 30,
       child: PopupMenuButton<String>(
-        icon: Icon(Icons.more_horiz_rounded, color: Colors.black),
+        icon: Icon(
+          Icons.more_horiz_rounded,
+          color: isDarkMode
+              ? GlobalVariables.darkTextSecondary
+              : GlobalVariables.textSecondary,
+        ),
         padding: EdgeInsets.zero,
         iconSize: 23,
         splashRadius: 16,
@@ -487,11 +509,17 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       case 'task_overdue':
         // Digest notifications có nhiều items, navigate đến task đầu tiên nếu có
         final extra = notification.data.extra;
-        if (extra != null && extra['items'] is List && (extra['items'] as List).isNotEmpty) {
+        if (extra != null &&
+            extra['items'] is List &&
+            (extra['items'] as List).isNotEmpty) {
           final firstItem = (extra['items'] as List).first;
           final taskId = firstItem['taskId']?.toString();
           if (taskId != null && taskId.isNotEmpty) {
-            Navigator.pushNamed(context, '/task-detail', arguments: {'taskId': taskId});
+            Navigator.pushNamed(
+              context,
+              '/task-detail',
+              arguments: {'taskId': taskId},
+            );
             return;
           }
         }
@@ -587,9 +615,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   List<TextSpan> _buildMessageSpans(AppNotification notification) {
     const boldStyle = TextStyle(fontWeight: FontWeight.w700);
-    final actorName = notification.data.fromUser?.name
-        ?? notification.data.fromUserName
-        ?? '';
+    final actorName =
+        notification.data.fromUser?.name ??
+        notification.data.fromUserName ??
+        '';
     final projectTitle = notification.data.projectTitle;
     final taskTitle = notification.data.taskTitle;
 
@@ -597,48 +626,73 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       'project_invitation' => [
         TextSpan(text: actorName, style: boldStyle),
         TextSpan(text: tr('notification_invited_you')),
-        TextSpan(text: projectTitle ?? tr('notification_a_project'), style: boldStyle),
+        TextSpan(
+          text: projectTitle ?? tr('notification_a_project'),
+          style: boldStyle,
+        ),
       ],
       'invitation_declined' => [
         TextSpan(text: actorName, style: boldStyle),
         TextSpan(text: tr('notification_declined_invitation')),
-        TextSpan(text: projectTitle ?? tr('notification_a_project'), style: boldStyle),
+        TextSpan(
+          text: projectTitle ?? tr('notification_a_project'),
+          style: boldStyle,
+        ),
       ],
       'task_assigned' => [
         TextSpan(text: actorName, style: boldStyle),
         TextSpan(text: tr('notification_assigned_task')),
-        TextSpan(text: taskTitle ?? tr('notification_a_task'), style: boldStyle),
+        TextSpan(
+          text: taskTitle ?? tr('notification_a_task'),
+          style: boldStyle,
+        ),
       ],
       'task_completed' => [
         TextSpan(text: actorName, style: boldStyle),
         TextSpan(text: tr('notification_marked_task')),
-        TextSpan(text: taskTitle ?? tr('notification_a_task'), style: boldStyle),
+        TextSpan(
+          text: taskTitle ?? tr('notification_a_task'),
+          style: boldStyle,
+        ),
         TextSpan(text: tr('notification_as_completed')),
       ],
       'project_completed' => [
         TextSpan(text: actorName, style: boldStyle),
         TextSpan(text: tr('notification_marked_project')),
-        TextSpan(text: projectTitle ?? tr('notification_a_project'), style: boldStyle),
+        TextSpan(
+          text: projectTitle ?? tr('notification_a_project'),
+          style: boldStyle,
+        ),
         TextSpan(text: tr('notification_as_completed')),
       ],
       'member_joined' => [
         TextSpan(text: actorName, style: boldStyle),
         TextSpan(text: tr('notification_member_joined')),
-        TextSpan(text: projectTitle ?? tr('notification_a_project'), style: boldStyle),
+        TextSpan(
+          text: projectTitle ?? tr('notification_a_project'),
+          style: boldStyle,
+        ),
       ],
       'member_removed' => _buildMemberRemovedSpans(notification, boldStyle),
       'member_left' => [
         TextSpan(text: actorName, style: boldStyle),
         TextSpan(text: tr('notification_member_left')),
-        TextSpan(text: projectTitle ?? tr('notification_a_project'), style: boldStyle),
+        TextSpan(
+          text: projectTitle ?? tr('notification_a_project'),
+          style: boldStyle,
+        ),
       ],
       'comment_mention' => [
         TextSpan(text: actorName, style: boldStyle),
         TextSpan(text: tr('notification_mentioned_you')),
-        TextSpan(text: taskTitle ?? tr('notification_a_task'), style: boldStyle),
+        TextSpan(
+          text: taskTitle ?? tr('notification_a_task'),
+          style: boldStyle,
+        ),
       ],
-      'task_due_today' || 'task_overdue' || 'project_overdue' =>
-        _buildDigestSpans(notification, boldStyle),
+      'task_due_today' ||
+      'task_overdue' ||
+      'project_overdue' => _buildDigestSpans(notification, boldStyle),
       _ => [TextSpan(text: notification.message)],
     };
   }
@@ -647,9 +701,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     AppNotification notification,
     TextStyle boldStyle,
   ) {
-    final actorName = notification.data.fromUser?.name
-        ?? notification.data.fromUserName
-        ?? '';
+    final actorName =
+        notification.data.fromUser?.name ??
+        notification.data.fromUserName ??
+        '';
     final projectTitle = notification.data.projectTitle;
     final removedUserName =
         notification.data.extra?['removedUserName'] as String?;
@@ -697,10 +752,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         final taskWord = count == 1
             ? tr('notification_task_word')
             : tr('notification_tasks_word');
-        spans.add(TextSpan(
-            text: '${tr('notification_you_have')}$count $taskWord '));
-        spans.add(TextSpan(
-            text: tr('notification_due_today_label'), style: boldStyle));
+        spans.add(
+          TextSpan(text: '${tr('notification_you_have')}$count $taskWord '),
+        );
+        spans.add(
+          TextSpan(text: tr('notification_due_today_label'), style: boldStyle),
+        );
         spans.add(const TextSpan(text: ': '));
         for (var i = 0; i < rawItems.length; i++) {
           if (i > 0) spans.add(const TextSpan(text: ', '));
@@ -714,10 +771,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         final taskWord = count == 1
             ? tr('notification_task_word')
             : tr('notification_tasks_word');
+        spans.add(TextSpan(text: '${tr('notification_you_have')}$count '));
         spans.add(
-            TextSpan(text: '${tr('notification_you_have')}$count '));
-        spans.add(TextSpan(
-            text: tr('notification_overdue_label'), style: boldStyle));
+          TextSpan(text: tr('notification_overdue_label'), style: boldStyle),
+        );
         spans.add(TextSpan(text: ' $taskWord: '));
         for (var i = 0; i < rawItems.length; i++) {
           if (i > 0) spans.add(const TextSpan(text: ', '));
@@ -731,10 +788,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         final projectWord = count == 1
             ? tr('notification_project_word')
             : tr('notification_projects_word');
+        spans.add(TextSpan(text: '${tr('notification_you_have')}$count '));
         spans.add(
-            TextSpan(text: '${tr('notification_you_have')}$count '));
-        spans.add(TextSpan(
-            text: tr('notification_overdue_label'), style: boldStyle));
+          TextSpan(text: tr('notification_overdue_label'), style: boldStyle),
+        );
         spans.add(TextSpan(text: ' $projectWord: '));
         for (var i = 0; i < rawItems.length; i++) {
           if (i > 0) spans.add(const TextSpan(text: ', '));
@@ -802,8 +859,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       'project_completed' ||
       'comment_mention' => GlobalVariables.greenBadge,
       'task_due_today' => GlobalVariables.orangeBadge,
-      'task_overdue' ||
-      'project_overdue' => GlobalVariables.redPinkBadge,
+      'task_overdue' || 'project_overdue' => GlobalVariables.redPinkBadge,
       'member_removed' ||
       'member_left' ||
       'invitation_declined' => GlobalVariables.purpleBadge,
@@ -834,7 +890,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final difference = now.difference(dateTime);
     if (difference.inMinutes < 1) return tr('time_just_now');
     if (difference.inHours < 1) {
-      return tr('time_minutes', namedArgs: {'count': '${difference.inMinutes}'});
+      return tr(
+        'time_minutes',
+        namedArgs: {'count': '${difference.inMinutes}'},
+      );
     }
     if (difference.inHours < 24) {
       return tr('time_hours', namedArgs: {'count': '${difference.inHours}'});
@@ -855,15 +914,42 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildFilterOption(tr('notification_filter_all'), null),
-              _buildFilterOption(tr('notification_type_invitation'), 'project_invitation'),
-              _buildFilterOption(tr('notification_type_assigned'), 'task_assigned'),
-              _buildFilterOption(tr('notification_type_due_today'), 'task_due_today'),
-              _buildFilterOption(tr('notification_type_overdue'), 'task_overdue'),
-              _buildFilterOption(tr('notification_type_project_overdue'), 'project_overdue'),
-              _buildFilterOption(tr('notification_type_task_completed'), 'task_completed'),
-              _buildFilterOption(tr('notification_type_project_completed'), 'project_completed'),
-              _buildFilterOption(tr('notification_type_member_joined'), 'member_joined'),
-              _buildFilterOption(tr('notification_type_mention'), 'comment_mention'),
+              _buildFilterOption(
+                tr('notification_type_invitation'),
+                'project_invitation',
+              ),
+              _buildFilterOption(
+                tr('notification_type_assigned'),
+                'task_assigned',
+              ),
+              _buildFilterOption(
+                tr('notification_type_due_today'),
+                'task_due_today',
+              ),
+              _buildFilterOption(
+                tr('notification_type_overdue'),
+                'task_overdue',
+              ),
+              _buildFilterOption(
+                tr('notification_type_project_overdue'),
+                'project_overdue',
+              ),
+              _buildFilterOption(
+                tr('notification_type_task_completed'),
+                'task_completed',
+              ),
+              _buildFilterOption(
+                tr('notification_type_project_completed'),
+                'project_completed',
+              ),
+              _buildFilterOption(
+                tr('notification_type_member_joined'),
+                'member_joined',
+              ),
+              _buildFilterOption(
+                tr('notification_type_mention'),
+                'comment_mention',
+              ),
             ],
           ),
         ),

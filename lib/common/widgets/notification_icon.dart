@@ -61,7 +61,7 @@ class _NotificationIconState extends State<NotificationIcon>
     if (!mounted) return;
 
     final count = await NotificationService.getUnreadCount(context: context);
-    
+
     if (mounted) {
       if (count > _unreadCount) {
         // Animation khi có thông báo mới
@@ -85,6 +85,8 @@ class _NotificationIconState extends State<NotificationIcon>
 
   @override
   Widget build(BuildContext context) {
+    final chromeBackground = Theme.of(context).appBarTheme.backgroundColor;
+
     return Container(
       padding: EdgeInsets.only(right: 16, top: 5),
       child: Stack(
@@ -93,7 +95,9 @@ class _NotificationIconState extends State<NotificationIcon>
           InkWell(
             onTap: _handleTap,
             child: SvgPicture.asset(
-              _unreadCount > 0 ? 'assets/icons/bell-icon.svg' : 'assets/icons/bell-line-icon.svg',
+              _unreadCount > 0
+                  ? 'assets/icons/bell-icon.svg'
+                  : 'assets/icons/bell-line-icon.svg',
               colorFilter: ColorFilter.mode(
                 widget.iconColor ?? Colors.white,
                 BlendMode.srcIn,
@@ -109,12 +113,18 @@ class _NotificationIconState extends State<NotificationIcon>
               child: ScaleTransition(
                 scale: _animController.drive(Tween(begin: 1.0, end: 1.2)),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 1,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: GlobalVariables.errorRed,
                     shape: BoxShape.rectangle,
                     borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: Colors.white, width: 1.2),
+                    border: Border.all(
+                      color: chromeBackground ?? Theme.of(context).canvasColor,
+                      width: 1.2,
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.2),
@@ -126,9 +136,7 @@ class _NotificationIconState extends State<NotificationIcon>
                   constraints: const BoxConstraints(minWidth: 18, minHeight: 6),
                   child: Center(
                     child: Text(
-                      _unreadCount > 99
-                          ? '99+'
-                          : _unreadCount.toString(),
+                      _unreadCount > 99 ? '99+' : _unreadCount.toString(),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 8.5,

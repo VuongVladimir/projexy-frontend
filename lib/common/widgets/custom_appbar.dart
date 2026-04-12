@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/notification_icon.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -26,7 +25,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final appBarTheme = theme.appBarTheme;
 
     final appBar = AppBar(
       title: title != null
@@ -35,7 +35,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               style:
                   titleStyle ??
                   TextStyle(
-                    color: Theme.of(context).appBarTheme.foregroundColor,
+                    color: appBarTheme.foregroundColor,
                     fontSize: 24,
                     fontWeight: FontWeight.w600,
                   ),
@@ -46,32 +46,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         if (showNotificationIcon)
           NotificationIcon(
-            iconColor: Theme.of(context).appBarTheme.foregroundColor,
+            iconColor: appBarTheme.foregroundColor,
             iconSize: 30,
           ),
         ...?actions,
       ],
-      backgroundColor:
-          backgroundColor ?? Theme.of(context).appBarTheme.backgroundColor,
+      backgroundColor: backgroundColor ?? appBarTheme.backgroundColor,
       centerTitle: centerTitle,
-      flexibleSpace: isDarkMode
-          ? Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: GlobalVariables.darkPrimaryGradient,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(context).shadowColor.withValues(alpha: 0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-            )
-          : null,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: theme.shadowColor.withValues(alpha: 0.12),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
       ),
