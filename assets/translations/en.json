@@ -593,6 +593,22 @@
   "invitation_result_unprocessed": "Unprocessed: {count}",
   "invitation_failed_emails_title": "Failed invitation emails:",
   "unknown_error": "Unknown error",
+  "onboarding_app_name": "Projexy",
+  "onboarding_skip": "Skip",
+  "onboarding_next": "Next",
+  "onboarding_start": "Get started",
+  "onboarding_page_1_title": "Manage projects with more clarity",
+  "onboarding_page_1_body": "Create projects, set milestones, define priorities, and track progress in one place.",
+  "onboarding_page_2_title": "Break down work and assign the right people",
+  "onboarding_page_2_body": "Turn big goals into tasks and subtasks, assign each member, and always know who owns what.",
+  "onboarding_page_3_title": "Schedule smarter with dependencies",
+  "onboarding_page_3_body": "Set predecessor-successor relationships between tasks to avoid overlaps and keep plans realistic.",
+  "onboarding_page_4_title": "Collaborate directly in every project",
+  "onboarding_page_4_body": "Chat with your team, comment on tasks, mention teammates, and share files where work actually happens.",
+  "onboarding_page_5_title": "Never miss critical work",
+  "onboarding_page_5_body": "Get notified when tasks are assigned, deadlines are near, or important project updates happen.",
   "auth_or": "OR",
-  "auth_sign_in_with_google": "Continue with Google"
+  "auth_sign_in_with_google": "Continue with Google",
+  "credits": "Credits",
+  "attributions_licenses": "Attributions & licenses"
 }

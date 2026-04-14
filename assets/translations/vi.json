@@ -593,6 +593,22 @@
   "invitation_result_unprocessed": "Chưa xử lý: {count}",
   "invitation_failed_emails_title": "Email gửi thất bại:",
   "unknown_error": "Lỗi không xác định",
+  "onboarding_app_name": "Projexy",
+  "onboarding_skip": "Bỏ qua",
+  "onboarding_next": "Tiếp",
+  "onboarding_start": "Bắt đầu ngay",
+  "onboarding_page_1_title": "Quản lý dự án rõ ràng hơn",
+  "onboarding_page_1_body": "Tạo dự án, đặt mốc thời gian, ưu tiên và theo dõi tiến độ ở một nơi duy nhất.",
+  "onboarding_page_2_title": "Chia nhỏ công việc, giao đúng người",
+  "onboarding_page_2_body": "Biến mục tiêu lớn thành task và subtask, giao việc cho từng thành viên và theo dõi ai đang phụ trách việc gì.",
+  "onboarding_page_3_title": "Sắp lịch thông minh với dependency",
+  "onboarding_page_3_body": "Thiết lập quan hệ trước-sau giữa các task để tránh chồng chéo và giữ kế hoạch luôn hợp lý.",
+  "onboarding_page_4_title": "Cộng tác ngay trong từng dự án",
+  "onboarding_page_4_body": "Trao đổi trong nhóm, bình luận trên task, nhắc tên đồng đội và chia sẻ tài liệu ngay tại nơi công việc diễn ra.",
+  "onboarding_page_5_title": "Không bỏ lỡ việc quan trọng",
+  "onboarding_page_5_body": "Nhận thông báo khi được giao việc, khi gần đến hạn hoặc khi có cập nhật quan trọng trong dự án.",
   "auth_or": "HOẶC",
-  "auth_sign_in_with_google": "Tiếp tục với Google"
+  "auth_sign_in_with_google": "Tiếp tục với Google",
+  "credits": "Thông tin bản quyền",
+  "attributions_licenses": "Ghi nguồn & giấy phép"
 }

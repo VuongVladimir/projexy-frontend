@@ -9,6 +9,7 @@ import 'package:frontend/common/constants/theme_config.dart';
 import 'package:frontend/common/services/fcm_service.dart';
 import 'package:frontend/common/services/stream_chat_service.dart';
 import 'package:frontend/features/auth/screens/login_screen.dart';
+import 'package:frontend/features/onboarding/screens/onboarding_screen.dart';
 import 'package:frontend/features/auth/services/auth_service.dart';
 import 'package:frontend/features/responsive/mobile_screen_layout.dart';
 import 'package:frontend/features/responsive/responsive_screen_layout.dart';
@@ -20,6 +21,7 @@ import 'package:frontend/router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
 void main() async {
@@ -69,8 +71,10 @@ class _MyAppState extends State<MyApp> {
   final AuthService authService = AuthService();
   final GlobalKey<NavigatorState> _appNavigatorKey =
       GlobalKey<NavigatorState>();
+  static const String _onboardingCompletedKey = 'onboarding_completed';
   bool _isCheckingAuth = true;
   bool _hasValidToken = false;
+  bool _shouldShowOnboarding = false;
   bool _userDataLoaded = false; // Flag to prevent multiple getUserData calls
 
   @override
@@ -78,7 +82,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     unawaited(TaskWidgetsService.initialize(navigatorKey: _appNavigatorKey));
     unawaited(TaskWidgetsService.refreshWidgetsData());
-    _checkAuthStatus();
+    _checkStartupStatus();
   }
 
   @override
@@ -87,24 +91,44 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-  Future<void> _checkAuthStatus() async {
+  Future<void> _checkStartupStatus() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasSeenOnboarding = prefs.getBool(_onboardingCompletedKey) ?? false;
+
       // Kiểm tra token từ SharedPreferences (không phải UserProvider)
       final hasToken = await TokenManager.hasValidToken();
       if (mounted) {
         setState(() {
+          _shouldShowOnboarding = !hasSeenOnboarding;
           _hasValidToken = hasToken;
           _isCheckingAuth = false;
         });
       }
     } catch (e) {
-      debugPrint('Error checking auth status: $e');
+      debugPrint('Error checking startup status: $e');
       if (mounted) {
         setState(() {
+          _shouldShowOnboarding = false;
           _hasValidToken = false;
           _isCheckingAuth = false;
         });
       }
+    }
+  }
+
+  Future<void> _completeOnboarding() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_onboardingCompletedKey, true);
+    } catch (e) {
+      debugPrint('Error persisting onboarding state: $e');
+    }
+
+    if (mounted) {
+      setState(() {
+        _shouldShowOnboarding = false;
+      });
     }
   }
 
@@ -144,6 +168,14 @@ class _MyAppState extends State<MyApp> {
               if (_isCheckingAuth) {
                 return const Scaffold(
                   body: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (_shouldShowOnboarding) {
+                return OnboardingScreen(
+                  onFinished: () {
+                    unawaited(_completeOnboarding());
+                  },
                 );
               }
 

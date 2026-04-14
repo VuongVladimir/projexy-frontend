@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/features/account/screens/credits_screen.dart';
 import 'package:frontend/features/account/screens/edit_profile_screen.dart';
 import 'package:frontend/features/account/screens/notifications_management.dart';
 import 'package:frontend/features/chat/screens/channel_messages_screen.dart';
@@ -112,6 +113,12 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
       return MaterialPageRoute(
         settings: routeSettings,
         builder: (_) => const HomeScreen(),
+      );
+
+    case CreditsScreen.routeName:
+      return MaterialPageRoute(
+        settings: routeSettings,
+        builder: (_) => const CreditsScreen(),
       );
 
     case ResponsiveLayout.routeName:

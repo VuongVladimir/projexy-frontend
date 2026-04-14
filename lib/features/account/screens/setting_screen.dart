@@ -104,6 +104,22 @@ class SettingScreen extends StatelessWidget {
                         // TODO: Navigate to privacy policy
                       },
                     ),
+                    Divider(
+                      height: 1,
+                      thickness: 2,
+                      color: Theme.of(
+                        context,
+                      ).dividerColor.withValues(alpha: 0.5),
+                    ),
+                    _buildSettingItem(
+                      context,
+                      icon: Symbols.info,
+                      title: 'credits'.tr(),
+                      subtitle: 'attributions_licenses'.tr(),
+                      onTap: () {
+                        Navigator.pushNamed(context, '/credits');
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -131,40 +147,48 @@ class SettingScreen extends StatelessWidget {
   Widget _buildThemeOption(BuildContext context) {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
-        return Column(
-          children: [
-            _buildThemeRadioTile(
-              context,
-              title: 'light_theme'.tr(),
-              subtitle: 'use_light_theme'.tr(),
-              icon: Symbols.light_mode,
-              value: ThemeMode.light,
-              groupValue: themeProvider.themeMode,
-              onChanged: (value) {
-                if (value != null) {
-                  themeProvider.setTheme(value);
-                }
-              },
-            ),
-            Divider(
-              height: 1,
-              thickness: 2,
-              color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
-            ),
-            _buildThemeRadioTile(
-              context,
-              title: 'dark_theme'.tr(),
-              subtitle: 'use_dark_theme'.tr(),
-              icon: Symbols.dark_mode,
-              value: ThemeMode.dark,
-              groupValue: themeProvider.themeMode,
-              onChanged: (value) {
-                if (value != null) {
-                  themeProvider.setTheme(value);
-                }
-              },
-            ),
-          ],
+        return RadioGroup<ThemeMode>(
+          groupValue: themeProvider.themeMode,
+          onChanged: (value) {
+            if (value != null) {
+              themeProvider.setTheme(value);
+            }
+          },
+          child: Column(
+            children: [
+              _buildThemeRadioTile(
+                context,
+                title: 'light_theme'.tr(),
+                subtitle: 'use_light_theme'.tr(),
+                icon: Symbols.light_mode,
+                value: ThemeMode.light,
+                groupValue: themeProvider.themeMode,
+                onChanged: (value) {
+                  if (value != null) {
+                    themeProvider.setTheme(value);
+                  }
+                },
+              ),
+              Divider(
+                height: 1,
+                thickness: 2,
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+              ),
+              _buildThemeRadioTile(
+                context,
+                title: 'dark_theme'.tr(),
+                subtitle: 'use_dark_theme'.tr(),
+                icon: Symbols.dark_mode,
+                value: ThemeMode.dark,
+                groupValue: themeProvider.themeMode,
+                onChanged: (value) {
+                  if (value != null) {
+                    themeProvider.setTheme(value);
+                  }
+                },
+              ),
+            ],
+          ),
         );
       },
     );
@@ -173,40 +197,48 @@ class SettingScreen extends StatelessWidget {
   Widget _buildLanguageOption(BuildContext context) {
     final currentLocale = context.locale;
 
-    return Column(
-      children: [
-        _buildLanguageRadioTile(
-          context,
-          title: 'english'.tr(),
-          subtitle: 'English',
-          icon: Symbols.language,
-          value: const Locale('en'),
-          groupValue: currentLocale,
-          onChanged: (value) {
-            if (value != null) {
-              context.setLocale(value);
-            }
-          },
-        ),
-        Divider(
-          height: 1,
-          thickness: 2,
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
-        ),
-        _buildLanguageRadioTile(
-          context,
-          title: 'vietnamese'.tr(),
-          subtitle: 'Tiếng Việt',
-          icon: Symbols.language,
-          value: const Locale('vi'),
-          groupValue: currentLocale,
-          onChanged: (value) {
-            if (value != null) {
-              context.setLocale(value);
-            }
-          },
-        ),
-      ],
+    return RadioGroup<Locale>(
+      groupValue: currentLocale,
+      onChanged: (value) {
+        if (value != null) {
+          context.setLocale(value);
+        }
+      },
+      child: Column(
+        children: [
+          _buildLanguageRadioTile(
+            context,
+            title: 'english'.tr(),
+            subtitle: 'English',
+            icon: Symbols.language,
+            value: const Locale('en'),
+            groupValue: currentLocale,
+            onChanged: (value) {
+              if (value != null) {
+                context.setLocale(value);
+              }
+            },
+          ),
+          Divider(
+            height: 1,
+            thickness: 2,
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+          ),
+          _buildLanguageRadioTile(
+            context,
+            title: 'vietnamese'.tr(),
+            subtitle: 'Tiếng Việt',
+            icon: Symbols.language,
+            value: const Locale('vi'),
+            groupValue: currentLocale,
+            onChanged: (value) {
+              if (value != null) {
+                context.setLocale(value);
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -256,8 +288,6 @@ class SettingScreen extends StatelessWidget {
       ),
       trailing: Radio<Locale>(
         value: value,
-        groupValue: groupValue,
-        onChanged: onChanged,
         activeColor: Theme.of(context).colorScheme.primary,
       ),
       onTap: () => onChanged(value),
@@ -311,8 +341,6 @@ class SettingScreen extends StatelessWidget {
       ),
       trailing: Radio<ThemeMode>(
         value: value,
-        groupValue: groupValue,
-        onChanged: onChanged,
         activeColor: Theme.of(context).colorScheme.primary,
       ),
       onTap: () => onChanged(value),
