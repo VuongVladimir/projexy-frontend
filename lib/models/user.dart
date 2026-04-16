@@ -10,6 +10,12 @@ class User {
   final String? avatarColor;
   final String? bio;
   final List<String>? skills;
+  final bool isPremium;
+  final DateTime? premiumValidUntil;
+
+  bool get isPremiumActive =>
+      isPremium && premiumValidUntil != null && premiumValidUntil!.isAfter(DateTime.now());
+
   User({
     required this.id,
     required this.name,
@@ -20,6 +26,8 @@ class User {
     this.avatarColor,
     this.bio,
     this.skills,
+    this.isPremium = false,
+    this.premiumValidUntil,
   });
 
   User copyWith({
@@ -32,6 +40,8 @@ class User {
     String? avatarColor,
     String? bio,
     List<String>? skills,
+    bool? isPremium,
+    DateTime? premiumValidUntil,
   }) {
     return User(
       id: id ?? this.id,
@@ -43,6 +53,8 @@ class User {
       avatarColor: avatarColor ?? this.avatarColor,
       bio: bio ?? this.bio,
       skills: skills ?? this.skills,
+      isPremium: isPremium ?? this.isPremium,
+      premiumValidUntil: premiumValidUntil ?? this.premiumValidUntil,
     );
   }
 
@@ -57,6 +69,8 @@ class User {
       'avatarColor': avatarColor,
       'bio': bio,
       'skills': skills,
+      'isPremium': isPremium,
+      'premiumValidUntil': premiumValidUntil?.toIso8601String(),
     };
   }
 
@@ -77,6 +91,10 @@ class User {
       skills: map['skills'] != null
           ? List<String>.from((map['skills'] as List).map((x) => x.toString()))
           : null,
+      isPremium: map['isPremium'] == true,
+      premiumValidUntil: map['premiumValidUntil'] != null
+          ? DateTime.tryParse(map['premiumValidUntil'].toString())
+          : null,
     );
   }
 
@@ -87,6 +105,6 @@ class User {
 
   @override
   String toString() {
-    return 'User(id: $id, name: $name, email: $email, password: $password, token: $token, avatar: $avatar, bio: $bio, skills: $skills)';
+    return 'User(id: $id, name: $name, email: $email, password: $password, token: $token, avatar: $avatar, bio: $bio, skills: $skills, isPremium: $isPremium, premiumValidUntil: $premiumValidUntil)';
   }
 }

@@ -12,6 +12,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/collapsible_section.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
+import 'package:frontend/common/widgets/premium_feature_gate.dart';
 import 'package:frontend/common/widgets/task_card.dart';
 import 'package:frontend/features/projects/services/projects_service.dart';
 import 'package:frontend/features/tasks/screens/create_task_screen.dart';
@@ -266,22 +267,28 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 final canEdit =
                     isOwner ||
                     isTaskCreator ||
-                    (currentUserMember?.permissions.editTaskPermission ?? false);
+                    (currentUserMember?.permissions.editTaskPermission ??
+                        false);
                 // markCompleteTask: Owner, task creator, assignee, markCompleteTaskPermission
                 final canMarkComplete =
                     isOwner ||
                     isTaskCreator ||
                     isAssignee ||
-                    (currentUserMember?.permissions.markCompleteTaskPermission ?? false);
+                    (currentUserMember
+                            ?.permissions
+                            .markCompleteTaskPermission ??
+                        false);
                 // assignTask: Owner, task creator, assignTaskPermission
                 final canAssign =
                     isOwner ||
                     isTaskCreator ||
-                    (currentUserMember?.permissions.assignTaskPermission ?? false);
+                    (currentUserMember?.permissions.assignTaskPermission ??
+                        false);
                 // deleteTask: Owner, deleteTaskPermission
                 final canDelete =
                     isOwner ||
-                    (currentUserMember?.permissions.deleteTaskPermission ?? false);
+                    (currentUserMember?.permissions.deleteTaskPermission ??
+                        false);
 
                 List<PopupMenuEntry<String>> menuItems = [];
 
@@ -630,9 +637,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    // More Fields Section
-                    _buildMoreFieldsSection(),
+                    if (_project?.isPremium == true) ...[
+                      const SizedBox(height: 24),
+                      _buildMoreFieldsSection(),
+                    ],
 
                     const SizedBox(height: 24),
                     // Attachments Section
@@ -675,7 +683,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
     );
     final canCreateTask =
-        isOwner || (currentUserMember?.permissions.createTaskPermission ?? false);
+        isOwner ||
+        (currentUserMember?.permissions.createTaskPermission ?? false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -797,7 +806,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
                         // Xử lý để chỉ lấy tên (từ đầu tiên)
                         final String fullName =
-                            user['name'] as String? ?? 'User';
+                            user['name'] as String? ?? tr('user');
                         final String firstName = fullName
                             .trim()
                             .split(' ')
@@ -942,7 +951,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
     );
     final canCreateTask =
-        isOwner || (currentUserMember?.permissions.createTaskPermission ?? false);
+        isOwner ||
+        (currentUserMember?.permissions.createTaskPermission ?? false);
 
     return Center(
       child: Padding(
@@ -990,12 +1000,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ? GlobalVariables.darkPrimaryBlueLight
                       : Colors.white,
                   side: BorderSide(
-                    color: (isDarkMode
-                            ? GlobalVariables.darkPrimaryBlueLight
-                            : GlobalVariables.primaryBlueLight)
-                        .withValues(
-                      alpha: 0.9,
-                    ),
+                    color:
+                        (isDarkMode
+                                ? GlobalVariables.darkPrimaryBlueLight
+                                : GlobalVariables.primaryBlueLight)
+                            .withValues(alpha: 0.9),
                     width: 1.5,
                   ),
                   padding: const EdgeInsets.symmetric(
@@ -1009,12 +1018,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 child: Text(
                   tr('create_subtask'),
                   style: TextStyle(
-                    color: (isDarkMode
-                            ? GlobalVariables.darkPrimaryBlueLight
-                            : GlobalVariables.primaryBlueLight)
-                        .withValues(
-                      alpha: 0.9,
-                    ),
+                    color:
+                        (isDarkMode
+                                ? GlobalVariables.darkPrimaryBlueLight
+                                : GlobalVariables.primaryBlueLight)
+                            .withValues(alpha: 0.9),
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1109,6 +1117,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   void _navigateToCreateSubtask() {
+    if (_task!.level >= 1 && _project?.isPremium != true) {
+      PremiumFeatureGate.show(
+        context,
+        feature: tr('premium_multilevel_subtask_feature'),
+        description: tr('premium_multilevel_subtask_description'),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1370,7 +1386,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             const SizedBox(height: 18),
             _buildViolationWarning(),
           ],
-
         ],
       ),
     );
@@ -1538,7 +1553,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             ),
             const SizedBox(height: 8),
             ..._predecessors.map(
-              (dep) => _buildDependencyCard(dep, canEdit, isPredecessor: true ),
+              (dep) => _buildDependencyCard(dep, canEdit, isPredecessor: true),
             ),
           ],
 
@@ -1564,7 +1579,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildDependencyCard(Dependency dep, bool canEdit, {required bool isPredecessor}) {
+  Widget _buildDependencyCard(
+    Dependency dep,
+    bool canEdit, {
+    required bool isPredecessor,
+  }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
     final task = isPredecessor ? dep.predecessor : dep.successor;
@@ -1892,7 +1911,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Upload button
-          if (canAddAttachment) ...[_buildUploadButton(), const SizedBox(height: 16)],
+          if (canAddAttachment) ...[
+            _buildUploadButton(),
+            const SizedBox(height: 16),
+          ],
 
           // Attachments list
           if (_task!.attachments.isEmpty)
@@ -2096,7 +2118,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _buildImageThumbnail(TaskAttachment attachment, bool canDeleteGeneral) {
+  Widget _buildImageThumbnail(
+    TaskAttachment attachment,
+    bool canDeleteGeneral,
+  ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     // deleteAttachment: Owner, uploader, deleteAttachmentPermission
     final currentUser = Provider.of<UserProvider>(context, listen: false).user;

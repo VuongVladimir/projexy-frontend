@@ -99,9 +99,6 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                   if (value == null || value.trim().isEmpty) {
                     return tr('validation_enter_task_name');
                   }
-                  if (value.trim().length < 3) {
-                    return tr('validation_task_name_min');
-                  }
                   return null;
                 },
               ),

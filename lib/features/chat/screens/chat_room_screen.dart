@@ -19,9 +19,9 @@ class ChatRoomScreen extends StatefulWidget {
     this.projectTitle,
     this.channel,
   }) : assert(
-          channel != null || (projectId != null && projectTitle != null),
-          'Either channel or projectId/projectTitle must be provided.',
-        );
+         channel != null || (projectId != null && projectTitle != null),
+         'Either channel or projectId/projectTitle must be provided.',
+       );
 
   @override
   State<ChatRoomScreen> createState() => _ChatRoomScreenState();
@@ -57,6 +57,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       Channel? channel;
       if (widget.channel != null) {
         channel = widget.channel!;
+        if (channel.isProjectChannel) {
+          await StreamChatService.ensureProjectChannelAccess(channel.id!);
+        }
         await channel.watch();
       } else if (widget.projectId != null) {
         // Watch channel theo project
@@ -74,6 +77,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         _channel = channel;
         _isLoading = false;
       });
+    } on ProjectChatPremiumRequiredException catch (e) {
+      setState(() {
+        _error = e.message;
+        _isLoading = false;
+      });
+      debugPrint('Project chat blocked by premium gate: ${e.message}');
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -86,6 +95,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final appLocale = Localizations.localeOf(context);
+    final chatSafeLocale = appLocale.languageCode == 'vi'
+        ? const Locale('en')
+        : appLocale;
     final displayTitle = _resolveChannelTitle(
       _channel,
       fallbackTitle: widget.projectTitle,
@@ -151,95 +164,97 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
 
     // Bọc màn chat bằng StreamChat với custom theme để customize avatar
-    return StreamChat(
-      client: StreamChatService.client!,
-      streamChatThemeData: _buildCustomTheme(context, isDarkMode),
-      child: Scaffold(
-        backgroundColor: isDarkMode
-            ? GlobalVariables.darkBackgroundPrimary
-            : GlobalVariables.backgroundPrimary,
-        appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: isDarkMode
-                  ? GlobalVariables.darkTextPrimary
-                  : GlobalVariables.textPrimary,
-            ),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          actions: [
-            IconButton(
-              tooltip: tr('info'),
+    return Localizations.override(
+      context: context,
+      locale: chatSafeLocale,
+      child: StreamChat(
+        client: StreamChatService.client!,
+        streamChatThemeData: _buildCustomTheme(context, isDarkMode),
+        child: Scaffold(
+          backgroundColor: isDarkMode
+              ? GlobalVariables.darkBackgroundPrimary
+              : GlobalVariables.backgroundPrimary,
+          appBar: AppBar(
+            leading: IconButton(
               icon: Icon(
-                Icons.info_outline_rounded,
+                Icons.arrow_back,
                 color: isDarkMode
                     ? GlobalVariables.darkTextPrimary
                     : GlobalVariables.textPrimary,
               ),
-              onPressed: () {
-                if (_channel == null) return;
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChatInfoScreen(
-                      channel: _channel!,
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            actions: [
+              IconButton(
+                tooltip: tr('info'),
+                icon: Icon(
+                  Icons.info_outline_rounded,
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextPrimary
+                      : GlobalVariables.textPrimary,
+                ),
+                onPressed: () {
+                  if (_channel == null) return;
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ChatInfoScreen(channel: _channel!),
                     ),
-                  ),
-                );
-              },
-            ),
-          ],
-          title: Text(
-            displayTitle,
-            style: TextStyle(
-              color: isDarkMode
-                  ? GlobalVariables.darkTextPrimary
-                  : GlobalVariables.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          centerTitle: true,
-          backgroundColor: isDarkMode
-              ? GlobalVariables.darkSurfaceCard
-              : GlobalVariables.surfaceCard,
-          elevation: 0,
-        ),
-        body: StreamChannel(
-          channel: _channel!,
-          child: Column(
-            children: [
-              Expanded(
-                child: StreamMessageListView(
-                  // Custom message để thêm avatar builder và reaction picker
-                  // NHƯNG vẫn giữ nguyên default message với tất cả các actions
-                  messageBuilder:
-                      (context, details, messageList, defaultMessage) {
-                        return _buildMessageWithCustomizations(
-                          context,
-                          details,
-                          defaultMessage,
-                        );
-                      },
-                ),
-              ),
-              // Typing indicators hiển thị đang nhập
-              const StreamTypingIndicator(),
-              // Bọc input với SafeArea để tránh overflow khi mở bàn phím / bottom sheets
-              SafeArea(
-                top: false,
-                child: StreamMessageInput(
-                  focusNode: _messageInputFocusNode,
-                  messageInputController: _messageInputController,
-                  onQuotedMessageCleared:
-                      _messageInputController.clearQuotedMessage,
-                  attachmentLimit: 5,
-                  preMessageSending: (message) async {
-                    return message;
-                  },
-                ),
+                  );
+                },
               ),
             ],
+            title: Text(
+              displayTitle,
+              style: TextStyle(
+                color: isDarkMode
+                    ? GlobalVariables.darkTextPrimary
+                    : GlobalVariables.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            centerTitle: true,
+            backgroundColor: isDarkMode
+                ? GlobalVariables.darkSurfaceCard
+                : GlobalVariables.surfaceCard,
+            elevation: 0,
+          ),
+          body: StreamChannel(
+            channel: _channel!,
+            child: Column(
+              children: [
+                Expanded(
+                  child: StreamMessageListView(
+                    // Custom message để thêm avatar builder và reaction picker
+                    // NHƯNG vẫn giữ nguyên default message với tất cả các actions
+                    messageBuilder:
+                        (context, details, messageList, defaultMessage) {
+                          return _buildMessageWithCustomizations(
+                            context,
+                            details,
+                            defaultMessage,
+                          );
+                        },
+                  ),
+                ),
+                // Typing indicators hiển thị đang nhập
+                const StreamTypingIndicator(),
+                // Bọc input với SafeArea để tránh overflow khi mở bàn phím / bottom sheets
+                SafeArea(
+                  top: false,
+                  child: StreamMessageInput(
+                    focusNode: _messageInputFocusNode,
+                    messageInputController: _messageInputController,
+                    onQuotedMessageCleared:
+                        _messageInputController.clearQuotedMessage,
+                    attachmentLimit: 5,
+                    preMessageSending: (message) async {
+                      return message;
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -305,10 +320,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
-  String _resolveChannelTitle(
-    Channel? channel, {
-    String? fallbackTitle,
-  }) {
+  String _resolveChannelTitle(Channel? channel, {String? fallbackTitle}) {
     if (fallbackTitle != null && fallbackTitle.isNotEmpty) {
       return fallbackTitle;
     }
@@ -338,7 +350,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   bool _isDirectChannel(Channel channel) {
     final isMessaging = channel.type == 'messaging';
-    final memberCount = channel.memberCount ?? channel.state?.members.length ?? 0;
+    final memberCount =
+        channel.memberCount ?? channel.state?.members.length ?? 0;
     final isExplicitTeam = channel.extraData['is_team'] == true;
     return isMessaging && memberCount <= 2 && !isExplicitTeam;
   }

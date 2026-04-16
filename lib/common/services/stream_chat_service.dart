@@ -5,6 +5,15 @@ import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/constants/http_handling.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
+class ProjectChatPremiumRequiredException implements Exception {
+  final String message;
+
+  const ProjectChatPremiumRequiredException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class StreamChatService {
   static StreamChatClient? _client;
   static String? _currentUserId;
@@ -126,6 +135,41 @@ class StreamChatService {
     return _client!.channel('team', id: projectId);
   }
 
+  static Map<String, dynamic> _decodeResponseBody(String body) {
+    try {
+      final decoded = json.decode(body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } catch (_) {}
+    return <String, dynamic>{};
+  }
+
+  /// Xác thực quyền truy cập project chat từ backend.
+  static Future<void> ensureProjectChannelAccess(String projectId) async {
+    final response = await ApiClient.post(
+      url: '$uri/api/stream-chat/channel/$projectId/ensure-member',
+    );
+
+    if (response.statusCode == 200) return;
+
+    final data = _decodeResponseBody(response.body);
+    final msg = (data['msg'] ?? data['error'])?.toString();
+    final code = data['code']?.toString();
+    final feature = data['feature']?.toString();
+
+    if (response.statusCode == 403 &&
+        code == 'PREMIUM_REQUIRED' &&
+        feature == 'project_chat') {
+      throw ProjectChatPremiumRequiredException(
+        msg ??
+            'Dự án miễn phí không hỗ trợ phòng chat dự án. Nâng cấp Premium để sử dụng!',
+      );
+    }
+
+    throw Exception(msg ?? 'Không thể truy cập phòng chat dự án');
+  }
+
   /// Watch channel (subscribe to updates)
   /// Nếu channel chưa tồn tại, cung cấp projectTitle để tạo channel đúng dữ liệu
   static Future<Channel?> watchProjectChannel(
@@ -133,14 +177,8 @@ class StreamChatService {
     String? projectTitle,
   }) async {
     try {
-      // Đảm bảo user hiện tại là member của channel (server-side)
-      try {
-        await ApiClient.post(
-          url: '$uri/api/stream-chat/channel/$projectId/ensure-member',
-        );
-      } catch (e) {
-        debugPrint('ensure-member failed (will try watch anyway): $e');
-      }
+      // Luôn chặn ở frontend nếu backend báo project chat yêu cầu premium.
+      await ensureProjectChannelAccess(projectId);
 
       final normalizedTitle = projectTitle?.trim();
       final hasTitle = normalizedTitle != null && normalizedTitle.isNotEmpty;
@@ -166,7 +204,8 @@ class StreamChatService {
         final category = channel.extraData['category'];
         final projectIdValue = channel.extraData['project_id'];
         final projectTitleValue = channel.extraData['project_title'];
-        final needsUpdate = currentName.isEmpty ||
+        final needsUpdate =
+            currentName.isEmpty ||
             category != 'project' ||
             projectIdValue == null ||
             (projectTitleValue is! String || projectTitleValue.trim().isEmpty);
@@ -186,6 +225,8 @@ class StreamChatService {
       }
 
       return channel;
+    } on ProjectChatPremiumRequiredException {
+      rethrow;
     } catch (e) {
       debugPrint('Error watching channel: $e');
       return null;
@@ -207,7 +248,8 @@ class StreamChatService {
         );
       } catch (e) {
         debugPrint(
-            'ensure-member failed for $channelType (will try watch anyway): $e');
+          'ensure-member failed for $channelType (will try watch anyway): $e',
+        );
       }
 
       final channel = _client!.channel(channelType, id: channelId);
@@ -336,7 +378,9 @@ class StreamChatService {
         return true;
       } else {
         final errorData = json.decode(response.body);
-        debugPrint('❌ Failed to update channel avatar: ${errorData['msg'] ?? errorData['error']}');
+        debugPrint(
+          '❌ Failed to update channel avatar: ${errorData['msg'] ?? errorData['error']}',
+        );
         return false;
       }
     } catch (e) {

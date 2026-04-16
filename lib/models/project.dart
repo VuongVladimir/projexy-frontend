@@ -16,6 +16,7 @@ class Project {
   final int taskCount;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isPremium;
 
   Project({
     required this.id,
@@ -32,6 +33,7 @@ class Project {
     required this.taskCount,
     required this.createdAt,
     required this.updatedAt,
+    this.isPremium = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -50,6 +52,7 @@ class Project {
       'taskCount': taskCount,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'isPremium': isPremium,
     };
   }
 
@@ -101,6 +104,7 @@ class Project {
       updatedAt: map['updatedAt'] != null
           ? DateTime.parse(map['updatedAt'])
           : DateTime.now(),
+      isPremium: map['isPremium'] == true,
     );
   }
 
@@ -124,6 +128,7 @@ class Project {
     int? taskCount,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? isPremium,
   }) {
     return Project(
       id: id ?? this.id,
@@ -140,6 +145,7 @@ class Project {
       taskCount: taskCount ?? this.taskCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isPremium: isPremium ?? this.isPremium,
     );
   }
 

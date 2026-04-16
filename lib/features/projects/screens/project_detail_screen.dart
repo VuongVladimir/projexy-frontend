@@ -1,9 +1,12 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/common/widgets/task_card.dart';
+import 'package:frontend/common/constants/utils.dart';
+import 'package:frontend/common/services/stream_chat_service.dart';
 import 'package:frontend/features/account/screens/profile_screen.dart';
 import 'package:frontend/features/account/services/account_service.dart';
 import 'package:frontend/features/chat/screens/chat_room_screen.dart';
@@ -23,6 +26,7 @@ import 'package:frontend/providers/user_provider.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:frontend/common/widgets/premium_feature_gate.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   static const String routeName = '/project-detail';
@@ -195,17 +199,17 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         title: tr('project_detail'),
         centerTitle: true,
         actions: [
-          // Nút mở chat
-          IconButton(
-            icon: Icon(
-              Icons.chat_bubble_outline_rounded,
-              color: isDarkMode
-                  ? GlobalVariables.darkTextPrimary
-                  : GlobalVariables.textPrimary,
+          if (_project?.isPremium == true)
+            IconButton(
+              icon: Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: isDarkMode
+                    ? GlobalVariables.darkTextPrimary
+                    : GlobalVariables.textPrimary,
+              ),
+              onPressed: _navigateToProjectChat,
+              tooltip: tr('group_chat'),
             ),
-            onPressed: _navigateToProjectChat,
-            tooltip: tr('group_chat'),
-          ),
           Theme(
             data: Theme.of(context).copyWith(
               popupMenuTheme: PopupMenuThemeData(
@@ -415,26 +419,12 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                           ),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                      if (_project!.isPremium)
+                        SvgPicture.asset(
+                          'assets/images/premium_1.svg',
+                          width: 32,
+                          height: 32,
                         ),
-                        decoration: BoxDecoration(
-                          color: GlobalVariables.getStatusColor(
-                            _project!.status,
-                          ).withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          _project!.statusDisplayName,
-                          style: TextStyle(
-                            color: GlobalVariables.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -474,34 +464,56 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                           ),
                         ],
                       ),
-                      Spacer(),
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: '${tr('priority')}: ',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: isDarkMode
-                                    ? GlobalVariables.darkTextSecondary
-                                    : GlobalVariables.textSecondary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              ),
-                            ),
-                            TextSpan(
-                              text: _project!.priorityDisplayName,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: GlobalVariables.getPriorityColor(
-                                  _project!.priority,
-                                ),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: GlobalVariables.getStatusColor(
+                            _project!.status,
+                          ).withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          _project!.statusDisplayName,
+                          style: TextStyle(
+                            color: GlobalVariables.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${tr('priority')}: ',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: isDarkMode
+                                ? GlobalVariables.darkTextSecondary
+                                : GlobalVariables.textSecondary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                        TextSpan(
+                          text: _project!.priorityDisplayName,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: GlobalVariables.getPriorityColor(
+                              _project!.priority,
+                            ),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
 
@@ -662,7 +674,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Tags',
+          tr('project_tags_title'),
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
             color: isDarkMode
@@ -895,7 +907,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'All tags (${tags.length})',
+                  tr(
+                    'project_all_tags_count',
+                    namedArgs: {'count': '${tags.length}'},
+                  ),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: isDarkMode
@@ -979,9 +994,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
           controller: controller,
           autofocus: true,
           textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(
-            hintText: 'Tag name',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: tr('project_tag_name_hint'),
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
@@ -994,7 +1009,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
               final newTag = controller.text.trim();
               if (newTag.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Tag cannot be empty')),
+                  SnackBar(content: Text(tr('project_tag_cannot_empty'))),
                 );
                 return;
               }
@@ -1006,7 +1021,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
 
               if (hasDuplicate) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Tag already exists')),
+                  SnackBar(content: Text(tr('project_tag_already_exists'))),
                 );
                 return;
               }
@@ -1162,7 +1177,20 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                       if (isOwner ||
                           currentUserMember.permissions.addMemberPermission)
                         TextButton.icon(
-                          onPressed: () => _showAddMemberDialog(),
+                          onPressed: () {
+                            if (_project?.isPremium != true &&
+                                (_project?.members.length ?? 0) >= 5) {
+                              PremiumFeatureGate.show(
+                                context,
+                                feature: tr('add_member'),
+                                description: tr(
+                                  'premium_project_member_limit_description',
+                                ),
+                              );
+                              return;
+                            }
+                            _showAddMemberDialog();
+                          },
                           icon: const Icon(Icons.person_add_rounded, size: 18),
                           label: Text(tr('add')),
                           style: TextButton.styleFrom(
@@ -2622,7 +2650,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Hủy'),
+            child: Text(tr('cancel')),
           ),
           ElevatedButton(
             onPressed: _leaveProject,
@@ -2743,8 +2771,22 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     });
   }
 
-  void _navigateToProjectChat() {
+  Future<void> _navigateToProjectChat() async {
     if (_project == null) return;
+
+    try {
+      await StreamChatService.ensureProjectChannelAccess(_project!.id);
+    } on ProjectChatPremiumRequiredException catch (e) {
+      if (!mounted) return;
+      showSnackBar(context, e.message);
+      return;
+    } catch (e) {
+      if (!mounted) return;
+      showSnackBar(context, 'Không thể truy cập phòng chat dự án');
+      return;
+    }
+
+    if (!mounted) return;
 
     Navigator.push(
       context,

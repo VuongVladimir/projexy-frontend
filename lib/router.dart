@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/account/screens/credits_screen.dart';
 import 'package:frontend/features/account/screens/edit_profile_screen.dart';
+import 'package:frontend/features/account/screens/payment_history_screen.dart';
 import 'package:frontend/features/account/screens/notifications_management.dart';
 import 'package:frontend/features/chat/screens/channel_messages_screen.dart';
 import 'package:frontend/models/project.dart';
@@ -233,6 +234,12 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
           taskIds: taskIds,
           widgetFilter: widgetFilter,
         ),
+      );
+
+    case PaymentHistoryScreen.routeName:
+      return MaterialPageRoute(
+        settings: routeSettings,
+        builder: (_) => const PaymentHistoryScreen(),
       );
 
     case ChannelMessagesScreen.routeName:

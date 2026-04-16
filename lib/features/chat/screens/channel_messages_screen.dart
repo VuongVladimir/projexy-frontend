@@ -455,7 +455,22 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
     }
   }
 
-  void _openChannel(BuildContext context, Channel channel) {
+  Future<void> _openChannel(BuildContext context, Channel channel) async {
+    if (channel.isProjectChannel) {
+      try {
+        await StreamChatService.ensureProjectChannelAccess(channel.id!);
+      } on ProjectChatPremiumRequiredException catch (e) {
+        if (!context.mounted) return;
+        showSnackBar(context, e.message);
+        return;
+      } catch (e) {
+        if (!context.mounted) return;
+        showSnackBar(context, 'Không thể truy cập phòng chat dự án');
+        return;
+      }
+    }
+
+    if (!context.mounted) return;
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => ChatRoomScreen(channel: channel)));
