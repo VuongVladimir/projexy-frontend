@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/account/screens/credits_screen.dart';
 import 'package:frontend/features/account/screens/edit_profile_screen.dart';
+import 'package:frontend/features/account/screens/feedback_history_screen.dart';
+import 'package:frontend/features/account/screens/help_support_screen.dart';
 import 'package:frontend/features/account/screens/payment_history_screen.dart';
 import 'package:frontend/features/account/screens/notifications_management.dart';
 import 'package:frontend/features/chat/screens/channel_messages_screen.dart';
@@ -61,10 +63,8 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
       }
     }
     return MaterialPageRoute(
-      builder: (_) => const ResponsiveLayout(
-        WebScreenLayout(),
-        MobileScreenLayout(),
-      ),
+      builder: (_) =>
+          const ResponsiveLayout(WebScreenLayout(), MobileScreenLayout()),
     );
   }
 
@@ -154,6 +154,18 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
       return MaterialPageRoute(
         settings: routeSettings,
         builder: (_) => const NotificationsManagement(),
+      );
+
+    case HelpSupportScreen.routeName:
+      return MaterialPageRoute(
+        settings: routeSettings,
+        builder: (_) => const HelpSupportScreen(),
+      );
+
+    case FeedbackHistoryScreen.routeName:
+      return MaterialPageRoute(
+        settings: routeSettings,
+        builder: (_) => const FeedbackHistoryScreen(),
       );
 
     case ProjectsScreen.routeName:
@@ -250,10 +262,8 @@ Route<dynamic> generateRoute(RouteSettings routeSettings) {
 
     default:
       return MaterialPageRoute(
-        builder: (_) => const ResponsiveLayout(
-          WebScreenLayout(),
-          MobileScreenLayout(),
-        ),
+        builder: (_) =>
+            const ResponsiveLayout(WebScreenLayout(), MobileScreenLayout()),
       );
   }
 }

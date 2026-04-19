@@ -6,6 +6,7 @@ import 'package:frontend/common/constants/http_handling.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/constants/utils.dart';
 import 'package:frontend/common/services/stream_chat_service.dart';
+import 'package:frontend/models/feedback_item.dart';
 import 'package:frontend/models/user.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:provider/provider.dart';
@@ -183,5 +184,103 @@ class AccountService {
       return [];
     }
     return results;
+  }
+
+  // Gửi feedback cho admin
+  Future<bool> submitFeedback({
+    required BuildContext context,
+    required String type,
+    required String subject,
+    required String message,
+  }) async {
+    try {
+      final response = await ApiClient.post(
+        url: '$uri/feedback',
+        body: json.encode({
+          'type': type,
+          'subject': subject.trim(),
+          'message': message.trim(),
+        }),
+      );
+
+      if (!context.mounted) return false;
+
+      bool isSuccess = false;
+      httpResponseHandle(
+        response: response,
+        context: context,
+        onSuccess: () {
+          isSuccess = true;
+        },
+      );
+
+      return isSuccess;
+    } catch (e) {
+      if (context.mounted) {
+        showSnackBar(context, 'Lỗi gửi feedback: $e');
+      }
+      return false;
+    }
+  }
+
+  // Lấy lịch sử feedback của user hiện tại
+  Future<Map<String, dynamic>> getMyFeedbacks({
+    required BuildContext context,
+    int page = 1,
+    int limit = 20,
+    String? type,
+    String? status,
+    bool showErrorSnackBar = true,
+  }) async {
+    try {
+      final queryParams = {'page': page.toString(), 'limit': limit.toString()};
+
+      if (type != null && type.isNotEmpty && type != 'all') {
+        queryParams['type'] = type;
+      }
+
+      if (status != null && status.isNotEmpty && status != 'all') {
+        queryParams['status'] = status;
+      }
+
+      final response = await ApiClient.get(
+        url: '$uri/feedback/my',
+        queryParams: queryParams,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final feedbacksData = (data['feedbacks'] as List?) ?? const [];
+        final feedbacks = feedbacksData
+            .map((item) => FeedbackItem.fromMap(item as Map<String, dynamic>))
+            .toList();
+
+        final pagination =
+            (data['pagination'] as Map<String, dynamic>?) ??
+            const <String, dynamic>{};
+
+        return {'feedbacks': feedbacks, 'pagination': pagination};
+      }
+
+      if (showErrorSnackBar && context.mounted) {
+        httpResponseHandle(
+          response: response,
+          context: context,
+          onSuccess: () {},
+        );
+      }
+      return {
+        'feedbacks': <FeedbackItem>[],
+        'pagination': const <String, dynamic>{},
+      };
+    } catch (e) {
+      if (showErrorSnackBar && context.mounted) {
+        showSnackBar(context, 'Lỗi tải lịch sử feedback: $e');
+      }
+      return {
+        'feedbacks': <FeedbackItem>[],
+        'pagination': const <String, dynamic>{},
+      };
+    }
   }
 }

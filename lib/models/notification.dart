@@ -164,6 +164,10 @@ class AppNotification {
         return 'Thành viên rời dự án';
       case 'comment_mention':
         return 'Được nhắc đến';
+      case 'premium_upgraded':
+        return 'Nâng cấp Premium';
+      case 'premium_expired':
+        return 'Premium hết hạn';
       default:
         return 'Thông báo';
     }
@@ -476,6 +480,8 @@ class NotificationPreferences {
   final bool memberRemoved;
   final bool memberLeft;
   final bool commentMention;
+  final bool premiumUpgraded;
+  final bool premiumExpired;
 
   NotificationPreferences({
     this.projectInvitations = true,
@@ -490,6 +496,8 @@ class NotificationPreferences {
     this.memberRemoved = true,
     this.memberLeft = true,
     this.commentMention = true,
+    this.premiumUpgraded = true,
+    this.premiumExpired = true,
   });
 
   Map<String, dynamic> toMap() {
@@ -506,6 +514,8 @@ class NotificationPreferences {
       'memberRemoved': memberRemoved,
       'memberLeft': memberLeft,
       'commentMention': commentMention,
+      'premiumUpgraded': premiumUpgraded,
+      'premiumExpired': premiumExpired,
     };
   }
 
@@ -528,6 +538,8 @@ class NotificationPreferences {
       memberRemoved: map['memberRemoved'] ?? true,
       memberLeft: map['memberLeft'] ?? true,
       commentMention: map['commentMention'] ?? true,
+      premiumUpgraded: map['premiumUpgraded'] ?? true,
+      premiumExpired: map['premiumExpired'] ?? true,
     );
   }
 
@@ -544,6 +556,8 @@ class NotificationPreferences {
     bool? memberRemoved,
     bool? memberLeft,
     bool? commentMention,
+    bool? premiumUpgraded,
+    bool? premiumExpired,
   }) {
     return NotificationPreferences(
       projectInvitations: projectInvitations ?? this.projectInvitations,
@@ -558,6 +572,8 @@ class NotificationPreferences {
       memberRemoved: memberRemoved ?? this.memberRemoved,
       memberLeft: memberLeft ?? this.memberLeft,
       commentMention: commentMention ?? this.commentMention,
+      premiumUpgraded: premiumUpgraded ?? this.premiumUpgraded,
+      premiumExpired: premiumExpired ?? this.premiumExpired,
     );
   }
 }

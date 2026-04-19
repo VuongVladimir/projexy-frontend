@@ -223,6 +223,24 @@ class _NotificationsManagementState extends State<NotificationsManagement> {
       ),
 
       _NotificationPreferenceConfig(
+        key: 'premiumUpgraded',
+        icon: Symbols.diamond_rounded,
+        title: tr('notification_type_premium_upgraded'),
+        subtitle: fullChannels,
+        value: preferences.premiumUpgraded,
+        color: GlobalVariables.premiumBadge,
+      ),
+
+      _NotificationPreferenceConfig(
+        key: 'premiumExpired',
+        icon: Symbols.lock_clock_rounded,
+        title: tr('notification_type_premium_expired'),
+        subtitle: fullChannels,
+        value: preferences.premiumExpired,
+        color: GlobalVariables.redPinkBadge,
+      ),
+
+      _NotificationPreferenceConfig(
         key: 'memberJoined',
         icon: Symbols.person_add_rounded,
         title: tr('notification_type_member_joined'),
@@ -312,7 +330,14 @@ class _NotificationsManagementState extends State<NotificationsManagement> {
         ),
         child:
             svgIcon ??
-            Icon(icon, color: GlobalVariables.white, size: 24, fill: 1, weight: 600, grade: 300),
+            Icon(
+              icon,
+              color: GlobalVariables.white,
+              size: 24,
+              fill: 1,
+              weight: 600,
+              grade: 300,
+            ),
       ),
       title: Text(
         title,
@@ -382,6 +407,8 @@ class _NotificationsManagementState extends State<NotificationsManagement> {
       'memberRemoved' => current.copyWith(memberRemoved: value),
       'memberLeft' => current.copyWith(memberLeft: value),
       'commentMention' => current.copyWith(commentMention: value),
+      'premiumUpgraded' => current.copyWith(premiumUpgraded: value),
+      'premiumExpired' => current.copyWith(premiumExpired: value),
       _ => current,
     };
 

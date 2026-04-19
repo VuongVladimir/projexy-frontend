@@ -5,7 +5,7 @@ import 'package:frontend/features/home/screens/home_screen.dart';
 import 'package:frontend/features/tasks/screens/tasks_screen.dart';
 
 //String uri = "https://projexy-backend.me";
-String uri = "http://192.168.0.163:3000";
+String uri = "http://192.168.1.231:3000";
 const webScreenSize = 600;
 List<Widget> bottomBarItems = [
   const HomeScreen(),
@@ -50,6 +50,7 @@ class GlobalVariables {
   static const Color blueFresh = Color(0xFF0D6EFD);
   static const Color yellowBadge = Color(0xFFFBB849);
   static const Color greenBadge = Color(0xFF25D366);
+  static const Color premiumBadge = Color(0xFFFFA11A);
   static const Color orangeBadge = Color(0xFFFF7643);
   static const Color pinkBadge = Color(0xFFFF7295);
   static const Color redPinkBadge = Color(0xFFD81B60);

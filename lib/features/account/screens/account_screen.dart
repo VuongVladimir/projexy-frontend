@@ -5,6 +5,7 @@ import 'package:frontend/common/widgets/custom_appbar.dart';
 import 'package:frontend/features/account/screens/notifications_management.dart';
 import 'package:frontend/features/account/screens/profile_screen.dart';
 import 'package:frontend/features/account/screens/edit_profile_screen.dart';
+import 'package:frontend/features/account/screens/help_support_screen.dart';
 import 'package:frontend/features/account/screens/payment_history_screen.dart';
 import 'package:frontend/features/account/screens/setting_screen.dart';
 import 'package:frontend/features/account/widgets/premium_upgrade_dialog.dart';
@@ -250,6 +251,20 @@ class AccountScreen extends StatelessWidget {
                         Navigator.pushNamed(
                           context,
                           NotificationsManagement.routeName,
+                        );
+                      },
+                    ),
+
+                    _buildMenuItem(
+                      context,
+                      icon: Icons.support_agent_outlined,
+                      badgeBackgroundColor: GlobalVariables.greenBadge,
+                      title: tr('help_support'),
+                      subtitle: tr('help_support_subtitle'),
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          HelpSupportScreen.routeName,
                         );
                       },
                     ),

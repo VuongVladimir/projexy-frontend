@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/widgets/custom_appbar.dart';
+import 'package:frontend/features/account/screens/payment_history_screen.dart';
 import 'package:frontend/features/notifications/services/notification_service.dart';
 import 'package:frontend/models/notification.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -524,6 +525,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           }
         }
         break;
+      case 'premium_upgraded':
+      case 'premium_expired':
+        Navigator.pushNamed(context, PaymentHistoryScreen.routeName);
+        break;
       default:
         break;
     }
@@ -693,6 +698,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       'task_due_today' ||
       'task_overdue' ||
       'project_overdue' => _buildDigestSpans(notification, boldStyle),
+      'premium_upgraded' ||
+      'premium_expired' => _buildPremiumSpans(notification),
       _ => [TextSpan(text: notification.message)],
     };
   }
@@ -806,6 +813,58 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return spans;
   }
 
+  List<TextSpan> _buildPremiumSpans(AppNotification notification) {
+    final extra = notification.data.extra;
+
+    if (notification.type == 'premium_upgraded') {
+      final rawValidUntil = extra?['premiumValidUntil']?.toString();
+      if (rawValidUntil != null) {
+        final validUntil = DateTime.tryParse(rawValidUntil);
+        if (validUntil != null) {
+          final localValidUntil = validUntil.toLocal();
+          return [
+            TextSpan(
+              text: tr(
+                'notification_premium_upgraded_until',
+                namedArgs: {
+                  'date': DateFormat(
+                    'dd/MM/yyyy HH:mm',
+                  ).format(localValidUntil),
+                },
+              ),
+            ),
+          ];
+        }
+      }
+
+      return [TextSpan(text: tr('notification_premium_upgraded'))];
+    }
+
+    if (notification.type == 'premium_expired') {
+      final rawExpiredAt = extra?['expiredAt']?.toString();
+      if (rawExpiredAt != null) {
+        final expiredAt = DateTime.tryParse(rawExpiredAt);
+        if (expiredAt != null) {
+          final localExpiredAt = expiredAt.toLocal();
+          return [
+            TextSpan(
+              text: tr(
+                'notification_premium_expired_at',
+                namedArgs: {
+                  'date': DateFormat('dd/MM/yyyy HH:mm').format(localExpiredAt),
+                },
+              ),
+            ),
+          ];
+        }
+      }
+
+      return [TextSpan(text: tr('notification_premium_expired'))];
+    }
+
+    return [TextSpan(text: notification.message)];
+  }
+
   String _buildAvatarLabel(AppNotification notification) {
     final source =
         notification.data.fromUser?.name ??
@@ -848,6 +907,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       'member_removed' => Symbols.group_remove_rounded,
       'member_left' => Symbols.person_remove_rounded,
       'comment_mention' => Symbols.chat_bubble_rounded,
+      'premium_upgraded' => Symbols.diamond_rounded,
+      'premium_expired' => Symbols.lock_clock_rounded,
       _ => Symbols.notifications_rounded,
     };
   }
@@ -863,6 +924,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       'member_removed' ||
       'member_left' ||
       'invitation_declined' => GlobalVariables.purpleBadge,
+      'premium_upgraded' => GlobalVariables.premiumBadge,
+      'premium_expired' => GlobalVariables.redPinkBadge,
       _ => GlobalVariables.blueBadge,
     };
   }
@@ -881,6 +944,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       'member_removed' => tr('notification_type_member_removed'),
       'member_left' => tr('notification_type_member_left'),
       'comment_mention' => tr('notification_type_mention'),
+      'premium_upgraded' => tr('notification_type_premium_upgraded'),
+      'premium_expired' => tr('notification_type_premium_expired'),
       _ => tr('notification_type_general'),
     };
   }
@@ -945,6 +1010,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               _buildFilterOption(
                 tr('notification_type_member_joined'),
                 'member_joined',
+              ),
+              _buildFilterOption(
+                tr('notification_type_premium_upgraded'),
+                'premium_upgraded',
+              ),
+              _buildFilterOption(
+                tr('notification_type_premium_expired'),
+                'premium_expired',
               ),
               _buildFilterOption(
                 tr('notification_type_mention'),
