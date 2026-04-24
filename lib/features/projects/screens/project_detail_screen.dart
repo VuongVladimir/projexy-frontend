@@ -1973,107 +1973,126 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   Widget _buildOwnerCard(Map<String, dynamic> owner) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
+    final currentUser = Provider.of<UserProvider>(context, listen: false).user;
+    final ownerId = owner['id']?.toString();
+    final canOpenProfile = ownerId != null && ownerId != currentUser.id;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDarkMode
-            ? GlobalVariables.darkSurfaceCard
-            : GlobalVariables.surfaceCard,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isDarkMode
-              ? GlobalVariables.darkBorderPrimary
-              : GlobalVariables.borderPrimary,
-        ),
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: owner['avatarColor'].toString().toColor(),
-            backgroundImage:
-                owner['avatar'] != null && owner['avatar']!.isNotEmpty
-                ? NetworkImage(owner['avatar'])
-                : null,
-            child: owner['avatar'] == null || owner['avatar'].isEmpty
-                ? Text(
-                    owner['name'].isNotEmpty
-                        ? owner['name'][0].toUpperCase()
-                        : 'U',
-                    style: TextStyle(
-                      color: GlobalVariables.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : null,
+        onTap: canOpenProfile
+            ? () {
+                Navigator.pushNamed(
+                  context,
+                  ProfileScreen.routeName,
+                  arguments: ownerId,
+                );
+              }
+            : null,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? GlobalVariables.darkSurfaceCard
+                : GlobalVariables.surfaceCard,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isDarkMode
+                  ? GlobalVariables.darkBorderPrimary
+                  : GlobalVariables.borderPrimary,
+            ),
           ),
-          const SizedBox(width: 12),
-
-          // User Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        owner['name'],
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: isDarkMode
-                              ? GlobalVariables.darkTextPrimary
-                              : GlobalVariables.textPrimary,
+          child: Row(
+            children: [
+              // Avatar
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: owner['avatarColor'].toString().toColor(),
+                backgroundImage:
+                    owner['avatar'] != null && owner['avatar']!.isNotEmpty
+                    ? NetworkImage(owner['avatar'])
+                    : null,
+                child: owner['avatar'] == null || owner['avatar'].isEmpty
+                    ? Text(
+                        owner['name'].isNotEmpty
+                            ? owner['name'][0].toUpperCase()
+                            : 'U',
+                        style: TextStyle(
+                          color: GlobalVariables.white,
+                          fontWeight: FontWeight.bold,
                         ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+
+              // User Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            owner['name'],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: isDarkMode
+                                  ? GlobalVariables.darkTextPrimary
+                                  : GlobalVariables.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF7C3AED),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            tr('owner'),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      owner['email'],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isDarkMode
+                            ? GlobalVariables.darkTextSecondary
+                            : GlobalVariables.textSecondary,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF7C3AED),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        tr('owner'),
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    const SizedBox(height: 4),
+                    Text(
+                      tr('has_all_permissions'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: GlobalVariables.primaryBlue,
+                        fontSize: 11,
                       ),
                     ),
                   ],
                 ),
-                Text(
-                  owner['email'],
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: isDarkMode
-                        ? GlobalVariables.darkTextSecondary
-                        : GlobalVariables.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  tr('has_all_permissions'),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: GlobalVariables.primaryBlue,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

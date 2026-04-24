@@ -1,7 +1,10 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/common/constants/global_variables.dart';
+import 'package:frontend/features/account/screens/profile_screen.dart';
 import 'package:frontend/models/task.dart';
+import 'package:frontend/providers/user_provider.dart';
+import 'package:provider/provider.dart';
 
 class TaskCard extends StatelessWidget {
   final Task task;
@@ -262,11 +265,12 @@ class TaskCard extends StatelessWidget {
   void _showAssigneesBottomSheet(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
+    final currentUser = Provider.of<UserProvider>(context, listen: false).user;
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
+      builder: (sheetContext) => Container(
         decoration: BoxDecoration(
           color: isDarkMode
               ? GlobalVariables.darkSurfaceCard
@@ -304,63 +308,87 @@ class TaskCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   ...task.assignedTo.map((user) {
+                    final userId = (user['_id'] ?? user['id'])?.toString();
+                    final isCurrentUser = userId == currentUser.id;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 15),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 22,
-                            backgroundColor: user['avatarColor']
-                                .toString()
-                                .toColor(),
-                            backgroundImage:
-                                user['avatar'] != null &&
-                                    user['avatar'].isNotEmpty
-                                ? NetworkImage(user['avatar'])
-                                : null,
-                            child:
-                                user['avatar'] == null || user['avatar'].isEmpty
-                                ? Text(
-                                    (user['name'] ?? 'U')
-                                        .substring(0, 1)
-                                        .toUpperCase(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 21,
-                                      fontWeight: FontWeight.w800,
+                      child: InkWell(
+                        onTap: userId == null || isCurrentUser
+                            ? null
+                            : () {
+                                Navigator.of(sheetContext).pop();
+                                Navigator.pushNamed(
+                                  context,
+                                  ProfileScreen.routeName,
+                                  arguments: userId,
+                                );
+                              },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundColor: user['avatarColor']
+                                    .toString()
+                                    .toColor(),
+                                backgroundImage:
+                                    user['avatar'] != null &&
+                                        user['avatar'].isNotEmpty
+                                    ? NetworkImage(user['avatar'])
+                                    : null,
+                                child:
+                                    user['avatar'] == null ||
+                                        user['avatar'].isEmpty
+                                    ? Text(
+                                        (user['name'] ?? 'U')
+                                            .substring(0, 1)
+                                            .toUpperCase(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 21,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 15),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      user['name'] ?? tr('unknown'),
+                                      style: theme.textTheme.bodyLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 16,
+                                            color: isDarkMode
+                                                ? GlobalVariables
+                                                      .darkTextPrimary
+                                                : GlobalVariables.textPrimary,
+                                          ),
                                     ),
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user['name'] ?? tr('unknown'),
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                    color: isDarkMode
-                                        ? GlobalVariables.darkTextPrimary
-                                        : GlobalVariables.textPrimary,
-                                  ),
+                                    if (user['email'] != null &&
+                                        user['email'].isNotEmpty)
+                                      Text(
+                                        user['email'],
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: isDarkMode
+                                                  ? GlobalVariables
+                                                        .darkTextSecondary
+                                                  : GlobalVariables
+                                                        .textSecondary,
+                                            ),
+                                      ),
+                                  ],
                                 ),
-                                if (user['email'] != null &&
-                                    user['email'].isNotEmpty)
-                                  Text(
-                                    user['email'],
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: isDarkMode
-                                          ? GlobalVariables.darkTextSecondary
-                                          : GlobalVariables.textSecondary,
-                                    ),
-                                  ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     );
                   }).toList(),
