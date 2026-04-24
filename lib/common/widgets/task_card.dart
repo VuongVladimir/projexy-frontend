@@ -85,6 +85,7 @@ class TaskCard extends StatelessWidget {
                 ],
                 const SizedBox(width: 12),
                 Expanded(
+                  //flex: 2,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -92,7 +93,7 @@ class TaskCard extends StatelessWidget {
                         task.title,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          fontSize: 23,
+                          fontSize: 20,
                           color: isDarkMode
                               ? GlobalVariables.darkTextPrimary
                               : GlobalVariables.textPrimary,
@@ -121,7 +122,7 @@ class TaskCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [

@@ -220,15 +220,21 @@ class _TaskCalendarViewState extends State<TaskCalendarView> {
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Row(
                     children: [
-                      Text(
-                        _selectedDay != null
-                            ? DateFormat('MMMM dd, yyyy').format(_selectedDay!)
-                            : easy.tr('select_date'),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: isDarkMode
-                              ? GlobalVariables.darkTextPrimary
-                              : GlobalVariables.textPrimary,
+                      Expanded(
+                        child: Text(
+                          _selectedDay != null
+                              ? DateFormat(
+                                  'MMMM dd, yyyy',
+                                ).format(_selectedDay!)
+                              : easy.tr('select_date'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: isDarkMode
+                                ? GlobalVariables.darkTextPrimary
+                                : GlobalVariables.textPrimary,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -260,6 +266,8 @@ class _TaskCalendarViewState extends State<TaskCalendarView> {
                   child: selectedDayTasks.isEmpty
                       ? _buildEmptyDayState(context)
                       : ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          physics: const AlwaysScrollableScrollPhysics(),
                           itemCount: selectedDayTasks.length,
                           itemBuilder: (context, index) {
                             final task = selectedDayTasks[index];
@@ -284,31 +292,41 @@ class _TaskCalendarViewState extends State<TaskCalendarView> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.event_available_outlined,
-              size: 64,
-              color: isDarkMode
-                  ? GlobalVariables.darkTextTertiary
-                  : GlobalVariables.textTertiary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              easy.tr('no_tasks'),
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: isDarkMode
-                    ? GlobalVariables.darkTextSecondary
-                    : GlobalVariables.textSecondary,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.event_available_outlined,
+                      size: 64,
+                      color: isDarkMode
+                          ? GlobalVariables.darkTextTertiary
+                          : GlobalVariables.textTertiary,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      easy.tr('no_tasks'),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: isDarkMode
+                            ? GlobalVariables.darkTextSecondary
+                            : GlobalVariables.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
