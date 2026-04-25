@@ -48,7 +48,11 @@ class PremiumService {
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        onResult(data['status']);
+        final status = data['status']?.toString() ?? '';
+        if (status == 'paid' && context.mounted) {
+          await refreshUserPremiumStatus(context);
+        }
+        onResult(status);
       }
     } catch (e) {
       if (context.mounted) {
@@ -104,10 +108,10 @@ class PremiumService {
 
   static Future<void> refreshUserPremiumStatus(BuildContext context) async {
     try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
       final res = await ApiClient.get(url: '$uri/auth/me');
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
         final currentUser = userProvider.user;
         userProvider.setUserFromModel(
           currentUser.copyWith(
