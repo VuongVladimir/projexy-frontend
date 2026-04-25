@@ -414,30 +414,7 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
     return channel.resolvedCategory;
   }
 
-  bool _isDirectChannel(Channel channel) {
-    final isMessaging = channel.type == 'messaging';
-    final memberCount =
-        channel.memberCount ?? channel.state?.members.length ?? 0;
-    final isExplicitTeam = channel.extraData['is_team'] == true;
-    return isMessaging && memberCount <= 2 && !isExplicitTeam;
-  }
-
   String _resolveChannelTitle(Channel channel) {
-    final isDirect = _isDirectChannel(channel);
-    if (isDirect) {
-      final currentUserId = StreamChatService.currentUserId;
-      final members = channel.state?.members ?? const <Member>[];
-      Member? other;
-      for (final member in members) {
-        if (member.user?.id != currentUserId) {
-          other = member;
-          break;
-        }
-      }
-      final name = other?.user?.name ?? other?.user?.id ?? '';
-      if (name.trim().isNotEmpty) return name;
-    }
-
     final displayName = channel.getDisplayName();
     if (displayName.trim().isNotEmpty) return displayName;
 
@@ -477,25 +454,67 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
   }
 
   void _showChannelActions(BuildContext context, Channel channel) {
-    if (!channel.isDirectChannel) return;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isDirectChannel = channel.isDirectChannel;
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: isDarkMode
+          ? GlobalVariables.darkSurfaceCard
+          : GlobalVariables.surfaceCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextTertiary
+                      : GlobalVariables.textTertiary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Ẩn cuộc trò chuyện
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text(
-                  'Xóa cuộc trò chuyện',
-                  style: TextStyle(color: Colors.red),
+                leading: Icon(
+                  Icons.visibility_off_outlined,
+                  color: isDarkMode
+                      ? GlobalVariables.darkTextPrimary
+                      : GlobalVariables.textPrimary,
+                ),
+                title: Text(
+                  'Ẩn cuộc trò chuyện',
+                  style: TextStyle(
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextPrimary
+                        : GlobalVariables.textPrimary,
+                  ),
+                ),
+                subtitle: Text(
+                  isDirectChannel
+                      ? 'Bạn có thể mở lại từ trang cá nhân của người này'
+                      : 'Bạn có thể mở lại từ trang chi tiết dự án',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDarkMode
+                        ? GlobalVariables.darkTextSecondary
+                        : GlobalVariables.textSecondary,
+                  ),
                 ),
                 onTap: () {
                   Navigator.of(context).pop();
-                  _confirmDeleteDirectChannel(channel);
+                  _confirmHideChannel(channel);
                 },
               ),
+              const SizedBox(height: 8),
             ],
           ),
         );
@@ -503,14 +522,17 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
     );
   }
 
-  Future<void> _confirmDeleteDirectChannel(Channel channel) async {
-    final shouldDelete = await showDialog<bool>(
+  Future<void> _confirmHideChannel(Channel channel) async {
+    final isDirectChannel = channel.isDirectChannel;
+    final shouldHide = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Xóa cuộc trò chuyện?'),
-          content: const Text(
-            'Thao tác này sẽ xóa channel direct cho cả hai bên.',
+          title: const Text('Ẩn cuộc trò chuyện?'),
+          content: Text(
+            isDirectChannel
+                ? 'Cuộc trò chuyện sẽ được ẩn khỏi danh sách. Bạn có thể mở lại bằng cách nhấn vào biểu tượng chat trong trang cá nhân của người này.'
+                : 'Cuộc trò chuyện sẽ được ẩn khỏi danh sách. Bạn có thể mở lại bằng cách nhấn vào biểu tượng chat trong trang chi tiết dự án.',
           ),
           actions: [
             TextButton(
@@ -519,23 +541,26 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+              child: Text(
+                'Ẩn',
+                style: TextStyle(color: GlobalVariables.primaryBlue),
+              ),
             ),
           ],
         );
       },
     );
 
-    if (shouldDelete != true) return;
+    if (shouldHide != true) return;
 
-    final success = await StreamChatService.deleteChannel(channel);
+    final success = await StreamChatService.hideChannel(channel);
     if (!mounted) return;
 
     if (success) {
-      showSnackBar(context, 'Đã xóa cuộc trò chuyện');
+      showSnackBar(context, 'Đã ẩn cuộc trò chuyện');
       _listController?.refresh();
     } else {
-      showSnackBar(context, 'Không thể xóa cuộc trò chuyện');
+      showSnackBar(context, 'Không thể ẩn cuộc trò chuyện');
     }
   }
 }
@@ -555,165 +580,156 @@ class _ChannelPreviewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = _resolveTitle();
-    final category = _resolveCategory();
+    final category = channel.resolvedCategory;
+    final isDirect = category == 'direct';
 
-    return StreamBuilder<Message?>(
-      stream: channel.state?.lastMessageStream,
-      initialData: channel.state?.lastMessage,
-      builder: (context, snapshot) {
-        final message = snapshot.data;
-        final subtitle = _buildSubtitle(message);
-        final lastMessageAt = message?.createdAt ?? channel.lastMessageAt;
+    // Sử dụng StreamBuilder cho cả members và lastMessage
+    return StreamBuilder<List<Member>>(
+      stream: channel.state?.membersStream,
+      initialData: channel.state?.members ?? const <Member>[],
+      builder: (context, membersSnapshot) {
+        final members = membersSnapshot.data ?? const <Member>[];
+        final title = _resolveTitleFromMembers(members, isDirect);
 
-        return Container(
-          decoration: BoxDecoration(
-            color: isDarkMode
-                ? GlobalVariables.darkSurfaceCard
-                : GlobalVariables.surfaceCard,
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              onLongPress: onLongPress,
-              child: Padding(
-                padding: const EdgeInsets.all(9),
-                child: Row(
-                  children: [
-                    _buildAvatar(category),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+        return StreamBuilder<Message?>(
+          stream: channel.state?.lastMessageStream,
+          initialData: channel.state?.lastMessage,
+          builder: (context, messageSnapshot) {
+            final message = messageSnapshot.data;
+            final subtitle = _buildSubtitle(message);
+            final lastMessageAt = message?.createdAt ?? channel.lastMessageAt;
+
+            return Container(
+              decoration: BoxDecoration(
+                color: isDarkMode
+                    ? GlobalVariables.darkSurfaceCard
+                    : GlobalVariables.surfaceCard,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onTap,
+                  onLongPress: onLongPress,
+                  child: Padding(
+                    padding: const EdgeInsets.all(9),
+                    child: Row(
+                      children: [
+                        ChannelAvatarWidget(channel: channel, radius: 28),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: Text(
-                                  title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: isDarkMode
-                                            ? GlobalVariables.darkTextPrimary
-                                            : GlobalVariables.textPrimary,
-                                      ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _formatTime(lastMessageAt),
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: isDarkMode
-                                          ? GlobalVariables.darkTextTertiary
-                                          : GlobalVariables.textTertiary,
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            color: isDarkMode
+                                                ? GlobalVariables
+                                                      .darkTextPrimary
+                                                : GlobalVariables.textPrimary,
+                                          ),
                                     ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _formatTime(lastMessageAt),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: isDarkMode
+                                              ? GlobalVariables.darkTextTertiary
+                                              : GlobalVariables.textTertiary,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: isDarkMode
+                                                ? GlobalVariables
+                                                      .darkTextSecondary
+                                                : GlobalVariables.textSecondary,
+                                          ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  subtitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: isDarkMode
-                                            ? GlobalVariables.darkTextSecondary
-                                            : GlobalVariables.textSecondary,
-                                      ),
+                        ),
+                        const SizedBox(width: 12),
+                        StreamBuilder<int>(
+                          stream: channel.state?.unreadCountStream,
+                          initialData: channel.state?.unreadCount ?? 0,
+                          builder: (context, snapshot) {
+                            final unread = snapshot.data ?? 0;
+                            if (unread <= 0) {
+                              return Icon(
+                                Icons.chevron_right_rounded,
+                                color: isDarkMode
+                                    ? GlobalVariables.darkTextTertiary
+                                    : GlobalVariables.textTertiary,
+                              );
+                            }
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: GlobalVariables.primaryBlue,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                unread > 99 ? '99+' : unread.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    StreamBuilder<int>(
-                      stream: channel.state?.unreadCountStream,
-                      initialData: channel.state?.unreadCount ?? 0,
-                      builder: (context, snapshot) {
-                        final unread = snapshot.data ?? 0;
-                        if (unread <= 0) {
-                          return Icon(
-                            Icons.chevron_right_rounded,
-                            color: isDarkMode
-                                ? GlobalVariables.darkTextTertiary
-                                : GlobalVariables.textTertiary,
-                          );
-                        }
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: GlobalVariables.primaryBlue,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            unread > 99 ? '99+' : unread.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  String _resolveCategory() {
-    return channel.resolvedCategory;
-  }
-
-  bool _isDirectChannel() {
-    final isMessaging = channel.type == 'messaging';
-    final memberCount =
-        channel.memberCount ?? channel.state?.members.length ?? 0;
-    final isExplicitTeam = channel.extraData['is_team'] == true;
-    return isMessaging && memberCount <= 2 && !isExplicitTeam;
-  }
-
-  String _resolveTitle() {
-    if (_isDirectChannel()) {
-      final currentUserId = StreamChatService.currentUserId;
-      final members = channel.state?.members ?? const <Member>[];
-      Member? other;
-      for (final member in members) {
-        if (member.user?.id != currentUserId) {
-          other = member;
-          break;
-        }
-      }
-      final name = other?.user?.name ?? other?.user?.id ?? '';
-      if (name.trim().isNotEmpty) return name;
+  /// Resolve title từ danh sách members (cho direct channel)
+  String _resolveTitleFromMembers(List<Member> members, bool isDirect) {
+    if (isDirect) {
+      return channel.getDirectDisplayName(members: members);
     }
 
     final displayName = channel.getDisplayName();
     if (displayName.trim().isNotEmpty) return displayName;
     return 'Chat';
-  }
-
-  Widget _buildAvatar(String category) {
-    return ChannelAvatarWidget(channel: channel, radius: 28);
   }
 
   String _buildSubtitle(Message? message) {

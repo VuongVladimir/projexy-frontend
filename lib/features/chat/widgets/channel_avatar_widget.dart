@@ -3,7 +3,6 @@ import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/services/stream_chat_service.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
-
 class ChannelAvatarWidget extends StatelessWidget {
   final Channel channel;
   final double radius;
@@ -19,21 +18,21 @@ class ChannelAvatarWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final channelImage = channel.image;
-    final channelName = channel.getDisplayName();
     final category = channel.resolvedCategory;
     final isDirect = category == 'direct';
 
-    // Nếu channel có avatar image đã được set
-    if (channelImage != null && channelImage.isNotEmpty) {
+    // Nếu channel có avatar image đã được set (không áp dụng cho direct channel)
+    if (!isDirect && channelImage != null && channelImage.isNotEmpty) {
       return _buildImageAvatar(channelImage);
     }
 
-    // Nếu là Direct Channel -> hiển thị avatar của user kia
+    // Nếu là Direct Channel -> sử dụng StreamBuilder để theo dõi members stream
     if (isDirect) {
-      return _buildDirectChannelAvatar();
+      return _buildDirectChannelAvatarStream();
     }
 
-    // Project/Team channel không có avatar -> hiển thị avatarColor + chữ cái đầu
+    // Project channel không có avatar -> hiển thị avatarColor + chữ cái đầu
+    final channelName = channel.getDisplayName();
     return _buildDefaultChannelAvatar(channelName);
   }
 
@@ -47,25 +46,27 @@ class ChannelAvatarWidget extends StatelessWidget {
     );
   }
 
-  /// Build avatar cho Direct Channel (1-1 chat)
-  /// Hiển thị avatar của user còn lại trong channel
-  Widget _buildDirectChannelAvatar() {
-    final currentUserId = StreamChatService.currentUserId;
-    final members = channel.state?.members ?? const <Member>[];
+  /// Build avatar cho Direct Channel sử dụng StreamBuilder
+  /// Để đảm bảo cập nhật khi members stream thay đổi
+  Widget _buildDirectChannelAvatarStream() {
+    return StreamBuilder<List<Member>>(
+      stream: channel.state?.membersStream,
+      initialData: channel.state?.members ?? const <Member>[],
+      builder: (context, snapshot) {
+        final members = snapshot.data ?? const <Member>[];
+        return _buildDirectChannelAvatarFromMembers(members);
+      },
+    );
+  }
 
-    // Tìm user còn lại (không phải current user)
-    Member? otherMember;
-    for (final member in members) {
-      if (member.user?.id != currentUserId) {
-        otherMember = member;
-        break;
-      }
-    }
-
+  /// Build avatar cho Direct Channel từ danh sách members
+  Widget _buildDirectChannelAvatarFromMembers(List<Member> members) {
+    final otherMember = channel.getDirectOtherMember(members: members);
     final otherUser = otherMember?.user;
     final userImage = otherUser?.image;
-    final userName = otherUser?.name ?? otherUser?.id ?? '';
-    final userColorHex = (otherUser?.extraData['color'] as String?) ?? '#4B58F0';
+    final userName = otherUser?.name ?? otherMember?.userId ?? '';
+    final userColorHex =
+        (otherUser?.extraData['color'] as String?) ?? '#4B58F0';
 
     return CircleAvatar(
       radius: radius,
@@ -79,7 +80,7 @@ class ChannelAvatarWidget extends StatelessWidget {
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
-                fontSize: radius -4,
+                fontSize: radius - 4,
               ),
             )
           : null,
@@ -116,12 +117,10 @@ class ChannelAvatarWidget extends StatelessWidget {
       return GlobalVariables.blueAvatar;
     }
   }
-
 }
 
 /// Extension để lấy các thông tin channel avatar
 extension ChannelAvatarExtension on Channel {
-
   /// Kiểm tra channel có phải là Direct Channel không
   bool get isDirectChannel {
     final category = extraData['category'];
@@ -144,15 +143,6 @@ extension ChannelAvatarExtension on Channel {
     return extraData['project_id'] != null;
   }
 
-  /// Kiểm tra channel có phải là Team Channel không
-  bool get isTeamChannel {
-    final category = extraData['category'];
-    if (category is String && category == 'team') {
-      return true;
-    }
-    return type == 'team' && extraData['project_id'] == null;
-  }
-
   /// Lấy avatarColor của channel
   Color get avatarColor {
     final colorHex = (extraData['avatarColor'] as String?) ?? '#4285F4';
@@ -166,18 +156,39 @@ extension ChannelAvatarExtension on Channel {
   /// Kiểm tra channel có avatar image hay không
   bool get hasAvatarImage => image != null && image!.isNotEmpty;
 
+  Member? getDirectOtherMember({String? currentUserId, List<Member>? members}) {
+    final userId = (currentUserId ?? StreamChatService.currentUserId)?.trim();
+    if (userId == null || userId.isEmpty) return null;
+
+    final sourceMembers = members ?? state?.members ?? const <Member>[];
+    for (final member in sourceMembers) {
+      final memberUserId = member.userId ?? member.user?.id;
+      if (memberUserId != null && memberUserId != userId) {
+        return member;
+      }
+    }
+
+    return null;
+  }
+
+  String getDirectDisplayName({String? currentUserId, List<Member>? members}) {
+    final otherMember = getDirectOtherMember(
+      currentUserId: currentUserId,
+      members: members,
+    );
+    final userName = otherMember?.user?.name ?? otherMember?.userId ?? '';
+    if (userName.trim().isNotEmpty) return userName.trim();
+    return 'Chat';
+  }
+
   /// Lấy tên hiển thị của channel
-  String getDisplayName({String? currentUserId}) {
+  String getDisplayName({String? currentUserId, List<Member>? members}) {
     // Direct channel -> t??n user c??n l???i
     if (isDirectChannel) {
-      final userId = currentUserId ?? StreamChatService.currentUserId;
-      final members = state?.members ?? const <Member>[];
-      for (final member in members) {
-        if (member.user?.id != userId) {
-          final userName = member.user?.name ?? member.user?.id ?? '';
-          if (userName.trim().isNotEmpty) return userName;
-        }
-      }
+      return getDirectDisplayName(
+        currentUserId: currentUserId,
+        members: members,
+      );
     }
 
     // Project/Team channel -> ưu tiên name, fallback theo extraData
@@ -207,19 +218,21 @@ extension ChannelAvatarExtension on Channel {
   String get resolvedCategory {
     final category = extraData['category'];
     if (category is String && category.trim().isNotEmpty) {
+      // App không sử dụng team, chuyển team về project
+      if (category.trim() == 'team') return 'project';
       return category.trim();
     }
 
     if (isDirectChannel) return 'direct';
 
+    // Nếu có project_id hoặc project_title hoặc type là 'team' -> project channel
     if (extraData['project_id'] != null ||
         (extraData['project_title'] is String &&
-            (extraData['project_title'] as String).trim().isNotEmpty)) {
+            (extraData['project_title'] as String).trim().isNotEmpty) ||
+        type == 'team') {
       return 'project';
     }
 
-    if (type == 'team') return 'team';
-
-    return 'team';
+    return 'project';
   }
 }

@@ -60,7 +60,24 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         if (channel.isProjectChannel) {
           await StreamChatService.ensureProjectChannelAccess(channel.id!);
         }
-        await channel.watch();
+        if (channel.isDirectChannel) {
+          final recoveredChannel =
+              await StreamChatService.recoverAndWatchDirectChannel(channel);
+          if (recoveredChannel != null) {
+            channel = recoveredChannel;
+          } else {
+            await channel.watch();
+          }
+        } else {
+          await channel.watch();
+        }
+
+        // Đảm bảo channel được hiện nếu đang bị ẩn
+        try {
+          await channel.show();
+        } catch (_) {
+          // Ignore error nếu channel đã được hiện
+        }
       } else if (widget.projectId != null) {
         // Watch channel theo project
         channel = await StreamChatService.watchProjectChannel(
@@ -99,6 +116,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final chatSafeLocale = appLocale.languageCode == 'vi'
         ? const Locale('en')
         : appLocale;
+
+    // Lấy displayTitle dựa trên loại channel
     final displayTitle = _resolveChannelTitle(
       _channel,
       fallbackTitle: widget.projectTitle,
@@ -203,16 +222,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 },
               ),
             ],
-            title: Text(
-              displayTitle,
-              style: TextStyle(
-                color: isDarkMode
-                    ? GlobalVariables.darkTextPrimary
-                    : GlobalVariables.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            title: _buildAppBarTitle(isDarkMode),
             centerTitle: true,
             backgroundColor: isDarkMode
                 ? GlobalVariables.darkSurfaceCard
@@ -259,6 +269,68 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         ),
       ),
     );
+  }
+
+  /// Build AppBar title với StreamBuilder cho direct channel
+  Widget _buildAppBarTitle(bool isDarkMode) {
+    final channel = _channel;
+    if (channel == null) {
+      return Text(
+        widget.projectTitle ?? 'Chat',
+        style: TextStyle(
+          color: isDarkMode
+              ? GlobalVariables.darkTextPrimary
+              : GlobalVariables.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+
+    final isDirect = _isDirectChannel(channel);
+
+    // Nếu không phải direct channel, hiển thị title tĩnh
+    if (!isDirect) {
+      final displayTitle = _resolveChannelTitle(
+        channel,
+        fallbackTitle: widget.projectTitle,
+      );
+      return Text(
+        displayTitle,
+        style: TextStyle(
+          color: isDarkMode
+              ? GlobalVariables.darkTextPrimary
+              : GlobalVariables.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
+
+    // Cho direct channel, sử dụng StreamBuilder để theo dõi members
+    return StreamBuilder<List<Member>>(
+      stream: channel.state?.membersStream,
+      initialData: channel.state?.members ?? const <Member>[],
+      builder: (context, snapshot) {
+        final members = snapshot.data ?? const <Member>[];
+        final title = _resolveDirectChannelTitleFromMembers(members);
+        return Text(
+          title,
+          style: TextStyle(
+            color: isDarkMode
+                ? GlobalVariables.darkTextPrimary
+                : GlobalVariables.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        );
+      },
+    );
+  }
+
+  /// Resolve title cho direct channel từ danh sách members
+  String _resolveDirectChannelTitleFromMembers(List<Member> members) {
+    return _channel?.getDirectDisplayName(members: members) ?? 'Chat';
   }
 
   /// Build custom theme với avatar builder và reaction builder
@@ -329,17 +401,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     final isDirect = _isDirectChannel(channel);
     if (isDirect) {
-      final currentUserId = StreamChatService.currentUserId;
-      final members = channel.state?.members ?? const <Member>[];
-      Member? other;
-      for (final member in members) {
-        if (member.user?.id != currentUserId) {
-          other = member;
-          break;
-        }
-      }
-      final name = other?.user?.name ?? other?.user?.id ?? '';
-      if (name.trim().isNotEmpty) return name;
+      return channel.getDisplayName();
     }
 
     final displayName = channel.getDisplayName();
@@ -349,11 +411,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   bool _isDirectChannel(Channel channel) {
-    final isMessaging = channel.type == 'messaging';
-    final memberCount =
-        channel.memberCount ?? channel.state?.members.length ?? 0;
-    final isExplicitTeam = channel.extraData['is_team'] == true;
-    return isMessaging && memberCount <= 2 && !isExplicitTeam;
+    return channel.isDirectChannel;
   }
 
   @override

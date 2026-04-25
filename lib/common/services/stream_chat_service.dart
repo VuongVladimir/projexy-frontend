@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/constants/http_handling.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
@@ -145,6 +144,28 @@ class StreamChatService {
     return <String, dynamic>{};
   }
 
+  static String? _resolveDirectOtherUserId(Channel channel) {
+    final userId = currentUserId;
+    if (userId == null || userId.isEmpty) return null;
+
+    final members = channel.state?.members ?? const <Member>[];
+    for (final member in members) {
+      final memberUserId = member.userId ?? member.user?.id;
+      if (memberUserId != null && memberUserId != userId) {
+        return memberUserId;
+      }
+    }
+
+    final channelIdParts = channel.id?.split('_') ?? const <String>[];
+    for (final part in channelIdParts) {
+      if (part.length == 24 && part != userId) {
+        return part;
+      }
+    }
+
+    return null;
+  }
+
   /// Xác thực quyền truy cập project chat từ backend.
   static Future<void> ensureProjectChannelAccess(String projectId) async {
     final response = await ApiClient.post(
@@ -199,6 +220,13 @@ class StreamChatService {
 
       await channel.watch();
 
+      // Đảm bảo channel được hiện nếu đang bị ẩn
+      try {
+        await channel.show();
+      } catch (_) {
+        // Ignore error nếu channel đã được hiện
+      }
+
       if (hasTitle) {
         final currentName = channel.name?.trim() ?? '';
         final category = channel.extraData['category'];
@@ -234,26 +262,40 @@ class StreamChatService {
   }
 
   /// Watch generic channel by ID and Type
+  /// Nếu channel đang bị ẩn, sẽ tự động show lại
   static Future<Channel?> watchChannel({
     required String channelId,
     required String channelType,
-    String? category, // 'project', 'team', 'direct'
+    String? category, // 'project', 'direct'
   }) async {
     try {
-      // Ensure member endpoint supports type now
-      try {
-        await ApiClient.post(
-          url:
-              '$uri/api/stream-chat/channel/$channelId/ensure-member?type=$channelType',
-        );
-      } catch (e) {
-        debugPrint(
-          'ensure-member failed for $channelType (will try watch anyway): $e',
-        );
+      final isDirectMessaging =
+          channelType == 'messaging' && category == 'direct';
+
+      if (!isDirectMessaging) {
+        // Ensure member endpoint supports type now
+        try {
+          await ApiClient.post(
+            url:
+                '$uri/api/stream-chat/channel/$channelId/ensure-member?type=$channelType',
+          );
+        } catch (e) {
+          debugPrint(
+            'ensure-member failed for $channelType (will try watch anyway): $e',
+          );
+        }
       }
 
       final channel = _client!.channel(channelType, id: channelId);
       await channel.watch();
+
+      // Đảm bảo channel được hiện nếu đang bị ẩn
+      try {
+        await channel.show();
+      } catch (_) {
+        // Ignore error nếu channel đã được hiện
+      }
+
       return channel;
     } catch (e) {
       debugPrint('Error watching channel $channelId ($channelType): $e');
@@ -261,13 +303,16 @@ class StreamChatService {
     }
   }
 
-  /// Helper for Team Channel
-  static Future<Channel?> watchTeamChannel(String teamId) {
-    return watchChannel(
-      channelId: teamId,
-      channelType: 'team',
-      category: 'team',
-    );
+  static Future<Channel?> recoverAndWatchDirectChannel(Channel channel) async {
+    final otherUserId = _resolveDirectOtherUserId(channel);
+    if (otherUserId == null || otherUserId.isEmpty) {
+      debugPrint(
+        'recoverAndWatchDirectChannel aborted: cannot resolve other user for ${channel.id}',
+      );
+      return null;
+    }
+
+    return createAndWatchDirectChat(otherUserId);
   }
 
   /// Create and Watch Direct Chat
@@ -314,11 +359,13 @@ class StreamChatService {
         throw Exception('Invalid channelId returned from server');
       }
 
+      // Watch channel và tự động show nếu đang bị ẩn
       final channel = await watchChannel(
         channelId: channelId,
         channelType: 'messaging',
         category: 'direct',
       );
+
       debugPrint('watchChannel result: ${channel?.id}');
       return channel;
     } catch (e) {
@@ -327,13 +374,31 @@ class StreamChatService {
     }
   }
 
-  /// Xóa channel (chỉ nên dùng cho direct channel)
-  static Future<bool> deleteChannel(Channel channel) async {
+  /// Ẩn channel cho user hiện tại (channel vẫn tồn tại, có thể mở lại)
+  /// Sử dụng cho cả project channel và direct channel
+  /// @param clearHistory - nếu true, sẽ xóa lịch sử tin nhắn của user
+  static Future<bool> hideChannel(
+    Channel channel, {
+    bool clearHistory = false,
+  }) async {
     try {
-      await channel.delete();
+      await channel.hide(clearHistory: clearHistory);
+      debugPrint('✅ Channel ${channel.id} hidden successfully');
       return true;
     } catch (e) {
-      debugPrint('Error deleting channel ${channel.id}: $e');
+      debugPrint('❌ Error hiding channel ${channel.id}: $e');
+      return false;
+    }
+  }
+
+  /// Hiện lại channel đã bị ẩn
+  static Future<bool> showChannel(Channel channel) async {
+    try {
+      await channel.show();
+      debugPrint('✅ Channel ${channel.id} shown successfully');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error showing channel ${channel.id}: $e');
       return false;
     }
   }
@@ -344,7 +409,8 @@ class StreamChatService {
   }
 
   /// Lấy current user ID
-  static String? get currentUserId => _currentUserId;
+  static String? get currentUserId =>
+      _currentUserId ?? _client?.state.currentUser?.id;
 
   /// Cập nhật avatar cho channel (project/team channel only)
   /// Upload ảnh lên Cloudinary trước, sau đó gọi API này với URL

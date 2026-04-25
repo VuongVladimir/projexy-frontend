@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
@@ -59,13 +58,31 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
           padding: const EdgeInsets.fromLTRB(21, 0, 21, 32),
           children: [
             // Header section với Avatar và tên channel
-            _buildHeaderSection(
-              context,
-              isDarkMode: isDarkMode,
-              channelName: channelName,
-              category: category,
-              isDirect: isDirect,
-            ),
+            if (isDirect)
+              StreamBuilder<List<Member>>(
+                stream: widget.channel.state?.membersStream,
+                initialData: widget.channel.state?.members ?? const <Member>[],
+                builder: (context, snapshot) {
+                  final members = snapshot.data ?? const <Member>[];
+                  return _buildHeaderSection(
+                    context,
+                    isDarkMode: isDarkMode,
+                    channelName: widget.channel.getDisplayName(
+                      members: members,
+                    ),
+                    category: category,
+                    isDirect: isDirect,
+                  );
+                },
+              )
+            else
+              _buildHeaderSection(
+                context,
+                isDarkMode: isDarkMode,
+                channelName: channelName,
+                category: category,
+                isDirect: isDirect,
+              ),
             const SizedBox(height: 18),
 
             // Chat info section (chỉ hiển thị cho non-direct channel)
@@ -226,23 +243,16 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
 
   /// Build category badge
   Widget _buildCategoryBadge(BuildContext context, String category) {
-    final label = category == 'project'
-        ? tr('project')
-        : category == 'direct'
-        ? tr('direct_chat')
-        : tr('team');
+    // App chỉ có project và direct channel
+    final label = category == 'project' ? tr('project') : tr('direct_chat');
 
     final bgColor = category == 'project'
         ? GlobalVariables.primaryBlue.withValues(alpha: 0.12)
-        : category == 'direct'
-        ? GlobalVariables.accentViolet.withValues(alpha: 0.12)
-        : GlobalVariables.accentTeal.withValues(alpha: 0.12);
+        : GlobalVariables.accentViolet.withValues(alpha: 0.12);
 
     final textColor = category == 'project'
         ? GlobalVariables.primaryBlue
-        : category == 'direct'
-        ? GlobalVariables.accentViolet
-        : GlobalVariables.accentTeal;
+        : GlobalVariables.accentViolet;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
