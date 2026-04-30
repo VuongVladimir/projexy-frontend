@@ -1,10 +1,18 @@
+import 'dart:async';
 import 'dart:io';
+
 import 'package:cloudinary_public/cloudinary_public.dart';
+import 'package:dio/dio.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/constants/utils.dart';
 import 'package:frontend/common/services/stream_chat_service.dart';
@@ -57,7 +65,6 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
         body: ListView(
           padding: const EdgeInsets.fromLTRB(21, 0, 21, 32),
           children: [
-            // Header section với Avatar và tên channel
             if (isDirect)
               StreamBuilder<List<Member>>(
                 stream: widget.channel.state?.membersStream,
@@ -84,8 +91,6 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                 isDirect: isDirect,
               ),
             const SizedBox(height: 18),
-
-            // Chat info section (chỉ hiển thị cho non-direct channel)
             if (!isDirect) ...[
               _buildSectionHeader(context, tr('chat_info')),
               const SizedBox(height: 12),
@@ -102,8 +107,6 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
               ),
               const SizedBox(height: 24),
             ],
-
-            // More actions section
             _buildSectionHeader(context, tr('more_actions')),
             const SizedBox(height: 12),
             _buildActionRow(
@@ -123,12 +126,16 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
               icon: Symbols.push_pin,
               fill: 1,
               title: tr('pinned_messages'),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      _PinnedMessagesScreen(channel: widget.channel),
-                ),
-              ),
+              onTap: () async {
+                final messageId = await Navigator.of(context).push<String>(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        _PinnedMessagesScreen(channel: widget.channel),
+                  ),
+                );
+                if (!mounted || messageId == null || messageId.isEmpty) return;
+                Navigator.of(this.context).pop(messageId);
+              },
             ),
             const SizedBox(height: 16),
             _buildActionRow(
@@ -136,6 +143,16 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
               icon: Symbols.search,
               fill: 1,
               title: tr('search_in_conversation'),
+              onTap: () async {
+                final messageId = await Navigator.of(context).push<String>(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        _SearchInConversationScreen(channel: widget.channel),
+                  ),
+                );
+                if (!mounted || messageId == null || messageId.isEmpty) return;
+                Navigator.of(this.context).pop(messageId);
+              },
             ),
           ],
         ),
@@ -143,7 +160,6 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
     );
   }
 
-  /// Build header section với avatar và tên channel (tương tự account_screen)
   Widget _buildHeaderSection(
     BuildContext context, {
     required bool isDarkMode,
@@ -151,20 +167,17 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
     required String category,
     required bool isDirect,
   }) {
-    final canEditAvatar =
-        !isDirect; // Chỉ cho phép edit avatar với project/team channel
+    final canEditAvatar = !isDirect;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         children: [
-          // Avatar với edit icon (nếu không phải direct channel)
           Stack(
             children: [
-              // Avatar
               Container(
-                decoration: BoxDecoration(shape: BoxShape.circle),
+                decoration: const BoxDecoration(shape: BoxShape.circle),
                 child: _selectedAvatar != null
                     ? CircleAvatar(
                         radius: 64,
@@ -173,8 +186,6 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                       )
                     : ChannelAvatarWidget(channel: widget.channel, radius: 64),
               ),
-
-              // Loading overlay khi đang upload
               if (_isUploadingAvatar || _isProcessingImage)
                 Positioned.fill(
                   child: Container(
@@ -190,8 +201,6 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                     ),
                   ),
                 ),
-
-              // Edit button (chỉ hiển thị cho project/team channel)
               if (canEditAvatar)
                 Positioned(
                   bottom: 0,
@@ -216,10 +225,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
                 ),
             ],
           ),
-
           const SizedBox(height: 16),
-
-          // Channel name
           Text(
             channelName,
             style: TextStyle(
@@ -231,25 +237,18 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
             ),
             textAlign: TextAlign.center,
           ),
-
           const SizedBox(height: 8),
-
-          // Category badge
-          if (isDirect == false) _buildCategoryBadge(context, category),
+          if (!isDirect) _buildCategoryBadge(context, category),
         ],
       ),
     );
   }
 
-  /// Build category badge
   Widget _buildCategoryBadge(BuildContext context, String category) {
-    // App chỉ có project và direct channel
     final label = category == 'project' ? tr('project') : tr('direct_chat');
-
     final bgColor = category == 'project'
         ? GlobalVariables.primaryBlue.withValues(alpha: 0.12)
         : GlobalVariables.accentViolet.withValues(alpha: 0.12);
-
     final textColor = category == 'project'
         ? GlobalVariables.primaryBlue
         : GlobalVariables.accentViolet;
@@ -271,14 +270,11 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
     );
   }
 
-  /// Chọn và upload avatar mới cho channel
   Future<void> _selectAndUploadAvatar() async {
     try {
-      // Set processing state khi bắt đầu chọn ảnh
       setState(() => _isProcessingImage = true);
 
-      // Chọn ảnh
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowMultiple: false,
       );
@@ -288,7 +284,6 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
         return;
       }
 
-      // Lưu selected avatar để preview
       setState(() {
         if (kIsWeb) {
           _selectedAvatar = result.files.first.bytes;
@@ -296,18 +291,16 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
           _selectedAvatar = File(result.files.single.path!);
         }
         _isProcessingImage = false;
-        _isUploadingAvatar = true; // Bắt đầu upload
+        _isUploadingAvatar = true;
       });
 
-      // Upload lên Cloudinary
       final cloudinary = CloudinaryPublic('dkwp4prjj', 'projexy_preset');
-      CloudinaryResponse response;
+      late final CloudinaryResponse response;
 
       if (kIsWeb) {
         final bytes = result.files.first.bytes;
-        if (bytes == null) {
-          throw Exception('Cannot read file bytes');
-        }
+        if (bytes == null) throw Exception('Cannot read file bytes');
+
         response = await cloudinary.uploadFile(
           CloudinaryFile.fromBytesData(
             bytes,
@@ -318,27 +311,23 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
         );
       } else {
         final path = result.files.single.path;
-        if (path == null) {
-          throw Exception('Cannot get file path');
-        }
+        if (path == null) throw Exception('Cannot get file path');
+
         response = await cloudinary.uploadFile(
           CloudinaryFile.fromFile(path, folder: 'channel_avatars'),
         );
       }
 
       final avatarUrl = response.secureUrl;
-
       final previousImage = widget.channel.image;
       final previousAvatarColor =
           widget.channel.extraData['avatarColor'] as String?;
 
-      // Optimistic: cập nhật avatar ngay trên UI
       await StreamChatService.updateChannelAvatarDirect(
         channel: widget.channel,
         avatarUrl: avatarUrl,
       );
 
-      // Cập nhật avatar channel qua API
       final success = await StreamChatService.updateChannelAvatar(
         channelId: widget.channel.id!,
         channelType: widget.channel.type,
@@ -346,13 +335,9 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
       );
 
       if (success) {
-        // Clear selected avatar sau khi upload thành công
         setState(() => _selectedAvatar = null);
-        if (mounted) {
-          showSnackBar(context, tr('channel_avatar_updated'));
-        }
+        if (mounted) showSnackBar(context, tr('channel_avatar_updated'));
       } else {
-        // Rollback nếu backend thất bại
         await StreamChatService.updateChannelAvatarDirect(
           channel: widget.channel,
           avatarUrl: (previousImage != null && previousImage.isNotEmpty)
@@ -369,9 +354,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
     } catch (e) {
       debugPrint('Error uploading channel avatar: $e');
       setState(() => _selectedAvatar = null);
-      if (mounted) {
-        showSnackBar(context, tr('error_uploading_image'));
-      }
+      if (mounted) showSnackBar(context, tr('error_uploading_image'));
     } finally {
       if (mounted) {
         setState(() {
@@ -382,14 +365,12 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
     }
   }
 
-  /// Get avatar image từ selectedAvatar hoặc channel
   ImageProvider? _getAvatarImage() {
     if (_selectedAvatar != null) {
       if (kIsWeb) {
         return MemoryImage(_selectedAvatar as Uint8List);
-      } else {
-        return FileImage(_selectedAvatar as File);
       }
+      return FileImage(_selectedAvatar as File);
     }
     return null;
   }
@@ -438,6 +419,7 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
       ),
     );
     if (onTap == null) return row;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -451,11 +433,13 @@ class _ChatInfoScreenState extends State<ChatInfoScreen> {
 
 class _ChatMembersScreen extends StatelessWidget {
   final Channel channel;
+
   const _ChatMembersScreen({required this.channel});
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return StreamChannel(
       channel: channel,
       child: Scaffold(
@@ -483,6 +467,7 @@ class _ChatMembersScreen extends StatelessWidget {
                 ),
               );
             }
+
             return ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               itemCount: members.length,
@@ -494,6 +479,7 @@ class _ChatMembersScreen extends StatelessWidget {
                 final image = user?.image;
                 final colorHex =
                     (user?.extraData['color'] as String?) ?? '#4B58F0';
+
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 4,
@@ -541,11 +527,13 @@ class _ChatMembersScreen extends StatelessWidget {
 
 class _PinnedMessagesScreen extends StatelessWidget {
   final Channel channel;
+
   const _PinnedMessagesScreen({required this.channel});
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return StreamChannel(
       channel: channel,
       child: Scaffold(
@@ -561,12 +549,17 @@ class _PinnedMessagesScreen extends StatelessWidget {
           elevation: 0,
         ),
         body: StreamBuilder<List<Message>>(
-          stream: channel.state?.messagesStream,
-          initialData: channel.state?.messages ?? const <Message>[],
+          stream: channel.state?.pinnedMessagesStream,
+          initialData: channel.state?.pinnedMessages ?? const <Message>[],
           builder: (context, snapshot) {
-            final all = snapshot.data ?? const <Message>[];
-            final pinned = all.where((m) => m.pinned == true).toList();
-            if (pinned.isEmpty) {
+            final pinnedMessages = [...(snapshot.data ?? const <Message>[])];
+            pinnedMessages.sort(
+              (a, b) => (b.pinnedAt ?? b.createdAt).compareTo(
+                a.pinnedAt ?? a.createdAt,
+              ),
+            );
+
+            if (pinnedMessages.isEmpty) {
               return Center(
                 child: Text(
                   tr('no_pinned_messages'),
@@ -574,22 +567,54 @@ class _PinnedMessagesScreen extends StatelessWidget {
                 ),
               );
             }
+
             return ListView.separated(
               padding: const EdgeInsets.all(12),
-              itemCount: pinned.length,
+              itemCount: pinnedMessages.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, index) {
-                final m = pinned[index];
-                final userName = m.user?.name ?? m.user?.id ?? 'User';
-                final text = (m.text ?? '').trim();
+                final message = pinnedMessages[index];
+                final userName =
+                    message.user?.name ?? message.user?.id ?? tr('member');
+                final previewText = _messagePreview(message, context);
+                final pinnedAt = message.pinnedAt ?? message.createdAt;
+
                 return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 4,
+                  ),
                   leading: const Icon(Symbols.push_pin),
-                  title: Text(userName),
-                  subtitle: Text(
-                    text.isNotEmpty ? text : tr('message_with_attachments'),
-                    maxLines: 2,
+                  title: Text(
+                    userName,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 2),
+                      Text(
+                        previewText,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          DateFormat('dd/MM/yyyy HH:mm').format(pinnedAt),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: isDarkMode
+                                    ? GlobalVariables.darkTextSecondary
+                                    : GlobalVariables.textSecondary,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  trailing: const Icon(Symbols.chevron_right),
+                  onTap: () => Navigator.of(context).pop(message.id),
                 );
               },
             );
@@ -598,17 +623,52 @@ class _PinnedMessagesScreen extends StatelessWidget {
       ),
     );
   }
+
+  String _messagePreview(Message message, BuildContext context) {
+    final text = (message.text ?? '').trim();
+    if (text.isNotEmpty) return text;
+
+    if (message.attachments.isNotEmpty) {
+      final first = message.attachments.first;
+      if (first.isImage) return tr('image');
+      if (first.isFile || first.isVideo || first.isAudio) {
+        return first.title ?? first.file?.name ?? tr('file');
+      }
+      if (first.isUrlPreview) {
+        return first.title ??
+            first.titleLink ??
+            first.ogScrapeUrl ??
+            tr('links');
+      }
+    }
+
+    return tr('message_with_attachments');
+  }
 }
 
-class _ChannelMediaScreen extends StatelessWidget {
+class _ChannelMediaScreen extends StatefulWidget {
   final Channel channel;
+
   const _ChannelMediaScreen({required this.channel});
+
+  @override
+  State<_ChannelMediaScreen> createState() => _ChannelMediaScreenState();
+}
+
+class _ChannelMediaScreenState extends State<_ChannelMediaScreen> {
+  static final RegExp _urlRegex = RegExp(
+    r'((https?:\/\/)|(www\.))[^\s]+',
+    caseSensitive: false,
+  );
+
+  bool _isDownloading = false;
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return StreamChannel(
-      channel: channel,
+      channel: widget.channel,
       child: Scaffold(
         backgroundColor: isDarkMode
             ? GlobalVariables.darkBackgroundPrimary
@@ -622,23 +682,64 @@ class _ChannelMediaScreen extends StatelessWidget {
           elevation: 0,
         ),
         body: StreamBuilder<List<Message>>(
-          stream: channel.state?.messagesStream,
-          initialData: channel.state?.messages ?? const <Message>[],
+          stream: widget.channel.state?.messagesStream,
+          initialData: widget.channel.state?.messages ?? const <Message>[],
           builder: (context, snapshot) {
             final messages = snapshot.data ?? const <Message>[];
-            final images = <Attachment>[];
-            final files = <Attachment>[];
-            for (final m in messages) {
-              for (final a in m.attachments) {
-                final type = a.type ?? '';
-                if (type == 'image') {
-                  images.add(a);
-                } else if (type == 'file' || type == 'video') {
-                  files.add(a);
+            final imageItems = <_AttachmentWithMessage>[];
+            final fileItems = <_AttachmentWithMessage>[];
+            final linkItems = <_LinkItem>[];
+            final seenLinks = <String>{};
+
+            for (final message in messages) {
+              for (final attachment in message.attachments) {
+                if (attachment.isImage) {
+                  imageItems.add(
+                    _AttachmentWithMessage(
+                      message: message,
+                      attachment: attachment,
+                    ),
+                  );
+                } else if (attachment.isFile ||
+                    attachment.isVideo ||
+                    attachment.isAudio) {
+                  fileItems.add(
+                    _AttachmentWithMessage(
+                      message: message,
+                      attachment: attachment,
+                    ),
+                  );
+                }
+
+                if (attachment.isUrlPreview) {
+                  final url = _normalizeUrl(
+                    attachment.titleLink ??
+                        attachment.ogScrapeUrl ??
+                        attachment.assetUrl,
+                  );
+                  if (url != null && seenLinks.add(url)) {
+                    linkItems.add(
+                      _LinkItem(
+                        url: url,
+                        title: attachment.title ?? url,
+                        subtitle: attachment.text,
+                      ),
+                    );
+                  }
+                }
+              }
+
+              final text = message.text ?? '';
+              for (final match in _urlRegex.allMatches(text)) {
+                final raw = text.substring(match.start, match.end);
+                final url = _normalizeUrl(raw);
+                if (url != null && seenLinks.add(url)) {
+                  linkItems.add(_LinkItem(url: url, title: url));
                 }
               }
             }
-            if (images.isEmpty && files.isEmpty) {
+
+            if (imageItems.isEmpty && fileItems.isEmpty && linkItems.isEmpty) {
               return Center(
                 child: Text(
                   tr('no_shared_media'),
@@ -646,18 +747,18 @@ class _ChannelMediaScreen extends StatelessWidget {
                 ),
               );
             }
+
             return ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                if (images.isNotEmpty)
+                if (imageItems.isNotEmpty) ...[
                   Text(
                     tr('images'),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                if (images.isNotEmpty) const SizedBox(height: 8),
-                if (images.isNotEmpty)
+                  const SizedBox(height: 8),
                   GridView.builder(
                     physics: const NeverScrollableScrollPhysics(),
                     shrinkWrap: true,
@@ -667,36 +768,59 @@ class _ChannelMediaScreen extends StatelessWidget {
                           mainAxisSpacing: 6,
                           crossAxisSpacing: 6,
                         ),
-                    itemCount: images.length,
+                    itemCount: imageItems.length,
                     itemBuilder: (context, index) {
-                      final img = images[index];
+                      final imageAttachment = imageItems[index].attachment;
                       final url =
-                          img.imageUrl ?? img.assetUrl ?? img.thumbUrl ?? '';
+                          imageAttachment.imageUrl ??
+                          imageAttachment.assetUrl ??
+                          imageAttachment.thumbUrl ??
+                          '';
+
                       if (url.isEmpty) {
                         return Container(
                           color: GlobalVariables.borderPrimary,
                           child: const Icon(Symbols.broken_image),
                         );
                       }
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(url, fit: BoxFit.cover),
+
+                      return GestureDetector(
+                        onTap: () => _openImagePreview(
+                          imageUrl: url,
+                          title:
+                              imageAttachment.title ??
+                              imageAttachment.file?.name,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            url,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: GlobalVariables.borderPrimary,
+                              child: const Icon(Symbols.broken_image),
+                            ),
+                          ),
+                        ),
                       );
                     },
                   ),
-                if (files.isNotEmpty) const SizedBox(height: 16),
-                if (files.isNotEmpty)
+                ],
+                if (fileItems.isNotEmpty) ...[
+                  const SizedBox(height: 16),
                   Text(
                     tr('files'),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                if (files.isNotEmpty) const SizedBox(height: 8),
-                if (files.isNotEmpty)
-                  ...files.map((f) {
-                    final title = f.title ?? f.file?.name ?? tr('file');
-                    final size = f.file?.size;
+                  const SizedBox(height: 8),
+                  ...fileItems.map((fileItem) {
+                    final attachment = fileItem.attachment;
+                    final title =
+                        attachment.title ?? attachment.file?.name ?? tr('file');
+                    final size = attachment.file?.size;
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
@@ -712,23 +836,73 @@ class _ChannelMediaScreen extends StatelessWidget {
                       ),
                       child: ListTile(
                         leading: const Icon(Symbols.insert_drive_file),
-                        title: Text(title),
+                        title: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         subtitle: size != null
                             ? Text(
                                 '${(size / (1024 * 1024)).toStringAsFixed(2)} MB',
                               )
                             : null,
-                        trailing: const Icon(Symbols.chevron_right),
-                        onTap: () {
-                          final url =
-                              f.assetUrl ?? f.file?.path ?? f.titleLink ?? '';
-                          if (url.isNotEmpty) {
-                            // Tuỳ ứng dụng có thể mở trình duyệt hoặc viewer
-                          }
-                        },
+                        trailing: _isDownloading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Symbols.download),
+                        onTap: _isDownloading
+                            ? null
+                            : () => _downloadFileAttachment(attachment),
                       ),
                     );
                   }),
+                ],
+                if (linkItems.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    tr('links'),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...linkItems.map((linkItem) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: isDarkMode
+                            ? GlobalVariables.darkSurfaceCard
+                            : GlobalVariables.surfaceCard,
+                        border: Border.all(
+                          color: isDarkMode
+                              ? GlobalVariables.darkBorderPrimary
+                              : GlobalVariables.borderPrimary,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(Symbols.link),
+                        title: Text(
+                          linkItem.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          linkItem.subtitle ?? linkItem.url,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(Symbols.open_in_new),
+                        onTap: () => _openExternalLink(linkItem.url),
+                      ),
+                    );
+                  }),
+                ],
               ],
             );
           },
@@ -736,4 +910,470 @@ class _ChannelMediaScreen extends StatelessWidget {
       ),
     );
   }
+
+  String? _normalizeUrl(String? rawUrl) {
+    final value = rawUrl?.trim();
+    if (value == null || value.isEmpty) return null;
+
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+
+    if (value.startsWith('www.')) return 'https://$value';
+    return null;
+  }
+
+  Future<void> _openExternalLink(String rawUrl) async {
+    final url = _normalizeUrl(rawUrl);
+    if (url == null) {
+      if (mounted) showSnackBar(context, tr('cannot_open_file'));
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      if (mounted) showSnackBar(context, tr('cannot_open_file'));
+      return;
+    }
+
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) showSnackBar(context, tr('cannot_open_file'));
+    }
+  }
+
+  void _openImagePreview({required String imageUrl, String? title}) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.95),
+      builder: (context) {
+        return Dialog.fullscreen(
+          backgroundColor: Colors.transparent,
+          child: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(child: CircularProgressIndicator());
+                    },
+                    errorBuilder: (_, __, ___) => const Center(
+                      child: Icon(Icons.broken_image, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 18,
+                left: 12,
+                right: 12,
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                    Expanded(
+                      child: Text(
+                        title ?? tr('image'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _downloadFileAttachment(Attachment attachment) async {
+    final rawUrl =
+        attachment.assetUrl ??
+        attachment.titleLink ??
+        attachment.ogScrapeUrl ??
+        attachment.file?.path;
+    final url = _normalizeUrl(rawUrl);
+
+    if (url == null) {
+      if (mounted) showSnackBar(context, tr('cannot_open_file'));
+      return;
+    }
+
+    if (kIsWeb) {
+      await _openExternalLink(url);
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      if (mounted) showSnackBar(context, tr('cannot_open_file'));
+      return;
+    }
+
+    try {
+      setState(() => _isDownloading = true);
+
+      if (Platform.isAndroid) {
+        final storageStatus = await Permission.storage.request();
+        if (!storageStatus.isGranted) {
+          final manageStatus = await Permission.manageExternalStorage.request();
+          if (!manageStatus.isGranted) {
+            if (mounted) {
+              showSnackBar(context, tr('storage_permission_required'));
+            }
+            return;
+          }
+        }
+      }
+
+      Directory? downloadDir;
+      if (Platform.isAndroid) {
+        downloadDir = Directory('/storage/emulated/0/Download');
+        if (!await downloadDir.exists()) {
+          downloadDir = await getExternalStorageDirectory();
+        }
+      } else if (Platform.isIOS) {
+        downloadDir = await getApplicationDocumentsDirectory();
+      } else {
+        downloadDir = await getDownloadsDirectory();
+      }
+
+      if (downloadDir == null) {
+        if (mounted) showSnackBar(context, tr('cannot_access_storage'));
+        return;
+      }
+
+      final fileName = _extractFileName(attachment, uri);
+      final filePath = '${downloadDir.path}/$fileName';
+      await Dio().download(url, filePath);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr('file_downloaded', namedArgs: {'fileName': fileName}),
+          ),
+          action: SnackBarAction(
+            label: tr('open'),
+            onPressed: () async {
+              await OpenFile.open(filePath);
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error downloading chat attachment: $e');
+      if (mounted) showSnackBar(context, tr('error_downloading_file'));
+    } finally {
+      if (mounted) {
+        setState(() => _isDownloading = false);
+      }
+    }
+  }
+
+  String _extractFileName(Attachment attachment, Uri uri) {
+    final title = (attachment.title ?? '').trim();
+    if (title.isNotEmpty) return title;
+
+    final fileName = (attachment.file?.name ?? '').trim();
+    if (fileName.isNotEmpty) return fileName;
+
+    final lastSegment = uri.pathSegments.isEmpty ? '' : uri.pathSegments.last;
+    if (lastSegment.trim().isNotEmpty) return lastSegment;
+
+    return 'file_${DateTime.now().millisecondsSinceEpoch}';
+  }
+}
+
+class _SearchInConversationScreen extends StatefulWidget {
+  final Channel channel;
+
+  const _SearchInConversationScreen({required this.channel});
+
+  @override
+  State<_SearchInConversationScreen> createState() =>
+      _SearchInConversationScreenState();
+}
+
+class _SearchInConversationScreenState
+    extends State<_SearchInConversationScreen> {
+  final TextEditingController _controller = TextEditingController();
+  Timer? _debounce;
+
+  bool _isLoading = false;
+  String _query = '';
+  String? _error;
+  List<Message> _results = const <Message>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onQueryChanged);
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _controller
+      ..removeListener(_onQueryChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return StreamChannel(
+      channel: widget.channel,
+      child: Scaffold(
+        backgroundColor: isDarkMode
+            ? GlobalVariables.darkBackgroundPrimary
+            : GlobalVariables.backgroundPrimary,
+        appBar: AppBar(
+          title: Text(tr('search_in_conversation')),
+          centerTitle: true,
+          backgroundColor: isDarkMode
+              ? GlobalVariables.darkSurfaceCard
+              : GlobalVariables.surfaceCard,
+          elevation: 0,
+        ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: TextField(
+                controller: _controller,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: tr('search_messages_hint'),
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: () {
+                            _controller.clear();
+                            setState(() {
+                              _query = '';
+                              _results = const <Message>[];
+                              _error = null;
+                            });
+                          },
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                  filled: true,
+                  fillColor: isDarkMode
+                      ? GlobalVariables.darkSurfaceCard
+                      : GlobalVariables.surfaceCard,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: isDarkMode
+                          ? GlobalVariables.darkBorderPrimary
+                          : GlobalVariables.borderPrimary,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: isDarkMode
+                          ? GlobalVariables.darkBorderPrimary
+                          : GlobalVariables.borderPrimary,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: GlobalVariables.primaryBlue),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(child: _buildBody(isDarkMode)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(bool isDarkMode) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isDarkMode
+                  ? GlobalVariables.darkTextSecondary
+                  : GlobalVariables.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_query.isEmpty) {
+      return Center(
+        child: Text(
+          tr('start_typing_to_search'),
+          style: TextStyle(
+            color: isDarkMode
+                ? GlobalVariables.darkTextSecondary
+                : GlobalVariables.textSecondary,
+          ),
+        ),
+      );
+    }
+
+    if (_results.isEmpty) {
+      return Center(
+        child: Text(
+          tr('no_search_results'),
+          style: TextStyle(
+            color: isDarkMode
+                ? GlobalVariables.darkTextSecondary
+                : GlobalVariables.textSecondary,
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      itemCount: _results.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final message = _results[index];
+        final sender = message.user?.name ?? message.user?.id ?? tr('member');
+        final content = _messagePreview(message, context);
+
+        return ListTile(
+          leading: const Icon(Symbols.chat),
+          title: Text(sender, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(content, maxLines: 2, overflow: TextOverflow.ellipsis),
+          trailing: const Icon(Symbols.chevron_right),
+          onTap: () => Navigator.of(context).pop(message.id),
+        );
+      },
+    );
+  }
+
+  void _onQueryChanged() {
+    final nextQuery = _controller.text.trim();
+    _debounce?.cancel();
+
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      if (nextQuery == _query) return;
+      _searchMessages(nextQuery);
+    });
+  }
+
+  Future<void> _searchMessages(String query) async {
+    setState(() {
+      _query = query;
+      _error = null;
+      if (query.isEmpty) {
+        _results = const <Message>[];
+      }
+    });
+
+    if (query.isEmpty) return;
+
+    setState(() => _isLoading = true);
+    try {
+      List<Message> results;
+
+      if (widget.channel.canSearchMessages) {
+        final response = await widget.channel.search(
+          query: query,
+          sort: [SortOption<Message>.desc('created_at')],
+          paginationParams: const PaginationParams(limit: 50),
+        );
+
+        results = response.results.map((item) => item.message).toList();
+      } else {
+        final lowerQuery = query.toLowerCase();
+        final loadedMessages =
+            widget.channel.state?.messages ?? const <Message>[];
+        results = loadedMessages.where((message) {
+          final text = (message.text ?? '').toLowerCase();
+          return text.contains(lowerQuery);
+        }).toList();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _results = results;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = tr('search_error_try_again');
+        _results = const <Message>[];
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  String _messagePreview(Message message, BuildContext context) {
+    final text = (message.text ?? '').trim();
+    if (text.isNotEmpty) return text;
+
+    if (message.attachments.isNotEmpty) {
+      final first = message.attachments.first;
+      if (first.isImage) return tr('image');
+      if (first.isFile || first.isVideo || first.isAudio) {
+        return first.title ?? first.file?.name ?? tr('file');
+      }
+      if (first.isUrlPreview) {
+        return first.title ??
+            first.titleLink ??
+            first.ogScrapeUrl ??
+            tr('links');
+      }
+    }
+
+    return tr('message_with_attachments');
+  }
+}
+
+class _AttachmentWithMessage {
+  final Message message;
+  final Attachment attachment;
+
+  const _AttachmentWithMessage({
+    required this.message,
+    required this.attachment,
+  });
+}
+
+class _LinkItem {
+  final String url;
+  final String title;
+  final String? subtitle;
+
+  const _LinkItem({required this.url, required this.title, this.subtitle});
 }

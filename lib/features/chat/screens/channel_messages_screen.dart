@@ -94,15 +94,15 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
         body: _buildEmptyState(
           context,
           icon: Icons.cloud_off_rounded,
-          title: 'Không thể kết nối chat',
-          subtitle: 'Vui lòng đăng nhập lại hoặc kiểm tra kết nối mạng.',
+          title: tr('chat_connection_failed_title'),
+          subtitle: tr('chat_connection_failed_subtitle'),
           action: ElevatedButton(
             onPressed: () {
               setState(() {
                 _initializeController();
               });
             },
-            child: const Text('Thử lại'),
+            child: Text(tr('retry')),
           ),
         ),
       );
@@ -132,12 +132,11 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
                         return _buildEmptyState(
                           context,
                           icon: Icons.forum_outlined,
-                          title: 'Chưa có cuộc trò chuyện',
-                          subtitle:
-                              'Bạn sẽ thấy các cuộc trò chuyện dự án, nhóm hoặc trực tiếp ở đây.',
+                          title: tr('chat_empty_conversations_title'),
+                          subtitle: tr('chat_empty_conversations_subtitle'),
                           action: TextButton(
                             onPressed: _listController!.refresh,
-                            child: const Text('Làm mới danh sách'),
+                            child: Text(tr('chat_refresh_list')),
                           ),
                         );
                       }
@@ -178,11 +177,11 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
                     error: (e) => _buildEmptyState(
                       context,
                       icon: Icons.error_outline_rounded,
-                      title: 'Không tải được danh sách chat',
+                      title: tr('chat_list_load_failed_title'),
                       subtitle: e.toString(),
                       action: ElevatedButton(
                         onPressed: _listController!.refresh,
-                        child: const Text('Thử lại'),
+                        child: Text(tr('retry')),
                       ),
                     ),
                   );
@@ -201,7 +200,7 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
-          hintText: 'Tìm kiếm cuộc trò chuyện',
+          hintText: tr('chat_search_hint'),
           prefixIcon: const Icon(Icons.search_rounded),
           suffixIcon: _searchQuery.isEmpty
               ? null
@@ -325,7 +324,7 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
         child: TextButton(
           onPressed: _listController?.retry,
           child: Text(
-            'Không tải thêm được. Nhấn để thử lại.',
+            tr('chat_load_more_failed'),
             style: TextStyle(color: GlobalVariables.primaryBlue),
           ),
         ),
@@ -418,17 +417,17 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
     final displayName = channel.getDisplayName();
     if (displayName.trim().isNotEmpty) return displayName;
 
-    return 'Chat';
+    return tr('chat_generic_title');
   }
 
   String _filterLabel(ChannelCategoryFilter filter) {
     switch (filter) {
       case ChannelCategoryFilter.all:
-        return 'Tất cả';
+        return tr('chat_filter_all');
       case ChannelCategoryFilter.project:
-        return 'Dự án';
+        return tr('chat_filter_project');
       case ChannelCategoryFilter.direct:
-        return 'Trực tiếp';
+        return tr('chat_filter_direct');
     }
   }
 
@@ -442,7 +441,7 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
         return;
       } catch (e) {
         if (!context.mounted) return;
-        showSnackBar(context, 'Không thể truy cập phòng chat dự án');
+        showSnackBar(context, tr('chat_project_access_failed'));
         return;
       }
     }
@@ -491,7 +490,7 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
                       : GlobalVariables.textPrimary,
                 ),
                 title: Text(
-                  'Ẩn cuộc trò chuyện',
+                  tr('chat_hide_conversation'),
                   style: TextStyle(
                     color: isDarkMode
                         ? GlobalVariables.darkTextPrimary
@@ -500,8 +499,8 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
                 ),
                 subtitle: Text(
                   isDirectChannel
-                      ? 'Bạn có thể mở lại từ trang cá nhân của người này'
-                      : 'Bạn có thể mở lại từ trang chi tiết dự án',
+                      ? tr('chat_hide_direct_hint')
+                      : tr('chat_hide_project_hint'),
                   style: TextStyle(
                     fontSize: 12,
                     color: isDarkMode
@@ -528,21 +527,21 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Ẩn cuộc trò chuyện?'),
+          title: Text(tr('chat_hide_confirm_title')),
           content: Text(
             isDirectChannel
-                ? 'Cuộc trò chuyện sẽ được ẩn khỏi danh sách. Bạn có thể mở lại bằng cách nhấn vào biểu tượng chat trong trang cá nhân của người này.'
-                : 'Cuộc trò chuyện sẽ được ẩn khỏi danh sách. Bạn có thể mở lại bằng cách nhấn vào biểu tượng chat trong trang chi tiết dự án.',
+                ? tr('chat_hide_confirm_direct_body')
+                : tr('chat_hide_confirm_project_body'),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Hủy'),
+              child: Text(tr('cancel')),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
               child: Text(
-                'Ẩn',
+                tr('chat_hide_action'),
                 style: TextStyle(color: GlobalVariables.primaryBlue),
               ),
             ),
@@ -557,10 +556,10 @@ class _ChannelMessagesScreenState extends State<ChannelMessagesScreen> {
     if (!mounted) return;
 
     if (success) {
-      showSnackBar(context, 'Đã ẩn cuộc trò chuyện');
+      showSnackBar(context, tr('chat_hide_success'));
       _listController?.refresh();
     } else {
-      showSnackBar(context, 'Không thể ẩn cuộc trò chuyện');
+      showSnackBar(context, tr('chat_hide_failed'));
     }
   }
 }
@@ -729,25 +728,25 @@ class _ChannelPreviewTile extends StatelessWidget {
 
     final displayName = channel.getDisplayName();
     if (displayName.trim().isNotEmpty) return displayName;
-    return 'Chat';
+    return tr('chat_generic_title');
   }
 
   String _buildSubtitle(Message? message) {
     if (message == null) {
-      return 'Chưa có tin nhắn nào';
+      return tr('chat_no_messages_yet');
     }
 
-    final sender = message.user?.name ?? message.user?.id ?? 'Ai đó';
+    final sender = message.user?.name ?? message.user?.id ?? tr('chat_someone');
     final text = (message.text ?? '').trim();
     if (text.isNotEmpty) {
       return '$sender: $text';
     }
 
     if (message.attachments.isNotEmpty) {
-      return '$sender: Đã gửi tệp đính kèm';
+      return tr('chat_sent_attachment', namedArgs: {'sender': sender});
     }
 
-    return '$sender: Đã gửi một tin nhắn';
+    return tr('chat_sent_message', namedArgs: {'sender': sender});
   }
 
   String _formatTime(DateTime? time) {

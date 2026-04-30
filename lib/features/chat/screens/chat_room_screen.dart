@@ -12,12 +12,14 @@ class ChatRoomScreen extends StatefulWidget {
   final String? projectId;
   final String? projectTitle;
   final Channel? channel;
+  final String? initialMessageId;
 
   const ChatRoomScreen({
     super.key,
     this.projectId,
     this.projectTitle,
     this.channel,
+    this.initialMessageId,
   }) : assert(
          channel != null || (projectId != null && projectTitle != null),
          'Either channel or projectId/projectTitle must be provided.',
@@ -33,12 +35,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   String? _error;
   late final StreamMessageInputController _messageInputController;
   late final FocusNode _messageInputFocusNode;
+  String? _initialMessageIdForJump;
+  int _channelViewVersion = 0;
 
   @override
   void initState() {
     super.initState();
     _messageInputController = StreamMessageInputController();
     _messageInputFocusNode = FocusNode();
+    _initialMessageIdForJump = widget.initialMessageId;
     _initializeChannel();
   }
 
@@ -51,7 +56,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     try {
       // Đảm bảo Stream Chat đã được khởi tạo
       if (StreamChatService.client == null) {
-        throw Exception('Stream Chat chưa được khởi tạo');
+        throw Exception(tr('chat_init_missing_client'));
       }
 
       Channel? channel;
@@ -87,7 +92,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       }
 
       if (channel == null) {
-        throw Exception('Không thể kết nối đến channel');
+        throw Exception(tr('chat_channel_connect_failed'));
       }
 
       setState(() {
@@ -212,13 +217,24 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       ? GlobalVariables.darkTextPrimary
                       : GlobalVariables.textPrimary,
                 ),
-                onPressed: () {
+                onPressed: () async {
                   if (_channel == null) return;
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ChatInfoScreen(channel: _channel!),
-                    ),
-                  );
+                  final selectedMessageId = await Navigator.of(context)
+                      .push<String>(
+                        MaterialPageRoute(
+                          builder: (_) => ChatInfoScreen(channel: _channel!),
+                        ),
+                      );
+                  if (!mounted ||
+                      selectedMessageId == null ||
+                      selectedMessageId.isEmpty) {
+                    return;
+                  }
+
+                  setState(() {
+                    _initialMessageIdForJump = selectedMessageId;
+                    _channelViewVersion++;
+                  });
                 },
               ),
             ],
@@ -230,11 +246,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             elevation: 0,
           ),
           body: StreamChannel(
+            key: ValueKey(
+              '${_channel!.cid}_${_initialMessageIdForJump ?? 'latest'}_$_channelViewVersion',
+            ),
             channel: _channel!,
+            initialMessageId: _initialMessageIdForJump,
             child: Column(
               children: [
                 Expanded(
                   child: StreamMessageListView(
+                    highlightInitialMessage: _initialMessageIdForJump != null,
                     // Custom message để thêm avatar builder và reaction picker
                     // NHƯNG vẫn giữ nguyên default message với tất cả các actions
                     messageBuilder:
@@ -276,7 +297,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final channel = _channel;
     if (channel == null) {
       return Text(
-        widget.projectTitle ?? 'Chat',
+        widget.projectTitle ?? tr('chat_generic_title'),
         style: TextStyle(
           color: isDarkMode
               ? GlobalVariables.darkTextPrimary
@@ -330,7 +351,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   /// Resolve title cho direct channel từ danh sách members
   String _resolveDirectChannelTitleFromMembers(List<Member> members) {
-    return _channel?.getDirectDisplayName(members: members) ?? 'Chat';
+    return _channel?.getDirectDisplayName(members: members) ??
+        tr('chat_generic_title');
   }
 
   /// Build custom theme với avatar builder và reaction builder
@@ -397,7 +419,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       return fallbackTitle;
     }
 
-    if (channel == null) return 'Chat';
+    if (channel == null) return tr('chat_generic_title');
 
     final isDirect = _isDirectChannel(channel);
     if (isDirect) {
@@ -407,7 +429,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final displayName = channel.getDisplayName();
     if (displayName.trim().isNotEmpty) return displayName;
 
-    return 'Chat';
+    return tr('chat_generic_title');
   }
 
   bool _isDirectChannel(Channel channel) {
