@@ -97,12 +97,6 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                 controller: _descriptionController,
                 hintText: tr('enter_project_description'),
                 maxLines: 4,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return tr('validation_enter_project_desc');
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 24),
 

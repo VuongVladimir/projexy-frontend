@@ -77,25 +77,57 @@ class _PremiumUpgradeDialogState extends State<PremiumUpgradeDialog> {
   Future<void> _handleCheckout() async {
     setState(() => _isLoading = true);
 
-    final checkoutUrl = await PremiumService.createCheckout(
+    final checkoutData = await PremiumService.createCheckout(
       context: context,
       planType: _selectedPlan,
     );
 
-    if (checkoutUrl != null) {
-      final uri = Uri.parse(checkoutUrl);
-      if (await canLaunchUrl(uri)) {
+    if (checkoutData != null) {
+      final checkoutUrl = checkoutData['checkoutUrl']?.toString();
+      final orderCode = checkoutData['orderCode'] as int?;
+      final uri = checkoutUrl != null ? Uri.tryParse(checkoutUrl) : null;
+
+      if (uri != null && await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
 
+      if (mounted && orderCode != null) {
+        await _waitForPaymentApplied(orderCode);
+      }
+
       if (mounted) {
-        await Future.delayed(const Duration(seconds: 2));
         await PremiumService.refreshUserPremiumStatus(context);
         if (mounted) Navigator.of(context).pop(true);
       }
     }
 
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _waitForPaymentApplied(int orderCode) async {
+    const maxAttempts = 10;
+    const delay = Duration(seconds: 2);
+
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      if (!mounted) return;
+
+      String status = '';
+      await PremiumService.checkPaymentStatus(
+        context: context,
+        orderCode: orderCode,
+        onResult: (result) => status = result,
+      );
+
+      if (status == 'paid') {
+        return;
+      }
+
+      if (status == 'cancelled' || status == 'failed') {
+        return;
+      }
+
+      await Future.delayed(delay);
+    }
   }
 
   @override
@@ -179,7 +211,12 @@ class _PremiumUpgradeDialogState extends State<PremiumUpgradeDialog> {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.only(top: 12, left: 12, right: 12, bottom: 3),
+            padding: const EdgeInsets.only(
+              top: 12,
+              left: 12,
+              right: 12,
+              bottom: 3,
+            ),
             child: SvgPicture.asset(
               'assets/images/premium_1.svg',
               width: 42,

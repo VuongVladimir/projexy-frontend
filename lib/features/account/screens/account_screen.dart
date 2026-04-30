@@ -350,46 +350,120 @@ class AccountScreen extends StatelessWidget {
       ),
       items: [
         PopupMenuItem<void>(
-          enabled: false,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: SizedBox(
-            width: 250,
-            child: Row(
+            width: 260,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 30,
-                  height: 30,
-                  margin: const EdgeInsets.only(top: 1),
-                  child: SvgPicture.asset('assets/images/premium_1.svg'),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      margin: const EdgeInsets.only(top: 1),
+                      child: SvgPicture.asset('assets/images/premium_1.svg'),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            tr('premium_active_title'),
+                            style: const TextStyle(
+                              color: Color(0xFF5C3900),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            tr(
+                              'premium_active_until',
+                              namedArgs: {'date': premiumValidUntilText},
+                            ),
+                            style: const TextStyle(
+                              color: Color(0xFF7A5200),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        tr('premium_active_title'),
-                        style: TextStyle(
-                          color: Color(0xFF5C3900),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                const SizedBox(height: 21),
+                Align(
+                  alignment: Alignment.center,
+                  child: IntrinsicWidth(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (context.mounted) {
+                              PremiumUpgradeDialog.show(context);
+                            }
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 11,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFFFFD46A),
+                                Color(0xFFFFCC5C),
+                                Color(0xFFFFC056),
+                                Color(0xFFFFB85A),
+                                Color(0xFFFFAD60),
+                              ],
+                              stops: [0.0, 0.36, 0.85, 0.95, 1.0],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFFFFA726,
+                                ).withValues(alpha: 0.18),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.autorenew_rounded,
+                                color: Color(0xFF4A2A00),
+                                size: 19,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                tr('premium_renew_title'),
+                                style: const TextStyle(
+                                  color: Color(0xFF4A2A00),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        tr(
-                          'premium_active_until',
-                          namedArgs: {'date': premiumValidUntilText},
-                        ),
-                        style: const TextStyle(
-                          color: Color(0xFF7A5200),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ],

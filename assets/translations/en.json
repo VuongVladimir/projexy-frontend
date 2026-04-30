@@ -661,6 +661,7 @@
   "attributions_licenses": "Attributions & licenses",
   "premium_active_title": "Premium is active",
   "premium_active_until": "Valid until: {date}",
+  "premium_renew_title": "Renew Premium",
   "premium_upgrade_title": "Upgrade to Premium",
   "premium_upgrade_subtitle": "Unlock all premium features",
   "premium_upgrade_card_subtitle": "Unlock unlimited members, project chat, and more",

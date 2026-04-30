@@ -529,7 +529,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _project!.description ?? tr('no_description'),
+                    (_project!.description?.trim().isNotEmpty ?? false)
+                        ? _project!.description!.trim()
+                        : tr('no_description'),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: isDarkMode
                           ? GlobalVariables.darkTextSecondary

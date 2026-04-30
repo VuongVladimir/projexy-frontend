@@ -8,7 +8,7 @@ import 'package:frontend/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 
 class PremiumService {
-  static Future<String?> createCheckout({
+  static Future<Map<String, dynamic>?> createCheckout({
     required BuildContext context,
     required String planType,
   }) async {
@@ -20,10 +20,26 @@ class PremiumService {
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        return data['checkoutUrl'];
+        final checkoutUrl = data['checkoutUrl']?.toString();
+        final orderCodeRaw = data['orderCode'];
+        final orderCode = orderCodeRaw is int
+            ? orderCodeRaw
+            : int.tryParse(orderCodeRaw?.toString() ?? '');
+
+        if (checkoutUrl == null || checkoutUrl.isEmpty || orderCode == null) {
+          if (context.mounted) {
+            showSnackBar(context, 'Dữ liệu thanh toán không hợp lệ');
+          }
+          return null;
+        }
+
+        return {'checkoutUrl': checkoutUrl, 'orderCode': orderCode};
       } else {
         if (context.mounted) {
-          showSnackBar(context, jsonDecode(res.body)['msg'] ?? 'Lỗi tạo thanh toán');
+          showSnackBar(
+            context,
+            jsonDecode(res.body)['msg'] ?? 'Lỗi tạo thanh toán',
+          );
         }
         return null;
       }
@@ -66,9 +82,7 @@ class PremiumService {
     required Function(Map<String, dynamic>) onSuccess,
   }) async {
     try {
-      final res = await ApiClient.get(
-        url: '$uri/api/payment/premium-status',
-      );
+      final res = await ApiClient.get(url: '$uri/api/payment/premium-status');
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
