@@ -307,8 +307,8 @@ class AuthService {
             _servicesInitialized = true;
             _currentUserId = user.id;
 
-            // Initialize FCM after successful login với userId
-            FCMService.initialize(context, userId: user.id);
+            // Initialize FCM after successful login với userId (await để đảm bảo token được lưu)
+            await FCMService.initialize(context, userId: user.id);
 
             // Initialize Stream Chat after successful login
             if (user.id.isNotEmpty) {
@@ -390,7 +390,7 @@ class AuthService {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
 
       // Unregister FCM token before logout
-      await FCMService.unregister(context);
+      await FCMService.unregister();
 
       // Disconnect Stream Chat before logout
       await StreamChatService.dispose();

@@ -3,30 +3,36 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:frontend/features/account/screens/payment_history_screen.dart';
 import 'package:frontend/features/notifications/services/notification_service.dart';
 
 class FCMService {
   static final FirebaseMessaging _firebaseMessaging =
       FirebaseMessaging.instance;
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
   static bool _isInitializing = false;
-  static String? _currentUserId; // Track current user
+  static String? _currentUserId;
 
-  // Stream subscriptions to properly cancel listeners
   static StreamSubscription<String>? _tokenRefreshSubscription;
   static StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
   static StreamSubscription<RemoteMessage>? _messageOpenedSubscription;
 
+  static BuildContext? _navigatorContext;
+
   /// Initialize FCM
   static Future<void> initialize(BuildContext context, {String? userId}) async {
-    // Nếu đang khởi tạo, bỏ qua
+    debugPrint(
+      '🔔 [FCMService] initialize called, userId=$userId, _initialized=$_initialized, _isInitializing=$_isInitializing',
+    );
+
     if (_isInitializing) {
       debugPrint('⚠️ FCM is already initializing. Skipping duplicate call.');
       return;
     }
 
-    // Nếu user ID thay đổi, reset initialization
     if (_currentUserId != null && userId != null && _currentUserId != userId) {
       debugPrint(
         '⚠️ User changed from $_currentUserId to $userId. Resetting FCM.',
@@ -35,21 +41,27 @@ class FCMService {
       _currentUserId = userId;
     }
 
-    // Nếu đã khởi tạo cho user hiện tại, bỏ qua
     if (_initialized) {
+      debugPrint(
+        '🔔 [FCMService] Already initialized for user $_currentUserId, skipping',
+      );
       return;
     }
 
     _isInitializing = true;
     _initialized = true;
+    _navigatorContext = context;
     if (userId != null) {
       _currentUserId = userId;
     }
 
     try {
-      // Request permission for iOS
-      NotificationSettings settings = await _firebaseMessaging
-          .requestPermission(
+      // Initialize local notifications for foreground display
+      await _initLocalNotifications();
+
+      // Request permission
+      NotificationSettings settings =
+          await _firebaseMessaging.requestPermission(
             alert: true,
             announcement: false,
             badge: true,
@@ -60,76 +72,72 @@ class FCMService {
           );
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        debugPrint('User granted permission');
+        debugPrint('✅ User granted notification permission');
       } else if (settings.authorizationStatus ==
           AuthorizationStatus.provisional) {
-        debugPrint('User granted provisional permission');
+        debugPrint('✅ User granted provisional permission');
       } else {
-        debugPrint('User declined or has not accepted permission');
+        debugPrint('❌ User declined notification permission');
+        _isInitializing = false;
         return;
       }
 
-      // Get FCM token
+      // Get and save FCM token
       String? token = await _firebaseMessaging.getToken();
       if (token != null) {
-        debugPrint('✅ FCM initialized successfully. Token obtained.');
-
-        // Send token to backend
-        if (context.mounted) {
-          await NotificationService.saveFCMToken(
-            context: context,
-            token: token,
-            deviceId: await _getDeviceId(),
-            platform: _getPlatform(),
-          );
-        }
+        debugPrint(
+          '✅ FCM Token obtained: ${token.substring(0, 20)}...',
+        );
+        await NotificationService.saveFCMToken(
+          token: token,
+          deviceId: await _getDeviceId(),
+          platform: _getPlatform(),
+        );
+      } else {
+        debugPrint('❌ FCM Token is null!');
       }
 
-      // Listen for token refresh - store subscription for cleanup
+      // Listen for token refresh
       _tokenRefreshSubscription?.cancel();
       _tokenRefreshSubscription = _firebaseMessaging.onTokenRefresh.listen((
         newToken,
       ) async {
         debugPrint('🔄 FCM Token refreshed');
-        if (context.mounted) {
-          await NotificationService.saveFCMToken(
-            context: context,
-            token: newToken,
-            deviceId: await _getDeviceId(),
-            platform: _getPlatform(),
-          );
-        }
+        await NotificationService.saveFCMToken(
+          token: newToken,
+          deviceId: await _getDeviceId(),
+          platform: _getPlatform(),
+        );
       });
 
-      // Handle foreground messages - store subscription for cleanup
+      // Handle foreground messages - show system notification
       _foregroundMessageSubscription?.cancel();
       _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen((
         RemoteMessage message,
       ) {
-        debugPrint('📬 FCM: Foreground message received');
-        if (message.notification != null) {
-          // Show in-app notification
-          _showInAppNotification(context, message);
-        }
+        debugPrint('📬 FCM: Foreground message received: ${message.notification?.title}');
+        _showLocalNotification(message);
       });
 
-      // Handle background messages - store subscription for cleanup
+      // Handle notification tap when app is in background
       _messageOpenedSubscription?.cancel();
-      _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen((
-        RemoteMessage message,
-      ) {
+      _messageOpenedSubscription =
+          FirebaseMessaging.onMessageOpenedApp.listen((
+            RemoteMessage message,
+          ) {
         debugPrint('📱 FCM: App opened from notification');
         _handleNotificationTap(context, message);
       });
 
       // Check if app was launched from a notification
-      RemoteMessage? initialMessage = await _firebaseMessaging
-          .getInitialMessage();
+      RemoteMessage? initialMessage =
+          await _firebaseMessaging.getInitialMessage();
       if (initialMessage != null) {
         _handleNotificationTap(context, initialMessage);
       }
 
       _isInitializing = false;
+      debugPrint('✅ [FCMService] Initialization complete');
     } catch (e) {
       debugPrint('❌ Error initializing FCM: $e');
       _initialized = false;
@@ -137,14 +145,120 @@ class FCMService {
     }
   }
 
-  /// Get device ID (simplified version)
+  /// Initialize flutter_local_notifications
+  static Future<void> _initLocalNotifications() async {
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+
+    const initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+
+    await _localNotifications.initialize(
+      settings: initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        debugPrint('📱 Local notification tapped: ${response.payload}');
+        if (_navigatorContext != null && _navigatorContext!.mounted) {
+          _handleNotificationTapFromPayload(_navigatorContext!, response.payload);
+        }
+      },
+    );
+
+    // Create Android notification channel
+    if (!kIsWeb && Platform.isAndroid) {
+      const channel = AndroidNotificationChannel(
+        'projexy_notifications',
+        'Projexy Notifications',
+        description: 'Notifications from Projexy app',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+        showBadge: true,
+      );
+
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+
+      debugPrint('✅ Android notification channel created: projexy_notifications');
+    }
+  }
+
+  /// Show local system notification when app is in foreground
+  static Future<void> _showLocalNotification(RemoteMessage message) async {
+    final notification = message.notification;
+    if (notification == null) return;
+
+    const androidDetails = AndroidNotificationDetails(
+      'projexy_notifications',
+      'Projexy Notifications',
+      channelDescription: 'Notifications from Projexy app',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    // Encode type into payload for navigation on tap
+    final payload = message.data['type'] ?? '';
+
+    await _localNotifications.show(
+      id: notification.hashCode,
+      title: notification.title,
+      body: notification.body,
+      notificationDetails: details,
+      payload: payload,
+    );
+
+    debugPrint('✅ Local notification shown: ${notification.title}');
+  }
+
+  /// Handle notification tap from local notification payload
+  static void _handleNotificationTapFromPayload(
+    BuildContext context,
+    String? payload,
+  ) {
+    if (payload == null || payload.isEmpty) {
+      Navigator.pushNamed(context, '/notifications');
+      return;
+    }
+
+    switch (payload) {
+      case 'project_invitation':
+      case 'project_overdue':
+      case 'project_completed':
+        Navigator.pushNamed(context, '/notifications');
+        break;
+      case 'premium_upgraded':
+      case 'premium_expired':
+        Navigator.pushNamed(context, PaymentHistoryScreen.routeName);
+        break;
+      default:
+        Navigator.pushNamed(context, '/notifications');
+    }
+  }
+
   static Future<String> _getDeviceId() async {
-    // In a real app, you'd use device_info_plus or similar package
-    // For now, return a placeholder
     return 'device_${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  /// Get platform string
   static String _getPlatform() {
     if (kIsWeb) {
       return 'web';
@@ -156,49 +270,13 @@ class FCMService {
     return 'unknown';
   }
 
-  /// Show in-app notification when app is in foreground
-  static void _showInAppNotification(
-    BuildContext context,
-    RemoteMessage message,
-  ) {
-    if (!context.mounted) return;
-
-    final notification = message.notification;
-    if (notification == null) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              notification.title ?? 'Thông báo',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 4),
-            Text(notification.body ?? ''),
-          ],
-        ),
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: 'Xem',
-          onPressed: () {
-            _handleNotificationTap(context, message);
-          },
-        ),
-      ),
-    );
-  }
-
-  /// Handle notification tap
+  /// Handle notification tap from FCM RemoteMessage
   static void _handleNotificationTap(
     BuildContext context,
     RemoteMessage message,
   ) {
     debugPrint('Notification tapped: ${message.data}');
 
-    // Navigate based on notification type
     final data = message.data;
     final type = data['type'] as String?;
 
@@ -240,9 +318,8 @@ class FCMService {
   }
 
   /// Unregister FCM token (call when user logs out)
-  static Future<void> unregister(BuildContext context) async {
+  static Future<void> unregister() async {
     try {
-      // Cancel all stream subscriptions first to prevent stale context issues
       await _tokenRefreshSubscription?.cancel();
       _tokenRefreshSubscription = null;
       await _foregroundMessageSubscription?.cancel();
@@ -251,18 +328,15 @@ class FCMService {
       _messageOpenedSubscription = null;
 
       String? token = await _firebaseMessaging.getToken();
-      if (token != null && context.mounted) {
-        await NotificationService.deleteFCMToken(
-          context: context,
-          token: token,
-        );
+      if (token != null) {
+        await NotificationService.deleteFCMToken(token: token);
       }
       await _firebaseMessaging.deleteToken();
 
-      // Reset initialization flags and user ID
       _initialized = false;
       _isInitializing = false;
       _currentUserId = null;
+      _navigatorContext = null;
 
       debugPrint('✅ FCM token unregistered successfully');
     } catch (e) {

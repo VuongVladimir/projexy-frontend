@@ -5,7 +5,7 @@ import 'package:frontend/features/home/screens/home_screen.dart';
 import 'package:frontend/features/tasks/screens/tasks_screen.dart';
 
 String uri = "https://projexy-backend.me";
-//String uri = "http://192.168.1.188:3000";
+//String uri = "http://192.168.1.64:3000";
 const webScreenSize = 600;
 List<Widget> bottomBarItems = [
   const HomeScreen(),

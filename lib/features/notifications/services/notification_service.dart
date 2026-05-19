@@ -445,14 +445,16 @@ class NotificationService {
     }
   }
 
-  // Lưu FCM token
+  // Lưu FCM token (không cần context vì ApiClient dùng TokenManager)
   static Future<void> saveFCMToken({
-    required BuildContext context,
     required String token,
     String? deviceId,
     String? platform,
   }) async {
     try {
+      debugPrint(
+        '📤 [saveFCMToken] Sending token to backend: ${token.substring(0, 20)}..., platform=$platform',
+      );
       final response = await ApiClient.post(
         url: '$uri/api/user/fcm-token',
         body: json.encode({
@@ -463,18 +465,19 @@ class NotificationService {
       );
 
       if (response.statusCode == 200) {
-        debugPrint('FCM token saved successfully');
+        debugPrint('✅ [saveFCMToken] Token saved successfully');
       } else {
-        debugPrint('Failed to save FCM token: ${response.body}');
+        debugPrint(
+          '❌ [saveFCMToken] Failed: status=${response.statusCode}, body=${response.body}',
+        );
       }
     } catch (e) {
-      debugPrint('Error saving FCM token: $e');
+      debugPrint('❌ [saveFCMToken] Error: $e');
     }
   }
 
-  // Xóa FCM token
+  // Xóa FCM token (không cần context vì ApiClient dùng TokenManager)
   static Future<void> deleteFCMToken({
-    required BuildContext context,
     required String token,
   }) async {
     try {
