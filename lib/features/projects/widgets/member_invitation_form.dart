@@ -27,10 +27,61 @@ class MemberInvitationForm extends StatefulWidget {
 class _MemberInvitationFormState extends State<MemberInvitationForm> {
   final _emailController = TextEditingController();
   final _messageController = TextEditingController();
-  List<String> _invitedEmails = [];
+  final List<String> _invitedEmails = [];
   bool _isValidatingEmail = false;
   bool _isAddingEmail = false;
   String? _emailInlineError;
+
+  InputDecoration _buildFieldDecoration({
+    required bool isDarkMode,
+    required Widget prefixIcon,
+    String? hintText,
+    Widget? suffixIcon,
+    bool hasError = false,
+  }) {
+    final borderColor = hasError
+        ? GlobalVariables.errorRed
+        : GlobalVariables.darkBorderPrimary.withValues(alpha: 0.5);
+
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: isDarkMode
+          ? GlobalVariables.darkSurfaceCard
+          : GlobalVariables.surfaceCard,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(
+          color: hasError
+              ? GlobalVariables.errorRed
+              : GlobalVariables.primaryBlue,
+          width: 1.5,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: GlobalVariables.errorRed),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(
+          color: GlobalVariables.errorRed,
+          width: 1.5,
+        ),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    );
+  }
 
   @override
   void dispose() {
@@ -139,7 +190,9 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final maxChipWidth = MediaQuery.of(context).size.width * 0.7;
+    final maxChipWidth = (MediaQuery.of(context).size.width * 0.64)
+        .clamp(180.0, 320.0)
+        .toDouble();
     final emailList = _buildInvitedEmailsSection(isDarkMode, maxChipWidth);
 
     final fields = [
@@ -153,62 +206,47 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
         ),
       ),
       const SizedBox(height: 8),
-      Container(
-        decoration: BoxDecoration(
-          color: isDarkMode
-              ? GlobalVariables.darkSurfaceCard
-              : GlobalVariables.surfaceCard,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: _emailInlineError != null
-                ? GlobalVariables.errorRed
-                : GlobalVariables.darkBorderPrimary.withValues(alpha: 0.5),
+      TextField(
+        controller: _emailController,
+        keyboardType: TextInputType.emailAddress,
+        scrollPadding: const EdgeInsets.only(bottom: 120),
+        onChanged: (_) {
+          if (_emailInlineError != null) {
+            setState(() {
+              _emailInlineError = null;
+            });
+          }
+        },
+        onSubmitted: (value) {
+          if (_isAddingEmail) return;
+          _addEmail(value);
+        },
+        decoration: _buildFieldDecoration(
+          isDarkMode: isDarkMode,
+          hintText: tr('validation_enter_email'),
+          hasError: _emailInlineError != null,
+          prefixIcon: Icon(
+            Icons.email_outlined,
+            color: isDarkMode
+                ? GlobalVariables.darkTextSecondary
+                : GlobalVariables.textSecondary,
           ),
-        ),
-        child: TextField(
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          onChanged: (_) {
-            if (_emailInlineError != null) {
-              setState(() {
-                _emailInlineError = null;
-              });
-            }
-          },
-          onSubmitted: (value) {
-            if (_isAddingEmail) return;
-            _addEmail(value);
-          },
-          decoration: InputDecoration(
-            hintText: tr('validation_enter_email'),
-            prefixIcon: Icon(
-              Icons.email_outlined,
-              color: isDarkMode
-                  ? GlobalVariables.darkTextSecondary
-                  : GlobalVariables.textSecondary,
-            ),
-            suffixIcon: IconButton(
-              icon: _isValidatingEmail
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: isDarkMode
-                            ? GlobalVariables.darkTextSecondary
-                            : GlobalVariables.textSecondary,
-                      ),
-                    )
-                  : const Icon(Icons.add_rounded),
-              onPressed: (_isValidatingEmail || _isAddingEmail)
-                  ? null
-                  : () => _addEmail(_emailController.text),
-            ),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
+          suffixIcon: IconButton(
+            icon: _isValidatingEmail
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: isDarkMode
+                          ? GlobalVariables.darkTextSecondary
+                          : GlobalVariables.textSecondary,
+                    ),
+                  )
+                : const Icon(Icons.add_rounded),
+            onPressed: (_isValidatingEmail || _isAddingEmail)
+                ? null
+                : () => _addEmail(_emailController.text),
           ),
         ),
       ),
@@ -226,8 +264,10 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
             ),
           ),
         ),
-      ],
-      const SizedBox(height: 12),
+        const SizedBox(height: 12),
+      ] else
+        const SizedBox(height: 12),
+      if (_invitedEmails.isNotEmpty) ...[emailList, const SizedBox(height: 12)],
       Text(
         tr('invitation_message'),
         style: TextStyle(
@@ -238,39 +278,24 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
         ),
       ),
       const SizedBox(height: 8),
-      Container(
-        decoration: BoxDecoration(
-          color: isDarkMode
-              ? GlobalVariables.darkSurfaceCard
-              : GlobalVariables.surfaceCard,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: GlobalVariables.darkBorderPrimary.withValues(alpha: 0.5),
-          ),
-        ),
-        child: TextField(
-          controller: _messageController,
-          maxLines: 3,
-          onChanged: (value) {
-            widget.onEmailsChanged?.call(_invitedEmails, value.trim());
-          },
-          decoration: InputDecoration(
-            hintText: tr('add_message_introduce_project'),
-            prefixIcon: Icon(
-              Icons.message_outlined,
-              color: isDarkMode
-                  ? GlobalVariables.darkTextSecondary
-                  : GlobalVariables.textSecondary,
-            ),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
+      TextField(
+        controller: _messageController,
+        maxLines: 3,
+        scrollPadding: const EdgeInsets.only(bottom: 120),
+        onChanged: (value) {
+          widget.onEmailsChanged?.call(_invitedEmails, value.trim());
+        },
+        decoration: _buildFieldDecoration(
+          isDarkMode: isDarkMode,
+          hintText: tr('add_message_introduce_project'),
+          prefixIcon: Icon(
+            Icons.message_outlined,
+            color: isDarkMode
+                ? GlobalVariables.darkTextSecondary
+                : GlobalVariables.textSecondary,
           ),
         ),
       ),
-      if (_invitedEmails.isNotEmpty) ...[const SizedBox(height: 16), emailList],
     ];
 
     if (!widget.showSubmitButton) {
@@ -281,41 +306,69 @@ class _MemberInvitationFormState extends State<MemberInvitationForm> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: fields,
+    Widget submitButton() {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: _invitedEmails.isEmpty
+              ? null
+              : () {
+                  widget.onSubmit(
+                    _invitedEmails,
+                    _messageController.text.trim(),
+                  );
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: GlobalVariables.primaryBlue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
+          child: Text(widget.submitButtonText),
         ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _invitedEmails.isEmpty
-                ? null
-                : () {
-                    widget.onSubmit(
-                      _invitedEmails,
-                      _messageController.text.trim(),
-                    );
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: GlobalVariables.primaryBlue,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+      );
+    }
+
+    Widget formFields() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: fields,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!constraints.hasBoundedHeight) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              formFields(),
+              const SizedBox(height: 16),
+              submitButton(),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              fit: FlexFit.loose,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: formFields(),
               ),
             ),
-            child: Text(widget.submitButtonText),
-          ),
-        ),
-      ],
+            const SizedBox(height: 16),
+            submitButton(),
+          ],
+        );
+      },
     );
   }
 

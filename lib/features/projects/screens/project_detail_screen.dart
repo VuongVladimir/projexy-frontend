@@ -2360,6 +2360,13 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       context: context,
       builder: (dialogContext) {
         final media = MediaQuery.of(dialogContext);
+        final keyboardVisible = media.viewInsets.bottom > 0;
+        final availableHeight =
+            media.size.height - media.viewInsets.bottom - 48;
+        final maxDialogHeight = keyboardVisible
+            ? availableHeight.clamp(360.0, media.size.height * 0.86).toDouble()
+            : media.size.height * 0.86;
+
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -2369,52 +2376,48 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
             vertical: 24,
           ),
           child: SafeArea(
-            child: AnimatedPadding(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: media.size.height * 0.82,
-                  maxWidth: 560,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            tr('add_member'),
-                            style: Theme.of(dialogContext).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(dialogContext),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: MemberInvitationForm(
-                          validateEmailBeforeAdd:
-                              _validateInvitationEmailBeforeAdd,
-                          showSubmitButton: true,
-                          submitButtonText: tr('add_member'),
-                          onSubmit: (emails, message) async {
-                            Navigator.pop(dialogContext);
-                            await _sendProjectInvitationsWithProgress(
-                              emails: emails,
-                              message: message,
-                            );
-                          },
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: maxDialogHeight,
+                maxWidth: 560,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          tr('add_member'),
+                          style: Theme.of(dialogContext).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(dialogContext),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Flexible(
+                      child: MemberInvitationForm(
+                        validateEmailBeforeAdd:
+                            _validateInvitationEmailBeforeAdd,
+                        showSubmitButton: true,
+                        submitButtonText: tr('add_member'),
+                        onSubmit: (emails, message) async {
+                          Navigator.pop(dialogContext);
+                          await _sendProjectInvitationsWithProgress(
+                            emails: emails,
+                            message: message,
+                          );
+                        },
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
