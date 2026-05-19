@@ -4,6 +4,7 @@ import 'package:frontend/common/constants/global_variables.dart';
 import 'package:frontend/common/constants/http_handling.dart';
 import 'package:frontend/common/constants/utils.dart';
 import 'package:frontend/models/notification.dart';
+import 'package:http/http.dart' as http;
 
 class NotificationService {
   // Lấy danh sách notifications
@@ -213,38 +214,43 @@ class NotificationService {
     bool showErrorSnackBar = false,
   }) async {
     try {
-      final response = await ApiClient.post(
-        url: '$uri/api/notifications/project-invitations/send',
-        body: json.encode({
+      http.Response? response;
+      const int maxRetry = 1;
+
+      for (int attempt = 0; attempt <= maxRetry; attempt++) {
+        response = await ApiClient.post(
+          url: '$uri/api/notifications/project-invitations/send',
+          body: json.encode({
+            'email': email,
+            'projectId': projectId,
+            'message': message ?? '',
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          return {'success': true, 'email': email, 'message': ''};
+        }
+
+        final isTransientServerError =
+            response.statusCode == 502 ||
+            response.statusCode == 503 ||
+            response.statusCode == 504;
+        if (!isTransientServerError || attempt == maxRetry) {
+          break;
+        }
+
+        await Future.delayed(const Duration(milliseconds: 700));
+      }
+
+      if (response == null) {
+        return {
+          'success': false,
           'email': email,
-          'projectId': projectId,
-          'message': message ?? '',
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        return {'success': true, 'email': email, 'message': ''};
+          'message': 'Không thể gửi lời mời do lỗi mạng.',
+        };
       }
 
-      String errorMessage = 'Không thể gửi lời mời';
-      try {
-        final responseBody = response.body;
-        if (responseBody.isNotEmpty) {
-          final decoded = json.decode(responseBody);
-          if (decoded is Map<String, dynamic>) {
-            errorMessage =
-                decoded['msg']?.toString() ??
-                decoded['error']?.toString() ??
-                errorMessage;
-          } else {
-            errorMessage = responseBody;
-          }
-        }
-      } catch (_) {
-        if (response.body.isNotEmpty) {
-          errorMessage = response.body;
-        }
-      }
+      final errorMessage = _extractInvitationErrorMessage(response);
 
       if (context.mounted && showErrorSnackBar) {
         showSnackBar(context, errorMessage);
@@ -267,6 +273,51 @@ class NotificationService {
         'message': 'Lỗi không xác định',
       };
     }
+  }
+
+  static String _extractInvitationErrorMessage(http.Response response) {
+    final statusCode = response.statusCode;
+    if (statusCode == 504) {
+      return 'Máy chủ phản hồi quá chậm khi gửi lời mời. Vui lòng thử lại sau ít phút.';
+    }
+    if (statusCode == 502 || statusCode == 503) {
+      return 'Dịch vụ gửi lời mời đang tạm thời gián đoạn. Vui lòng thử lại sau.';
+    }
+    if (statusCode >= 500) {
+      return 'Hệ thống đang gặp sự cố khi gửi lời mời. Vui lòng thử lại sau.';
+    }
+
+    String errorMessage = 'Không thể gửi lời mời';
+    try {
+      final responseBody = response.body;
+      if (responseBody.isNotEmpty) {
+        final decoded = json.decode(responseBody);
+        if (decoded is Map<String, dynamic>) {
+          errorMessage =
+              decoded['msg']?.toString() ??
+              decoded['error']?.toString() ??
+              errorMessage;
+        } else {
+          errorMessage = responseBody;
+        }
+      }
+    } catch (_) {
+      if (response.body.isNotEmpty) {
+        errorMessage = response.body;
+      }
+    }
+
+    final lowerError = errorMessage.toLowerCase();
+    final isHtmlPayload =
+        (response.headers['content-type'] ?? '').contains('text/html') ||
+        lowerError.contains('<html') ||
+        lowerError.contains('<body');
+
+    if (isHtmlPayload) {
+      return 'Không thể gửi lời mời vào lúc này. Vui lòng thử lại sau.';
+    }
+
+    return errorMessage.trim();
   }
 
   static Future<void> acceptProjectInvitation({

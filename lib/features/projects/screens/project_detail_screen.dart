@@ -2519,7 +2519,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         } else {
           failedEmails.add({
             'email': email,
-            'message': (result['message']?.toString() ?? tr('unknown_error')),
+            'message': _sanitizeInvitationErrorMessage(
+              result['message']?.toString(),
+            ),
           });
         }
 
@@ -2635,6 +2637,27 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         ],
       ),
     );
+  }
+
+  String _sanitizeInvitationErrorMessage(String? rawMessage) {
+    final fallback = tr('unknown_error');
+    if (rawMessage == null || rawMessage.trim().isEmpty) {
+      return fallback;
+    }
+
+    final raw = rawMessage.trim();
+    final lower = raw.toLowerCase();
+
+    if (lower.contains('gateway time-out') || lower.contains('504')) {
+      return 'Máy chủ phản hồi quá chậm khi gửi lời mời. Vui lòng thử lại sau.';
+    }
+
+    final isHtml = lower.contains('<html') || lower.contains('<body');
+    if (isHtml) {
+      return 'Không thể gửi lời mời vào lúc này. Vui lòng thử lại sau.';
+    }
+
+    return raw;
   }
 
   Future<String?> _validateInvitationEmailBeforeAdd(String email) async {
